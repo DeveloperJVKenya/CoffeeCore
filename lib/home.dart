@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:coffeecore/screens/Cooperative%20Section/coffee_prices.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/coop_admin_management_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/market_manager_screen.dart';
@@ -88,7 +87,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-Future<void> _fetchUserData({int retryCount = 0, int maxRetries = 3}) async {
+  Future<void> _fetchUserData({int retryCount = 0, int maxRetries = 3}) async {
     if (_userId == null) return;
 
     try {
@@ -172,6 +171,11 @@ Future<void> _fetchUserData({int retryCount = 0, int maxRetries = 3}) async {
         }
       }
 
+      // For MainAdmins, set a default cooperative if none is set
+      if (isAdmin && cooperativeName == null && userCooperatives.isNotEmpty) {
+        cooperativeName = userCooperatives.first.replaceAll('_', ' ');
+      }
+
       String? profileImageBase64 = appUser.profileImage;
       Uint8List? decodedImage;
       try {
@@ -220,7 +224,7 @@ Future<void> _fetchUserData({int retryCount = 0, int maxRetries = 3}) async {
     }
   }
 
-void _listenToAuthState() {
+  void _listenToAuthState() {
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user != null) {
         logger.i('Auth state changed - User logged in: ${user.uid}');
@@ -787,95 +791,124 @@ void _listenToAuthState() {
     );
   }
 
+  List<Widget> _buildDrawerItems() {
+    List<Widget> items = [
+      GestureDetector(
+        onTap: () {
+          logger.i('Navigating to UserProfileScreen');
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const UserProfileScreen()));
+        },
+        child: UserAccountsDrawerHeader(
+          decoration: BoxDecoration(color: Colors.brown[700]),
+          accountName: Text(
+            _userData?['fullName'] ?? 'Loading...',
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          currentAccountPicture: CircleAvatar(
+            backgroundColor: Colors.white,
+            child: _profileImageBytes != null
+                ? ClipOval(
+                    child: Image.memory(
+                      _profileImageBytes!,
+                      fit: BoxFit.cover,
+                      width: 60,
+                      height: 60,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Icon(Icons.person, size: 40, color: Colors.brown[700]),
+                    ),
+                  )
+                : Icon(Icons.person, size: 40, color: Colors.brown[700]),
+          ),
+          accountEmail: null,
+        ),
+      ),
+      _buildDrawerItem(Icons.home, 'Home', () {
+        Navigator.pop(context);
+        setState(() {});
+      }),
+      _buildDrawerItem(Icons.cloud, 'Weather', () {
+        Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const WeatherScreen()));
+      }),
+      _buildDrawerItem(Icons.input, 'Field Data (Soil)', () {
+        logger.i('Navigating to CoffeeSoilHomePage, userId: $_userId');
+        if (_userId != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CoffeeSoilHomePage()),
+          );
+        } else {
+          logger.w('User ID is null, attempting refresh');
+          _fetchUserData();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('User ID not available. Retrying...')),
+          );
+        }
+      }),
+      _buildDrawerItem(Icons.pest_control, 'Pests & Diseases', () {
+        Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PestDiseaseHomePage()));
+      }),
+    ];
+
+    // Add Produce item for Admins, CoopAdmins, and MarketManagers
+    if (_isMainAdmin || _isCoopAdmin || _isMarketManager) {
+      items.add(_buildDrawerItem(Icons.landscape, 'Produce', () {
+        logger.i('Navigating to ProduceScreen with cooperative: $_cooperativeName');
+        String? coopName = _cooperativeName ??
+            (_userCooperatives.isNotEmpty
+                ? _userCooperatives.first.replaceAll('_', ' ')
+                : null);
+        if (coopName != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => ProduceScreen(cooperativeName: coopName)),
+          );
+        } else {
+          logger.w('No cooperative assigned for ProduceScreen navigation');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No cooperative assigned')),
+          );
+        }
+      }));
+    }
+
+    items.addAll([
+      _buildDrawerItem(Icons.supervisor_account, 'Farm Management', () {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const CoffeeManagementScreen()));
+      }),
+      _buildDrawerItem(Icons.book, 'Coffee Manuals', () {
+        Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ManualsScreen()));
+      }),
+      _buildDrawerItem(Icons.settings, 'Settings', () {
+        Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => SettingsScreen()));
+      }),
+      _buildDrawerItem(Icons.logout, 'Logout', _handleLogout),
+    ]);
+
+    return items;
+  }
+
   Widget _buildDrawer() {
+    logger.i('Building drawer - isMainAdmin: $_isMainAdmin, isCoopAdmin: $_isCoopAdmin, isMarketManager: $_isMarketManager, cooperativeName: $_cooperativeName');
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
-        children: [
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const UserProfileScreen()));
-            },
-            child: UserAccountsDrawerHeader(
-              decoration: BoxDecoration(color: Colors.brown[700]),
-              accountName: Text(
-                _userData?['fullName'] ?? 'Loading...',
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: Colors.white,
-                child: _profileImageBytes != null
-                    ? ClipOval(
-                        child: Image.memory(
-                          _profileImageBytes!,
-                          fit: BoxFit.cover,
-                          width: 60,
-                          height: 60,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Icon(Icons.person,
-                                  size: 40, color: Colors.brown[700]),
-                        ),
-                      )
-                    : Icon(Icons.person, size: 40, color: Colors.brown[700]),
-              ),
-              accountEmail: null,
-            ),
-          ),
-          _buildDrawerItem(Icons.home, 'Home', () {
-            Navigator.pop(context);
-            setState(() {});
-          }),
-          _buildDrawerItem(Icons.cloud, 'Weather', () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const WeatherScreen()));
-          }),
-          _buildDrawerItem(Icons.input, 'Field Data (Soil)', () {
-            logger.i('Navigating to CoffeeSoilHomePage, userId: $_userId');
-            if (_userId != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const CoffeeSoilHomePage()),
-              );
-            } else {
-              logger.w('User ID is null, attempting refresh');
-              _fetchUserData();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('User ID not available. Retrying...')),
-              );
-            }
-          }),
-          _buildDrawerItem(Icons.pest_control, 'Pests & Diseases', () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const PestDiseaseHomePage()));
-          }),
-          _buildDrawerItem(Icons.supervisor_account, 'Farm Management', () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const CoffeeManagementScreen()));
-          }),
-          _buildDrawerItem(Icons.book, 'Coffee Manuals', () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ManualsScreen()));
-          }),
-          _buildDrawerItem(Icons.settings, 'Settings', () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => SettingsScreen()));
-          }),
-          _buildDrawerItem(Icons.logout, 'Logout', _handleLogout),
-        ],
+        children: _buildDrawerItems(),
       ),
     );
   }
@@ -884,7 +917,17 @@ void _listenToAuthState() {
     return ListTile(
       leading: Icon(icon),
       title: Text(title),
-      onTap: onTap,
+      onTap: () {
+        logger.i('Drawer item tapped: $title');
+        try {
+          onTap();
+        } catch (e, stackTrace) {
+          logger.e('Error navigating from drawer item $title: $e\nStack trace: $stackTrace');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error navigating to $title: $e')),
+          );
+        }
+      },
     );
   }
 }

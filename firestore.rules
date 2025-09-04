@@ -162,9 +162,10 @@ service cloud.firestore {
       allow read: if collection.matches('.*_ProduceData') &&
                   (isAdmin() ||
                     isCoopAdmin(collection.replace('_ProduceData', '')) ||
+                    isMarketManager(collection.replace('_ProduceData', '')) ||
                     (isAuthenticated() && request.auth.uid == documentId));
       allow create: if collection.matches('.*_ProduceData') &&
-                      isAuthenticated() && request.auth.uid == documentId;
+                      (isAdmin() || (isAuthenticated() && request.auth.uid == documentId));
       allow update: if collection.matches('.*_ProduceData') &&
                       (isAdmin() ||
                       isCoopAdmin(collection.replace('_ProduceData', '')) ||
