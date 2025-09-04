@@ -282,6 +282,53 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
   }
 
   Widget _buildGaugeVisualization(String nutrient, double value) {
+  final ranges = NutrientAnalysisHelper.optimalValues[_selectedStage]?[nutrient];
+  if (ranges == null) return const SizedBox.shrink();
+
+  // ignore: unused_local_variable
+  final low = ranges['low'] ?? 0;
+  final optimal = ranges['optimal'] ?? 0;
+  final high = ranges['high'] ?? 0;
+
+  final maxValue = high * 1.5;
+  final position = (value / maxValue).clamp(0.0, 1.0);
+
+  return Column(
+    children: [
+      Container(
+        height: 20,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          gradient: const LinearGradient(
+            colors: [Colors.red, Colors.orange, Colors.green, Colors.orange, Colors.red],
+            stops: [0.0, 0.25, 0.5, 0.75, 1.0],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              left: position * (MediaQuery.of(context).size.width - 64),
+              child: Container(
+                width: 4,
+                height: 20,
+                color: Colors.black,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 4),
+      Center(
+        child: Text(
+          'Optimal: ${optimal.toStringAsFixed(1)}',
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+      ),
+    ],
+  );
+}
+
+  /*Widget _buildGaugeVisualization(String nutrient, double value) {
     final ranges = NutrientAnalysisHelper.optimalValues[_selectedStage]?[nutrient];
     if (ranges == null) return const SizedBox.shrink();
 
@@ -327,7 +374,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
         ),
       ],
     );
-  }
+  }*/
 
   Widget _buildRecommendationTabs(String nutrient, Map<String, String> recommendations) {
     return Container(
