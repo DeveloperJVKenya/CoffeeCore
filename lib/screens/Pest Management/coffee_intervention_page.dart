@@ -106,7 +106,7 @@ class _CoffeeInterventionPageState extends State<CoffeeInterventionPage> {
                 title: const Text('Use Square Meters (SQM)', style: TextStyle(color: Colors.black87)),
                 value: _useSQM,
                 onChanged: (value) => setState(() => _useSQM = value),
-                activeColor: const Color(0xFF6F4E37),
+                activeThumbColor: const Color(0xFF6F4E37),
               ),
               const SizedBox(height: 24),
               Column(

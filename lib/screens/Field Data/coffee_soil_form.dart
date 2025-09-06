@@ -763,84 +763,83 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
   }
 
   Future<void> _saveForm() async {
-    final currentContext = context; // Capture context
+    // Validate the form first
+    if (!_formKey.currentState!.validate()) return;
+
+    // Prompt for new plot ID
+    String? newPlotId = await _promptPlotId(context);
+    if (newPlotId == null) {
+      developer.log('User cancelled plot ID prompt', name: 'CoffeeSoilForm');
+      return;
+    }
+
     try {
-      if (_formKey.currentState!.validate()) {
-        String? newPlotId = await _promptPlotId(currentContext);
-        if (newPlotId == null) {
-          developer.log('User cancelled plot ID prompt', name: 'CoffeeSoilForm');
-          return;
-        }
+      // Fetch existing plots
+      final querySnapshot = await FirebaseFirestore.instance.collection('Users').doc(widget.userId).get();
+      final existingPlots = (querySnapshot.data()?['plots']?['plotIds'] as List<dynamic>?)?.cast<String>() ?? [];
 
-        // Check for duplicate plot ID in Firestore
-        final querySnapshot = await FirebaseFirestore.instance
-            .collection('Users')
-            .doc(widget.userId)
-            .get();
-        final existingPlots = (querySnapshot.data()?['plots']?['plotIds'] as List<dynamic>?)?.cast<String>() ?? [];
-        if (existingPlots.contains(newPlotId)) {
-          if (mounted) {
-            ScaffoldMessenger.of(currentContext).showSnackBar(
-              const SnackBar(
-                content: Text('Plot ID already exists. Please choose a unique ID.'),
-                backgroundColor: Color(0xFF4A2C2A),
-              ),
-            );
-          }
-          return;
-        }
-
-        developer.log('Saving soil data for user: ${widget.userId}, plot: $newPlotId', name: 'CoffeeSoilForm');
-
-        final soilData = CoffeeSoilData(
-          userId: widget.userId,
-          plotId: newPlotId,
-          stage: _selectedStage,
-          soilType: _selectedSoilType,
-          ph: _controllers['pH']!.text.isNotEmpty ? double.parse(_controllers['pH']!.text) : null,
-          nitrogen: _controllers['nitrogen']!.text.isNotEmpty ? double.parse(_controllers['nitrogen']!.text) : null,
-          phosphorus: _controllers['phosphorus']!.text.isNotEmpty ? double.parse(_controllers['phosphorus']!.text) : null,
-          potassium: _controllers['potassium']!.text.isNotEmpty ? double.parse(_controllers['potassium']!.text) : null,
-          magnesium: _controllers['magnesium']!.text.isNotEmpty ? double.parse(_controllers['magnesium']!.text) : null,
-          calcium: _controllers['calcium']!.text.isNotEmpty ? double.parse(_controllers['calcium']!.text) : null,
-          zinc: _controllers['zinc']!.text.isNotEmpty ? double.parse(_controllers['zinc']!.text) : null,
-          boron: _controllers['boron']!.text.isNotEmpty ? double.parse(_controllers['boron']!.text) : null,
-          plantDensity: _plantDensity,
-          interventionMethod: _interventionMethod,
-          interventionQuantity: _interventionQuantity,
-          interventionUnit: _interventionUnit,
-          interventionFollowUpDate: _interventionFollowUpDate != null ? Timestamp.fromDate(_interventionFollowUpDate!) : null,
-          recommendations: _saveWithRecommendations ? _allRecommendations : null,
-          saveWithRecommendations: _saveWithRecommendations,
-          timestamp: Timestamp.now(),
-          isDeleted: false,
-        );
-
-        final docId = '${widget.userId}_${soilData.timestamp.millisecondsSinceEpoch}';
-        await FirebaseFirestore.instance
-            .collection('SoilData')
-            .doc(docId)
-            .set(soilData.toMap());
-
-        developer.log('Successfully saved soil data with ID: $docId', name: 'CoffeeSoilForm');
+      // Check for duplicate plot ID
+      if (existingPlots.contains(newPlotId)) {
         if (mounted) {
-          ScaffoldMessenger.of(currentContext).showSnackBar(
-            SnackBar(
-              content: Text(_saveWithRecommendations
-                  ? 'Soil data saved with recommendations'
-                  : 'Soil data saved'),
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Plot ID already exists. Please choose a unique ID.'),
               backgroundColor: Color(0xFF4A2C2A),
             ),
           );
         }
-
-        widget.onSave(widget.plotId, newPlotId);
-        _resetForm();
+        return;
       }
-    } catch (e, stackTrace) {
-      developer.log('Error saving soil data: $e', name: 'CoffeeSoilForm', error: e, stackTrace: stackTrace);
+
+      developer.log('Saving soil data for user: ${widget.userId}, plot: $newPlotId', name: 'CoffeeSoilForm');
+
+      // Create soil data object
+      final soilData = CoffeeSoilData(
+        userId: widget.userId,
+        plotId: newPlotId,
+        stage: _selectedStage,
+        soilType: _selectedSoilType,
+        ph: _controllers['pH']!.text.isNotEmpty ? double.parse(_controllers['pH']!.text) : null,
+        nitrogen: _controllers['nitrogen']!.text.isNotEmpty ? double.parse(_controllers['nitrogen']!.text) : null,
+        phosphorus: _controllers['phosphorus']!.text.isNotEmpty ? double.parse(_controllers['phosphorus']!.text) : null,
+        potassium: _controllers['potassium']!.text.isNotEmpty ? double.parse(_controllers['potassium']!.text) : null,
+        magnesium: _controllers['magnesium']!.text.isNotEmpty ? double.parse(_controllers['magnesium']!.text) : null,
+        calcium: _controllers['calcium']!.text.isNotEmpty ? double.parse(_controllers['calcium']!.text) : null,
+        zinc: _controllers['zinc']!.text.isNotEmpty ? double.parse(_controllers['zinc']!.text) : null,
+        boron: _controllers['boron']!.text.isNotEmpty ? double.parse(_controllers['boron']!.text) : null,
+        plantDensity: _plantDensity,
+        interventionMethod: _interventionMethod,
+        interventionQuantity: _interventionQuantity,
+        interventionUnit: _interventionUnit,
+        interventionFollowUpDate: _interventionFollowUpDate != null ? Timestamp.fromDate(_interventionFollowUpDate!) : null,
+        recommendations: _saveWithRecommendations ? _allRecommendations : null,
+        saveWithRecommendations: _saveWithRecommendations,
+        timestamp: Timestamp.now(),
+        isDeleted: false,
+      );
+
+      // Save soil data to Firestore
+      final docId = '${widget.userId}_${soilData.timestamp.millisecondsSinceEpoch}';
+      await FirebaseFirestore.instance.collection('SoilData').doc(docId).set(soilData.toMap());
+
+      developer.log('Successfully saved soil data with ID: $docId', name: 'CoffeeSoilForm');
       if (mounted) {
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_saveWithRecommendations
+                ? 'Soil data saved with recommendations'
+                : 'Soil data saved'),
+            backgroundColor: Color(0xFF4A2C2A),
+          ),
+        );
+      }
+
+      widget.onSave(widget.plotId, newPlotId);
+      _resetForm();
+    } catch (e) {
+      developer.log('Error saving soil data: $e', name: 'CoffeeSoilForm', error: e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Unable to save soil data. Please check your connection and try again.'),
             backgroundColor: Color(0xFF4A2C2A),
