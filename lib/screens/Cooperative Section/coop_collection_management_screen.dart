@@ -1,13 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:coffeecore/utils/excel_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:intl/intl.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:excel/excel.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'dart:io';
 
 class CoopCollectionManagementScreen extends StatefulWidget {
   final String cooperativeName;
@@ -306,26 +303,6 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
 
   Future<void> _exportToExcel(List<QueryDocumentSnapshot> docs) async {
     try {
-      // Determine output path
-      String outputPath;
-      try {
-        final downloadsDir = await getDownloadsDirectory();
-        outputPath = downloadsDir?.path ?? '/storage/emulated/0/Download';
-      } catch (e) {
-        logger.w('Failed to get Downloads directory: $e');
-        outputPath = '/storage/emulated/0/Download';
-      }
-
-      if (Platform.isAndroid) {
-        outputPath = '/storage/emulated/0/Download';
-      } else if (Platform.isIOS) {
-        outputPath = (await getApplicationDocumentsDirectory()).path;
-      }
-
-      // Create Excel file
-      var excel = Excel.createExcel();
-      Sheet sheet = excel[_collectionDisplayNames[widget.collectionName] ?? 'Data'];
-
       // Define fields
       final firstDocData = docs.isNotEmpty ? docs.first.data() as Map<String, dynamic> : {};
       List<String> fields = [];
@@ -365,12 +342,11 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
         fields = ['unknown'];
       }
 
-      // Write headers
+      // Define headers
       List<String> headers = ['Full Name', ...fields];
       if (widget.collectionName == 'coffeeprices') {
         headers = ['Variety', ...fields, 'Updated By'];
       }
-      sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
 
       // Prepare data
       List<Map<String, dynamic>> exportData = [];
@@ -408,59 +384,26 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
         exportData.add(rowData);
       }
 
-      // Write data to Excel
-      for (var data in exportData) {
-        List<TextCellValue> row = [
-          TextCellValue(data['fullName']),
-          ...fields.map((field) => TextCellValue(data[field])),
-        ];
-        if (widget.collectionName == 'coffeeprices') {
-          row.add(TextCellValue(data['updatedBy']));
-        }
-        sheet.appendRow(row);
-      }
-
       // Generate file name with timestamp
       String timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
       String fileName = '${_collectionDisplayNames[widget.collectionName]}_$timestamp.xlsx';
-      String fullPath = '${outputPath.replaceAll(RegExp(r'/+$'), '')}/$fileName';
 
-      // Save file
-      File excelFile = File(fullPath);
-      await excelFile.create(recursive: true);
-      await excelFile.writeAsBytes(excel.encode()!);
+      // Call ExcelUtils to generate and share the Excel file, but only if mounted
+      if (mounted) {
+        await ExcelUtils.downloadExcel(
+          context: context,
+          data: exportData,
+          headers: headers,
+          fileName: fileName,
+          shareText: '${_collectionDisplayNames[widget.collectionName]} Export: $fileName',
+          logger: logger,
+        );
+      }
 
-      // Log activity
+      // Log activity (no context needed)
       await _logActivity(
         'Exported ${_collectionDisplayNames[widget.collectionName]!.toLowerCase()} to Excel file $fileName in cooperative ${widget.cooperativeName}',
       );
-
-      // Show success message with share option
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Excel saved to Downloads: $fileName'),
-            action: SnackBarAction(
-              label: 'Share',
-              onPressed: () async {
-                try {
-                  await Share.shareXFiles(
-                    [XFile(fullPath)],
-                    text: '${_collectionDisplayNames[widget.collectionName]} Export: $fileName',
-                  );
-                } catch (e) {
-                  logger.e('Error sharing file: $e');
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error sharing file: $e')),
-                    );
-                  }
-                }
-              },
-            ),
-          ),
-        );
-      }
     } catch (e) {
       logger.e('Error exporting to Excel: $e');
       if (mounted) {

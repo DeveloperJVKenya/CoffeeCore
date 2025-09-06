@@ -156,10 +156,16 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
               label: 'Share',
               onPressed: () async {
                 try {
-                  await Share.shareXFiles(
-                    [XFile(fullPath)],
+                  final box = context.findRenderObject() as RenderBox?;
+                  final shareParams = ShareParams(
+                    files: [XFile(fullPath)],
                     text: 'Filtered Users Export: $fileName',
+                    // Include sharePositionOrigin only if box is non-null and on iOS
+                    sharePositionOrigin: (box != null && Platform.isIOS)
+                        ? box.localToGlobal(Offset.zero) & box.size
+                        : null,
                   );
+                  await SharePlus.instance.share(shareParams);
                 } catch (e) {
                   logger.e('Error sharing file: $e');
                   if (mounted) {

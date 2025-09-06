@@ -1,10 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:coffeecore/utils/excel_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
-import 'package:excel/excel.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'dart:io';
 import 'package:coffeecore/utils/role_utils.dart';
 
 class FilterUsersScreen extends StatefulWidget {
@@ -136,26 +133,7 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
 
   Future<void> _downloadExcel(List<Map<String, dynamic>> filteredUsers) async {
     try {
-      String outputPath;
-      try {
-        final downloadsDir = await getDownloadsDirectory();
-        outputPath = downloadsDir?.path ?? '/storage/emulated/0/Download';
-        logger.i('Downloads path from getDownloadsDirectory: $outputPath');
-      } catch (e) {
-        logger.w('Failed to get Downloads directory: $e');
-        outputPath = '/storage/emulated/0/Download';
-      }
-
-      if (Platform.isAndroid) {
-        outputPath = '/storage/emulated/0/Download';
-      } else if (Platform.isIOS) {
-        outputPath = (await getApplicationDocumentsDirectory()).path;
-      }
-      logger.i('Final Downloads path: $outputPath');
-
-      var excel = Excel.createExcel();
-      Sheet sheet = excel['Users'];
-
+      // Define headers
       List<String> headers = [
         'Full Name',
         'Email',
@@ -166,60 +144,35 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
         'Role',
         'Status',
       ];
-      sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
 
-      for (var user in filteredUsers) {
-        sheet.appendRow([
-          TextCellValue(user['fullName'] ?? 'N/A'),
-          TextCellValue(user['email'] ?? 'N/A'),
-          TextCellValue(user['county'] ?? 'N/A'),
-          TextCellValue(user['constituency'] ?? 'N/A'),
-          TextCellValue(user['ward'] ?? 'N/A'),
-          TextCellValue(user['phoneNumber'] ?? 'N/A'),
-          TextCellValue(user['role'] ?? 'User'),
-          TextCellValue(user['isDisabled'] == true ? 'Disabled' : 'Active'),
-        ]);
-      }
+      // Prepare data
+      List<Map<String, dynamic>> exportData = filteredUsers.map((user) {
+        return {
+          'fullName': user['fullName']?.toString() ?? 'N/A',
+          'email': user['email']?.toString() ?? 'N/A',
+          'county': user['county']?.toString() ?? 'N/A',
+          'constituency': user['constituency']?.toString() ?? 'N/A',
+          'ward': user['ward']?.toString() ?? 'N/A',
+          'phoneNumber': user['phoneNumber']?.toString() ?? 'N/A',
+          'role': user['role']?.toString() ?? 'User',
+          'status': user['isDisabled'] == true ? 'Disabled' : 'Active',
+        };
+      }).toList();
 
+      // Generate file name with timestamp
       String timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
       String fileName = 'Filtered_Users_$timestamp.xlsx';
-      String fullPath = '${outputPath.replaceAll(RegExp(r'/+$'), '')}/$fileName';
-      logger.i('Saving to: $fullPath');
 
-      File excelFile = File(fullPath);
-      await excelFile.create(recursive: true);
-      await excelFile.writeAsBytes(excel.encode()!);
-
-      if (await excelFile.exists()) {
-        logger.i('File exists at $fullPath, size: ${await excelFile.length()} bytes');
-      } else {
-        logger.w('File does not exist at $fullPath');
-      }
-
+      // Call ExcelUtils to generate and share the Excel file, but only if mounted
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Excel saved to Downloads: $fileName'),
-            action: SnackBarAction(
-              label: 'Share',
-              onPressed: () async {
-                try {
-                  await Share.shareXFiles(
-                    [XFile(fullPath)],
-                    text: 'Filtered Users Export: $fileName',
-                  );
-                  logger.i('File shared: $fullPath');
-                } catch (e) {
-                  logger.e('Error sharing file: $e');
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error sharing file: $e')),
-                    );
-                  }
-                }
-              },
-            ),
-          ),
+        await ExcelUtils.downloadExcel(
+          context: context,
+          data: exportData,
+          headers: headers,
+          fileName: fileName,
+          shareText: 'Filtered Users Export: $fileName',
+          logger: logger,
+          sheetName: 'Users',
         );
       }
     } catch (e) {
