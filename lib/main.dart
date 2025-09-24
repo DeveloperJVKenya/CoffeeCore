@@ -5,12 +5,29 @@ import 'package:coffeecore/authentication/login.dart';
 import 'package:coffeecore/authentication/registration.dart';
 import 'package:coffeecore/home.dart';
 import 'firebase_options.dart';
+import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Enable edge-to-edge mode globally
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+  // Set transparent overlays (avoids deprecated color APIs)
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,  // Transparent status bar
+      statusBarBrightness: Brightness.dark,  // Dark icons for light backgrounds (or light for dark)
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.transparent,  // Transparent nav bar
+      systemNavigationBarContrastEnforced: false,  // Allow drawing behind (set true for varying backgrounds)
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
+
   runApp(const MyApp());
 }
 

@@ -3,11 +3,8 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
-    // START: FlutterFire Configuration
     id("com.google.gms.google-services")
-    // END: FlutterFire Configuration
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -19,7 +16,7 @@ val keystoreProperties = Properties().apply {
 android {
     namespace = "com.jvalmacis.coffeecore"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "29.0.14033849"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -36,9 +33,12 @@ android {
         applicationId = "com.jvalmacis.coffeecore"
         minSdk = flutter.minSdkVersion.toInt()
         targetSdk = flutter.targetSdkVersion.toInt()
-        versionCode = 5
-        versionName = "1.0.4"
+        versionCode = 6 // Incremented to avoid conflict with version 5
+        versionName = "1.0.5"
         multiDexEnabled = true
+        ndk {
+            abiFilters.addAll(listOf("arm64-v8a", "x86_64")) // 64-bit ABIs for 16 KB compliance
+        }
     }
 
     signingConfigs {
@@ -62,6 +62,14 @@ android {
         }
     }
 
+    packaging {
+        jniLibs {
+            pickFirsts.add("**/libc++_shared.so") // Common in Flutter and Firebase
+            pickFirsts.add("**/libflutter.so")    // Flutter engine
+            pickFirsts.add("**/libpdfium.so")     // For flutter_pdfview
+        }
+    }
+
     tasks.withType<JavaCompile>().configureEach {
         options.compilerArgs.addAll(listOf("-Xlint:-options", "-Xlint:-deprecation"))
     }
@@ -74,8 +82,7 @@ flutter {
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-
     implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
-    implementation("com.google.firebase:firebase-messaging")
-    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-messaging:24.1.0")
+    implementation("com.google.firebase:firebase-analytics:22.1.0")
 }

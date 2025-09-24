@@ -21,7 +21,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 import 'dart:convert';
-import 'dart:typed_data';
+import 'package:flutter/services.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -423,72 +423,90 @@ class _HomePageState extends State<HomePage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(MediaQuery.of(context).size.height * 0.10),
-        child: AppBar(
-          title: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'CoffeeCore',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarBrightness: Brightness.dark,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        extendBody: true,
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(MediaQuery.of(context).size.height * 0.10),
+          child: AppBar(
+            title: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'CoffeeCore',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
                 ),
+                Text(
+                  _getRoleSubtitle(),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.brown[700],
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white, size: 40),
+                onPressed: () => Scaffold.of(context).openDrawer(),
               ),
-              Text(
-                _getRoleSubtitle(),
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                  fontWeight: FontWeight.normal,
-                ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.notifications, color: Colors.white, size: 40),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const NotificationsSettingsScreen()),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.search, color: Colors.white, size: 40),
+                onPressed: () {},
               ),
             ],
           ),
-          backgroundColor: Colors.brown[700],
-          leading: Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white, size: 40),
-              onPressed: () => Scaffold.of(context).openDrawer(),
+        ),
+        drawer: _buildDrawer(),
+        body: Padding(
+          padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top,
+            bottom: MediaQuery.of(context).padding.bottom,
+          ),
+          child: Container(
+            color: Colors.grey[200],
+            child: Column(
+              children: [
+                Flexible(
+                  child: _buildCarousel(),
+                ),
+                _buildClickableSections(),
+                _buildRoleBasedButtons(),
+              ],
             ),
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.notifications, color: Colors.white, size: 40),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) =>
-                          const NotificationsSettingsScreen()),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.search, color: Colors.white, size: 40),
-              onPressed: () {},
-            ),
-          ],
         ),
+        bottomNavigationBar: _buildBottomNavigationBar(),
       ),
-      drawer: _buildDrawer(),
-      body: Container(
-        color: Colors.grey[200],
-        child: Column(
-          children: [
-            Flexible(
-              child: _buildCarousel(),
-            ),
-            _buildClickableSections(),
-            _buildRoleBasedButtons(),
-          ],
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
