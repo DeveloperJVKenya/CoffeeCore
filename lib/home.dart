@@ -171,7 +171,6 @@ class _HomePageState extends State<HomePage> {
         }
       }
 
-      // For MainAdmins, set a default cooperative if none is set
       if (isAdmin && cooperativeName == null && userCooperatives.isNotEmpty) {
         cooperativeName = userCooperatives.first.replaceAll('_', ' ');
       }
@@ -435,123 +434,125 @@ class _HomePageState extends State<HomePage> {
       child: Scaffold(
         extendBodyBehindAppBar: true,
         extendBody: true,
-        appBar: PreferredSize(
-          preferredSize: Size.fromHeight(MediaQuery.of(context).size.height * 0.10),
-          child: AppBar(
-            title: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'CoffeeCore',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                ),
-                Text(
-                  _getRoleSubtitle(),
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                    fontWeight: FontWeight.normal,
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.brown[700],
-            leading: Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white, size: 40),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.notifications, color: Colors.white, size: 40),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) =>
-                            const NotificationsSettingsScreen()),
-                  );
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.search, color: Colors.white, size: 40),
-                onPressed: () {},
-              ),
-            ],
-          ),
-        ),
+        appBar: _buildAppBar(context),
         drawer: _buildDrawer(),
-        body: Padding(
-          padding: EdgeInsets.only(
-            top: MediaQuery.of(context).padding.top,
-            bottom: MediaQuery.of(context).padding.bottom,
-          ),
-          child: Container(
-            color: Colors.grey[200],
-            child: Column(
-              children: [
-                Flexible(
-                  child: _buildCarousel(),
-                ),
-                _buildClickableSections(),
-                _buildRoleBasedButtons(),
-              ],
-            ),
-          ),
-        ),
+        body: _buildBody(context),
         bottomNavigationBar: _buildBottomNavigationBar(),
       ),
     );
   }
 
+    PreferredSizeWidget _buildAppBar(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final appBarHeight = screenHeight * 0.08; // Responsive height
+    
+    return PreferredSize(
+      preferredSize: Size.fromHeight(appBarHeight),
+      child: AppBar(
+        title: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'CoffeeCore',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: screenHeight * 0.025, // Responsive font size
+              ),
+            ),
+            Text(
+              _getRoleSubtitle(),
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: screenHeight * 0.018,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.brown[700],
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: Icon(Icons.menu, color: Colors.white, size: screenHeight * 0.035),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.notifications, color: Colors.white, size: screenHeight * 0.035),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationsSettingsScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.search, color: Colors.white, size: screenHeight * 0.035),
+            onPressed: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+    final appBarHeight = MediaQuery.of(context).size.height * 0.08;
+    
+    return SafeArea(
+      top: false,
+      child: Column(
+        children: [
+          SizedBox(height: statusBarHeight + appBarHeight),
+          Expanded(
+            flex: 50, // Increased carousel space
+            child: _buildCarousel(),
+          ),
+          Expanded(
+            flex: 35, // Clickable cards space
+            child: _buildClickableSections(),
+          ),
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.08, // Fixed height for buttons
+            child: _buildRoleBasedButtons(),
+          ),
+          const SizedBox(height: 8), // Small buffer before bottom nav
+        ],
+      ),
+    );
+  }
+
   Widget _buildRoleBasedButtons() {
-    logger.i('Building role-based buttons - isMainAdmin: $_isMainAdmin, isCoopAdmin: $_isCoopAdmin, isMarketManager: $_isMarketManager, isCoopRegistered: $_isCoopRegistered, cooperativeName: $_cooperativeName');
-    if (_isMainAdmin) {
-      return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _buildAdminButton(),
-      );
-    } else if (_isCoopAdmin) {
-      return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _buildCoopAdminButton(),
-      );
-    } else if (_isMarketManager) {
-      return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Expanded(child: _buildMenuButton(context)),
-            const SizedBox(width: 16.0),
-            Expanded(child: _buildMarketManagerButton()),
-          ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Center(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isMainAdmin) _buildAdminButton(),
+              if (_isCoopAdmin) _buildCoopAdminButton(),
+              if (_isMarketManager) ...[
+                _buildMenuButton(context),
+                const SizedBox(width: 8),
+                _buildMarketManagerButton(),
+              ],
+              if (_isCoopRegistered && !_isMainAdmin && !_isCoopAdmin && !_isMarketManager) ...[
+                _buildMenuButton(context),
+                const SizedBox(width: 8),
+                _buildProduceButton(),
+              ],
+              if (!_isMainAdmin && !_isCoopAdmin && !_isMarketManager && !_isCoopRegistered)
+                _buildMenuButton(context),
+            ],
+          ),
         ),
-      );
-    } else if (_isCoopRegistered) {
-      return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Expanded(child: _buildMenuButton(context)),
-            const SizedBox(width: 16.0),
-            Expanded(child: _buildProduceButton()),
-          ],
-        ),
-      );
-    } else {
-      return Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _buildMenuButton(context),
-      );
-    }
+      ),
+    );
   }
 
   Widget _buildAdminButton() {
@@ -562,12 +563,13 @@ class _HomePageState extends State<HomePage> {
           MaterialPageRoute(builder: (context) => const AdminManagementScreen()),
         );
       },
-      icon: const Icon(Icons.admin_panel_settings, color: Colors.white),
-      label: const Text('Admin Management', style: TextStyle(color: Colors.white)),
+      icon: const Icon(Icons.admin_panel_settings, color: Colors.white, size: 18),
+      label: const Text('Admin Management', style: TextStyle(color: Colors.white, fontSize: 13)),
       style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         backgroundColor: Colors.brown[700],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 2,
       ),
     );
   }
@@ -577,17 +579,16 @@ class _HomePageState extends State<HomePage> {
       onPressed: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-              builder: (context) => const CoopAdminManagementScreen()),
+          MaterialPageRoute(builder: (context) => const CoopAdminManagementScreen()),
         );
       },
-      icon: const Icon(Icons.group, color: Colors.white),
-      label: const Text('Co-op Admin Management',
-          style: TextStyle(color: Colors.white)),
+      icon: const Icon(Icons.group, color: Colors.white, size: 18),
+      label: const Text('Co-op Admin Management', style: TextStyle(color: Colors.white, fontSize: 13)),
       style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         backgroundColor: Colors.brown[700],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 2,
       ),
     );
   }
@@ -600,12 +601,13 @@ class _HomePageState extends State<HomePage> {
           MaterialPageRoute(builder: (context) => const MarketManagerScreen()),
         );
       },
-      icon: const Icon(Icons.storefront_sharp, color: Colors.white),
-      label: const Text('Market Operations', style: TextStyle(color: Colors.white)),
+      icon: const Icon(Icons.storefront_sharp, color: Colors.white, size: 18),
+      label: const Text('Market Operations', style: TextStyle(color: Colors.white, fontSize: 13)),
       style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         backgroundColor: Colors.brown[700],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 2,
       ),
     );
   }
@@ -626,12 +628,13 @@ class _HomePageState extends State<HomePage> {
           );
         }
       },
-      icon: const Icon(Icons.landscape, color: Colors.white),
-      label: const Text('Produce', style: TextStyle(color: Colors.white)),
+      icon: const Icon(Icons.landscape, color: Colors.white, size: 18),
+      label: const Text('Produce', style: TextStyle(color: Colors.white, fontSize: 13)),
       style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         backgroundColor: Colors.brown[700],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 2,
       ),
     );
   }
@@ -642,30 +645,31 @@ class _HomePageState extends State<HomePage> {
         onPressed: () {
           Scaffold.of(context).openDrawer();
         },
-        icon: const Icon(Icons.menu, color: Colors.white),
-        label: const Text('Menu', style: TextStyle(color: Colors.white)),
+        icon: const Icon(Icons.menu, color: Colors.white, size: 18),
+        label: const Text('Menu', style: TextStyle(color: Colors.white, fontSize: 13)),
         style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           backgroundColor: Colors.brown[700],
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 2,
         ),
       ),
     );
   }
 
   Widget _buildCarousel() {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.35,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: CarouselSlider(
         options: CarouselOptions(
-          height: MediaQuery.of(context).size.height * 0.35,
           autoPlay: true,
           enlargeCenterPage: true,
           aspectRatio: 16 / 9,
           autoPlayCurve: Curves.fastOutSlowIn,
           enableInfiniteScroll: true,
           autoPlayAnimationDuration: const Duration(milliseconds: 800),
-          viewportFraction: 0.8,
+          viewportFraction: 0.85,
+          height: double.infinity,
         ),
         items: _carouselImages.map((image) {
           int index = _carouselImages.indexOf(image);
@@ -681,20 +685,34 @@ class _HomePageState extends State<HomePage> {
           return Stack(
             children: [
               Container(
-                margin: const EdgeInsets.all(5.0),
+                width: double.infinity,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10.0),
-                  image: DecorationImage(image: AssetImage(image), fit: BoxFit.cover),
+                  borderRadius: BorderRadius.circular(12),
+                  image: DecorationImage(
+                    image: AssetImage(image),
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               Positioned(
-                bottom: 10,
-                left: 10,
+                bottom: 8,
+                left: 8,
+                right: 8,
                 child: Container(
-                  color: Colors.black54,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  child: Text(labels[index],
-                      style: const TextStyle(color: Colors.white, fontSize: 16)),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Text(
+                    labels[index],
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             ],
@@ -706,23 +724,26 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildClickableSections() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: GridView.count(
         crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.6,
         children: [
           _buildClickableCard('Coffee Farming Tips', Icons.lightbulb, () {
             Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const LearnCoffeeFarming()));
+              context,
+              MaterialPageRoute(builder: (context) => const LearnCoffeeFarming()),
+            );
           }),
           _buildClickableCard('Coffee Prices', Icons.shopping_cart, () {
             Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => const CoffeePricesWidget()));
+              context,
+              MaterialPageRoute(builder: (context) => const CoffeePricesWidget()),
+            );
           }),
         ],
       ),
@@ -733,29 +754,29 @@ class _HomePageState extends State<HomePage> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.all(10),
-        padding: const EdgeInsets.all(20),
+        margin: const EdgeInsets.all(4),
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: Colors.brown[50],
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(6),
           boxShadow: [
             BoxShadow(
               color: Colors.grey.shade500.withAlpha(128),
               spreadRadius: 1,
-              blurRadius: 5,
-              offset: const Offset(0, 3),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
             ),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: Colors.brown[700]),
-            const SizedBox(height: 10),
+            Icon(icon, size: 28, color: Colors.brown[700]),
+            const SizedBox(height: 3),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -780,7 +801,6 @@ class _HomePageState extends State<HomePage> {
         });
         switch (index) {
           case 0:
-            // Already on Home (dashboard)
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const HomePage()),
@@ -875,7 +895,6 @@ class _HomePageState extends State<HomePage> {
       }),
     ];
 
-    // Add Produce item for Admins, CoopAdmins, and MarketManagers
     if (_isMainAdmin || _isCoopAdmin || _isMarketManager) {
       items.add(_buildDrawerItem(Icons.landscape, 'Produce', () {
         logger.i('Navigating to ProduceScreen with cooperative: $_cooperativeName');
