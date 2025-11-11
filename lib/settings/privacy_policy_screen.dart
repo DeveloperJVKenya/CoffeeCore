@@ -37,14 +37,14 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
               // Last Updated
               Text(
-                'Last Updated: March 26, 2025', // Updated to current date
+                'Last Updated: October 26, 2025', // Updated to current date
                 style: TextStyle(fontSize: 14, color: Colors.grey[600], fontStyle: FontStyle.italic),
               ),
               const SizedBox(height: 24),
 
               // Introduction
               const Text(
-                'CoffeeCore ("we," "us," or "our") is committed to protecting your privacy. This Privacy Policy '
+                'CoffeeCore are committed to protecting your privacy. This Privacy Policy '
                 'explains how we collect, use, store, and protect your personal information when you use our mobile '
                 'application ("the App") and related services. By using the App, you consent to the practices described '
                 'in this policy.',
