@@ -37,7 +37,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
               // Last Updated
               Text(
-                'Last Updated: October 26, 2025', // Updated to current date
+                'Last Updated: October 11, 2025', // Updated to current date
                 style: TextStyle(fontSize: 14, color: Colors.grey[600], fontStyle: FontStyle.italic),
               ),
               const SizedBox(height: 24),

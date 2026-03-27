@@ -1,3 +1,4 @@
+import 'package:coffeecore/screens/coffee_ai_chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -9,7 +10,7 @@ class LearnCoffeeFarming extends StatefulWidget {
 }
 
 class LearnCoffeeFarmingState extends State<LearnCoffeeFarming> {
-  String? _selectedSection; 
+  String? _selectedSection;
 
   final Map<String, Map<String, dynamic>> _coffeeFarmingGuide = {
     'Planning Your Coffee Farm': {
@@ -254,7 +255,7 @@ From Coffee Nutrition Manuals - Proper feeding boosts yields by 30-50%.
       ''',
     },
     'Nursery Management': {
-      'icon': Icons.eco, 
+      'icon': Icons.eco,
       'content': '''
 🌱 **Nursery Management**  
 Standards for healthy seedlings - 80-90% survival rate.
@@ -281,15 +282,15 @@ Standards for healthy seedlings - 80-90% survival rate.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5E8C7), // Light beige background
+      backgroundColor: const Color(0xFFF5E8C7),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF3E2723), // Dark brown
+        backgroundColor: const Color(0xFF3E2723),
         title: Text(
           "Learn Coffee Farming",
           style: GoogleFonts.poppins(
-            color: Colors.white, 
+            color: Colors.white,
             fontSize: 20,
-            fontWeight: FontWeight.bold, // Added bold weight
+            fontWeight: FontWeight.bold,
           ),
         ),
         leading: IconButton(
@@ -297,6 +298,25 @@ Standards for healthy seedlings - 80-90% survival rate.
           onPressed: () => Navigator.pop(context),
         ),
       ),
+
+      // ── NEW: Floating Action Button → AI Chat ──────────────────────────
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => navigateToCoffeeAIChat(context),
+        backgroundColor: const Color(0xFF3E2723),
+        foregroundColor: Colors.white,
+        elevation: 6,
+        icon: const Icon(Icons.smart_toy_rounded),
+        label: Text(
+          'Ask AI',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+        tooltip: 'Chat with CoffeeCore AI — your personal farming expert',
+      ),
+      // ─────────────────────────────────────────────────────────────────────
+
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -310,7 +330,10 @@ Standards for healthy seedlings - 80-90% survival rate.
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+                    BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 4,
+                        offset: Offset(0, 2)),
                   ],
                 ),
                 child: Text(
@@ -327,7 +350,70 @@ Standards for healthy seedlings - 80-90% survival rate.
                   ),
                 ),
               ),
+
+              // AI Feature Banner
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () => navigateToCoffeeAIChat(context),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF3E2723), Color(0xFF6D4C41)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [
+                      BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 6,
+                          offset: Offset(0, 3)),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFCC80),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.smart_toy_rounded,
+                            color: Color(0xFF3E2723), size: 28),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '✨ CoffeeCore AI',
+                              style: GoogleFonts.poppins(
+                                color: const Color(0xFFFFCC80),
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Have a specific question? Chat with our AI farming expert — powered by Gemini.',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios_rounded,
+                          color: Colors.white54, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 20),
+
               // Expandable Cards
               ..._coffeeFarmingGuide.entries.map((entry) {
                 final isExpanded = _selectedSection == entry.key;
@@ -342,9 +428,13 @@ Standards for healthy seedlings - 80-90% survival rate.
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF3E2723), width: 2),
+                      border:
+                          Border.all(color: const Color(0xFF3E2723), width: 2),
                       boxShadow: const [
-                        BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
+                        BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 4,
+                            offset: Offset(0, 2)),
                       ],
                     ),
                     child: Column(
