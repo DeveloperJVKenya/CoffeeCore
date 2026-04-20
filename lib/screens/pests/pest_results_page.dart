@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:coffeecore/screens/pests/coffee_pest_management_page.dart';
 import 'package:coffeecore/screens/pests/gemini_pest_ai_service.dart';
 import 'package:coffeecore/screens/pests/pest_firestore_service.dart';
 import 'package:coffeecore/screens/pests/pest_image_search_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -57,7 +59,16 @@ class PestResultsPage extends StatefulWidget {
   final String? selectedPest;
   final PestDetectionMode detectionMode;
   final CoffeePestData? localPestData;
+
+  /// Native File reference — populated on mobile only (null on web).
+  /// Use [scannedImageBytes] for web-safe image display.
   final File? scannedImageFile;
+
+  /// Raw bytes of the scanned image — populated on all platforms when an
+  /// image was captured via the AI scanner.  Use this for [Image.memory]
+  /// on Flutter Web where [Image.file] is not supported.
+  final Uint8List? scannedImageBytes;
+
   final Map<String, dynamic>? aiManagementData;
   final String? aiReasoning;
   final double? aiConfidence;
@@ -70,6 +81,7 @@ class PestResultsPage extends StatefulWidget {
     required this.notificationsPlugin,
     this.localPestData,
     this.scannedImageFile,
+    this.scannedImageBytes,
     this.aiManagementData,
     this.aiReasoning,
     this.aiConfidence,
@@ -284,7 +296,7 @@ class _PestResultsPageState extends State<PestResultsPage>
           '(${_managementData!.keys.length} keys).');
     } else {
       debugPrint('[PestResultsPage] ⚠️ Path C — no aiManagementData provided. '
-          'Management section will be empty until Gemini enriches it.');
+          'Management section will be empty until AI enriches it.');
     }
     setState(() => _pageState = _PageState.showingManagement);
     _fadeController.forward(from: 0);
@@ -311,10 +323,10 @@ class _PestResultsPageState extends State<PestResultsPage>
         'preventive_measures': local['preventiveMeasures'],
       };
       debugPrint('[PestResultsPage] 📚 Local data found for "$pestName" — '
-          'showing immediately while Gemini enriches.');
+          'showing immediately while AI enriches.');
     } else {
       debugPrint('[PestResultsPage] ⚠️ No local data for "$pestName" — '
-          'will rely entirely on Gemini. UI will show skeletons until enriched.');
+          'will rely entirely on CoffeeCore AI. UI will show skeletons until enriched.');
     }
 
     // ── Fetch additional online images ─────────────────────────────────────
@@ -331,39 +343,39 @@ class _PestResultsPageState extends State<PestResultsPage>
           '"$pestName": $e — will use local assets if available.');
     }
 
-    // ── Kick off Gemini enrichment in background ───────────────────────────
-    debugPrint('[PestResultsPage] 🤖 Starting Gemini enrichment for '
+    // ── Kick off AI enrichment in background ──────────────────────────────
+    debugPrint('[PestResultsPage] 🤖 Starting CoffeeCore AI enrichment for '
         '"$pestName" in background…');
-    _enrichWithGemini(pestName, stage);
+    _enrichWithAi(pestName, stage);
 
     if (!mounted) return;
     setState(() => _pageState = _PageState.showingManagement);
     _fadeController.forward(from: 0);
     _cardStaggerController.forward(from: 0);
     debugPrint('[PestResultsPage] 📋 Management page now visible for '
-        '"$pestName". Gemini enrichment running in background.');
+        '"$pestName". AI enrichment running in background.');
   }
 
-  Future<void> _enrichWithGemini(String pestName, String stage) async {
-    debugPrint('[PestResultsPage] 🤖 _enrichWithGemini called for '
+  Future<void> _enrichWithAi(String pestName, String stage) async {
+    debugPrint('[PestResultsPage] 🤖 _enrichWithAi called for '
         '"$pestName" | stage="$stage"');
     try {
       final aiData = await GeminiPestAiService.generateManagementDetails(
           pestName: pestName, stage: stage);
 
       if (aiData == null) {
-        debugPrint('[PestResultsPage] ⚠️ Gemini returned null for "$pestName" — '
+        debugPrint('[PestResultsPage] ⚠️ AI returned null for "$pestName" — '
             'keeping local/existing data as fallback.');
         return;
       }
 
-      debugPrint('[PestResultsPage] ✅ Gemini enrichment received for '
+      debugPrint('[PestResultsPage] ✅ AI enrichment received for '
           '"$pestName" (${aiData.keys.length} keys). Updating UI.');
       if (mounted) {
         setState(() => _managementData = aiData);
       }
     } catch (e) {
-      debugPrint('[PestResultsPage] ❌ _enrichWithGemini failed for '
+      debugPrint('[PestResultsPage] ❌ _enrichWithAi failed for '
           '"$pestName": $e — keeping existing management data.');
     }
   }
@@ -845,6 +857,13 @@ class _PestResultsPageState extends State<PestResultsPage>
     );
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // CoffeeCore AI confidence banner
+  // Label updated: "Gemini AI Identification" → "CoffeeCore AI Identification"
+  // The underlying model (Gemini via Firebase AI) is unchanged — only the
+  // brand label shown to the user has been updated.
+  // ─────────────────────────────────────────────────────────────────────────
+
   Widget _buildAiConfidenceBanner() {
     final confidence = widget.aiConfidence!;
     final Color barColor = confidence >= 80
@@ -866,7 +885,7 @@ class _PestResultsPageState extends State<PestResultsPage>
           Row(children: [
             const Icon(Icons.auto_awesome_rounded, color: _amber, size: 16),
             const SizedBox(width: 6),
-            Text('Gemini AI Identification',
+            Text('CoffeeCore AI Identification',
                 style: GoogleFonts.poppins(
                     fontSize: 12.5, fontWeight: FontWeight.w700, color: _darkBrown)),
             const Spacer(),
@@ -895,16 +914,25 @@ class _PestResultsPageState extends State<PestResultsPage>
     );
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Image section
+  // Web-safe: uses Image.memory (from scannedImageBytes) on web,
+  //           uses Image.file  (from scannedImageFile)  on mobile.
+  // ─────────────────────────────────────────────────────────────────────────
+
   Widget _buildImageSection() {
-    if (widget.detectionMode == PestDetectionMode.aiScan &&
-        widget.scannedImageFile != null) {
+    // Check whether a scanned image is available on the current platform.
+    final bool hasScannedImage = widget.detectionMode == PestDetectionMode.aiScan &&
+        (widget.scannedImageBytes != null || widget.scannedImageFile != null);
+
+    if (hasScannedImage) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader(
             icon: Icons.camera_alt_rounded,
             title: 'Your Scanned Photo',
-            subtitle: 'The image used for AI analysis',
+            subtitle: 'The image used for CoffeeCore AI analysis',
           ),
           const SizedBox(height: 12),
           ClipRRect(
@@ -913,8 +941,24 @@ class _PestResultsPageState extends State<PestResultsPage>
               aspectRatio: 4 / 3,
               child: Container(
                 color: const Color(0xFFF5EDE8),
-                child: Image.file(
-                    widget.scannedImageFile!, fit: BoxFit.contain),
+                // ── Platform-aware image display ────────────────────────────
+                // Web:    Image.file is not supported → use Image.memory.
+                // Mobile: Prefer Image.file for efficiency; fall back to
+                //         Image.memory if only bytes are available.
+                child: kIsWeb
+                    ? Image.memory(
+                        widget.scannedImageBytes!,
+                        fit: BoxFit.contain,
+                      )
+                    : (widget.scannedImageFile != null
+                        ? Image.file(
+                            widget.scannedImageFile!,
+                            fit: BoxFit.contain,
+                          )
+                        : Image.memory(
+                            widget.scannedImageBytes!,
+                            fit: BoxFit.contain,
+                          )),
               ),
             ),
           ),
@@ -947,12 +991,6 @@ class _PestResultsPageState extends State<PestResultsPage>
               : 'Reference images',
         ),
         const SizedBox(height: 12),
-
-        // Priority:
-        //   1. Online verified images (iNaturalist / Wikipedia)
-        //   2. Local lifecycle asset images (bundled with the app)
-        //   3. Clear "no images" message — NEVER fall back to a wrong image
-
         if (_onlinePestImages.isNotEmpty)
           _buildOnlineImageCarousel(_onlinePestImages)
         else if (localImages.isNotEmpty)
@@ -962,12 +1000,6 @@ class _PestResultsPageState extends State<PestResultsPage>
       ],
     );
   }
-
-  // ── No-images state — shown when neither online nor local images exist ─────
-  //
-  // Design rationale: A clear "unavailable" message is ALWAYS better than
-  // showing a wrong insect image. The farmer reads the description cards below
-  // to identify the pest — images are supplementary, not the primary source.
 
   Widget _buildNoImagesAvailable() {
     return Container(
@@ -1011,49 +1043,24 @@ class _PestResultsPageState extends State<PestResultsPage>
     );
   }
 
-  // ── Online image carousel ────────────────────────────────────────────────
-  //
-  // IMAGE DISPLAY FIX:
-  //   Previously used SizedBox(height:200) + BoxFit.cover, which cropped
-  //   portrait images (top of insect cut off) and stretched landscape ones.
-  //
-  //   New design:
-  //   • AspectRatio(4/3) container — a stable, consistent display area that
-  //     works for both portrait and landscape photos without guessing.
-  //   • BoxFit.contain — the FULL image is always visible. No pixel is ever
-  //     cropped. The image scales to fit within the 4:3 frame.
-  //   • Cream background (Color(0xFFF5EDE8)) — fills the letterbox areas
-  //     (empty space beside portrait images or above/below landscape images)
-  //     with a colour that matches the app's warm brown palette rather than
-  //     an abrupt black or white bar.
-  //   • Image counter badge — shows "2 / 5" so the farmer knows more photos
-  //     are available even when the dots are off-screen on small devices.
-
   Widget _buildOnlineImageCarousel(List<String> urls) {
     return Column(
       children: [
-        // ── Carousel frame ───────────────────────────────────────────────
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: AspectRatio(
-            // 4:3 is the most neutral ratio: wide enough for landscape macro
-            // shots, tall enough that portrait insect photos are not tiny.
             aspectRatio: 4 / 3,
             child: Stack(
               children: [
-                // ── Page swiper ──────────────────────────────────────────
                 PageView.builder(
                   controller:    _carouselController,
                   itemCount:     urls.length,
                   onPageChanged: (i) =>
                       setState(() => _currentCarouselPage = i),
                   itemBuilder: (_, i) => Container(
-                    // Cream background fills letterbox areas; avoids harsh
-                    // black bars beside narrow portrait insect photos.
                     color: const Color(0xFFF5EDE8),
                     child: Image.network(
                       urls[i],
-                      // contain = entire image visible, never cropped
                       fit: BoxFit.contain,
                       loadingBuilder: (_, child, progress) =>
                           progress == null ? child : _imagePlaceholder(),
@@ -1065,8 +1072,6 @@ class _PestResultsPageState extends State<PestResultsPage>
                     ),
                   ),
                 ),
-
-                // ── Counter badge (top-right) ────────────────────────────
                 if (urls.length > 1)
                   Positioned(
                     top: 10, right: 10,
@@ -1091,8 +1096,6 @@ class _PestResultsPageState extends State<PestResultsPage>
             ),
           ),
         ),
-
-        // ── Dot indicators ───────────────────────────────────────────────
         if (urls.length > 1) ...[
           const SizedBox(height: 10),
           Row(
@@ -1117,12 +1120,6 @@ class _PestResultsPageState extends State<PestResultsPage>
       ],
     );
   }
-
-  // ── Local asset image carousel ───────────────────────────────────────────
-  //
-  // Used as fallback when online images are unavailable.
-  // Same AspectRatio + BoxFit.contain approach as the online carousel so
-  // local lifecycle images are also never cropped.
 
   Widget _buildLocalImageCarousel(List<String> assets) {
     if (assets.isEmpty) return const SizedBox.shrink();
@@ -1488,12 +1485,6 @@ class _PestResultsPageState extends State<PestResultsPage>
       ],
     );
   }
-
-  // ── Image.network helper — used for pest card thumbnails in Path B ──────────
-  // Card thumbnails are small (110×90) and use BoxFit.cover intentionally —
-  // a tight crop is appropriate and looks better in the compact card layout.
-  // The online carousel does NOT use this helper; it constructs its own
-  // Image.network with BoxFit.contain for full-image display.
 
   Widget _netImage({required String url, BoxFit fit = BoxFit.cover}) {
     return Image.network(

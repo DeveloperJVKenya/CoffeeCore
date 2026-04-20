@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coffeecore/screens/pests/coffee_pest_management_page.dart';
 import 'package:coffeecore/screens/pests/pest_results_page.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -23,10 +25,10 @@ enum _ScanState {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Gemini scan result model
+// CoffeeCore AI scan result model
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _GeminiScanResult {
+class _AiScanResult {
   final bool confident;
   final String? identifiedPest;
   final String? growthStage;
@@ -35,7 +37,7 @@ class _GeminiScanResult {
   final List<String> candidates;
   final Map<String, dynamic>? management;
 
-  const _GeminiScanResult({
+  const _AiScanResult({
     required this.confident,
     this.identifiedPest,
     this.growthStage,
@@ -45,8 +47,8 @@ class _GeminiScanResult {
     this.management,
   });
 
-  factory _GeminiScanResult.fromJson(Map<String, dynamic> json) {
-    return _GeminiScanResult(
+  factory _AiScanResult.fromJson(Map<String, dynamic> json) {
+    return _AiScanResult(
       confident:         json['confident'] == true,
       identifiedPest:    json['identified_pest'] as String?,
       growthStage:       json['growth_stage'] as String?,
@@ -82,9 +84,15 @@ class _PestScanPageState extends State<PestScanPage>
   static const Color _warningOrange = Color(0xFFE65100);
 
   // ── State ──────────────────────────────────────────────────────────────────
-  _ScanState _scanState          = _ScanState.idle;
-  File?      _pickedImage;
-  _GeminiScanResult? _scanResult;
+  _ScanState _scanState             = _ScanState.idle;
+  /// Raw XFile from the picker — valid on all platforms.
+  XFile?     _pickedXFile;
+  /// Decoded bytes — used for Gemini analysis and Image.memory on web.
+  Uint8List? _pickedImageBytes;
+  /// Native File reference — only populated on non-web platforms.
+  File?      _pickedImageFile;
+
+  _AiScanResult? _scanResult;
   String?    _errorMessage;
   String?    _selectedClarification;
   String?    _selectedStageForScan;
@@ -123,6 +131,9 @@ class _PestScanPageState extends State<PestScanPage>
 
   // ══════════════════════════════════════════════════════════════════════════
   // IMAGE PICKING
+  // Web: XFile.path is a blob URL — File() construction is skipped.
+  // Mobile: File() is constructed normally from the local filesystem path.
+  // Bytes are always read via XFile.readAsBytes() which works on all platforms.
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> _pickImage(ImageSource source) async {
@@ -130,8 +141,14 @@ class _PestScanPageState extends State<PestScanPage>
       final XFile? picked = await _picker.pickImage(
         source: source, maxWidth: 1280, maxHeight: 1280, imageQuality: 88);
       if (picked == null) return;
+
+      // Read bytes universally — works on web (blob) and mobile (file) alike.
+      final bytes = await picked.readAsBytes();
+
       setState(() {
-        _pickedImage           = File(picked.path);
+        _pickedXFile           = picked;
+        _pickedImageBytes      = bytes;
+        _pickedImageFile       = kIsWeb ? null : File(picked.path);
         _scanState             = _ScanState.imagePicked;
         _scanResult            = null;
         _errorMessage          = null;
@@ -144,20 +161,21 @@ class _PestScanPageState extends State<PestScanPage>
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // GEMINI VISION ANALYSIS  — ✅ firebase_ai package, FirebaseAI.googleAI()
+  // COFFEECORE AI VISION ANALYSIS  — firebase_ai package, FirebaseAI.googleAI()
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> _analyseImage() async {
-    if (_pickedImage == null) return;
+    if (_pickedImageBytes == null) return;
     setState(() => _scanState = _ScanState.analysing);
 
     try {
-      final imageBytes = await _pickedImage!.readAsBytes();
-      final mimeType   = _pickedImage!.path.toLowerCase().endsWith('.png')
-          ? 'image/png'
-          : 'image/jpeg';
+      // Bytes already loaded during pick — works on both web and mobile.
+      final imageBytes = _pickedImageBytes!;
+      final mimeType   = (_pickedXFile?.mimeType) ??
+          ((_pickedXFile?.path.toLowerCase().endsWith('.png') ?? false)
+              ? 'image/png'
+              : 'image/jpeg');
 
-      // ✅ Uses firebase_ai package — matches coffee_ai_chat_screen.dart
       final model = FirebaseAI.googleAI().generativeModel(
         model: 'gemini-2.5-flash',
         generationConfig: GenerationConfig(
@@ -167,7 +185,7 @@ class _PestScanPageState extends State<PestScanPage>
       );
 
       final stageHint = _selectedStageForScan != null
-          ? 'The farmer believes this is at the "${_selectedStageForScan!}" stage of growth.'
+          ? 'The farmer believes this is at the "$_selectedStageForScan" stage of growth.'
           : 'The farmer is unsure of the exact growth stage.';
 
       const prompt = '''
@@ -227,7 +245,7 @@ If image is unclear:
 
       _parseAndHandleResponse(response.text ?? '');
     } on FirebaseException catch (e) {
-      _setError('Firebase AI error: ${e.message ?? e.code}. Check your connection and try again.');
+      _setError('CoffeeCore AI error: ${e.message ?? e.code}. Check your connection and try again.');
     } catch (e) {
       _setError('Analysis failed: ${e.toString()}. Please retake the photo and try again.');
     }
@@ -243,7 +261,7 @@ If image is unclear:
             .trim();
       }
       final json   = jsonDecode(cleaned) as Map<String, dynamic>;
-      final result = _GeminiScanResult.fromJson(json);
+      final result = _AiScanResult.fromJson(json);
 
       setState(() {
         _scanResult = result;
@@ -272,18 +290,18 @@ If image is unclear:
     });
 
     try {
-      final imageBytes = await _pickedImage!.readAsBytes();
-      final mimeType   = _pickedImage!.path.toLowerCase().endsWith('.png')
-          ? 'image/png' : 'image/jpeg';
+      final imageBytes = _pickedImageBytes!;
+      final mimeType   = (_pickedXFile?.mimeType) ??
+          ((_pickedXFile?.path.toLowerCase().endsWith('.png') ?? false)
+              ? 'image/png' : 'image/jpeg');
 
-      // ✅ firebase_ai package
       final model = FirebaseAI.googleAI().generativeModel(
         model: 'gemini-2.5-flash',
         generationConfig: GenerationConfig(temperature: 0.3, maxOutputTokens: 1200),
       );
 
       final stageHint = _selectedStageForScan != null
-          ? 'Growth stage context: ${_selectedStageForScan!}.' : '';
+          ? 'Growth stage context: $_selectedStageForScan.' : '';
 
       final prompt = '''
 You are an expert agricultural AI for coffee pest management.
@@ -322,7 +340,7 @@ Return ONLY valid JSON (no markdown):
   // NAVIGATION + HELPERS
   // ══════════════════════════════════════════════════════════════════════════
 
-  void _navigateToResults(_GeminiScanResult result) {
+  void _navigateToResults(_AiScanResult result) {
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
@@ -333,7 +351,10 @@ Return ONLY valid JSON (no markdown):
             selectedStage:       result.growthStage ?? 'Unknown',
             selectedPest:        result.identifiedPest,
             detectionMode:       PestDetectionMode.aiScan,
-            scannedImageFile:    _pickedImage,
+            // On web: pass bytes only (Image.file is not supported on web).
+            // On mobile: pass File (bytes also passed for consistency).
+            scannedImageFile:    kIsWeb ? null : _pickedImageFile,
+            scannedImageBytes:   _pickedImageBytes,
             aiManagementData:    result.management,
             aiReasoning:         result.reasoning,
             aiConfidence:        result.confidencePercent,
@@ -354,7 +375,9 @@ Return ONLY valid JSON (no markdown):
   void _resetScan() {
     setState(() {
       _scanState             = _ScanState.idle;
-      _pickedImage           = null;
+      _pickedXFile           = null;
+      _pickedImageBytes      = null;
+      _pickedImageFile       = null;
       _scanResult            = null;
       _errorMessage          = null;
       _selectedClarification = null;
@@ -398,11 +421,11 @@ Return ONLY valid JSON (no markdown):
       backgroundColor: _darkBrown,
       foregroundColor: Colors.white,
       elevation: 0,
-      title: Text('AI Pest Scanner',
+      title: Text('CoffeeCore AI Scanner',
           style: GoogleFonts.poppins(
               color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18)),
       actions: [
-        if (_pickedImage != null)
+        if (_pickedXFile != null)
           TextButton.icon(
             onPressed: _resetScan,
             icon: const Icon(Icons.refresh_rounded, color: _amber, size: 18),
@@ -436,7 +459,7 @@ Return ONLY valid JSON (no markdown):
           const SizedBox(height: 10),
           ...[
             '📸  Take or upload a clear photo of the affected crop part',
-            '🤖  Gemini AI analyses the image for pest signs',
+            '🤖  CoffeeCore AI analyses the image for pest signs',
             '✅  Confirmed pest → full management plan is shown',
             '❓  Uncertain → select from suggested options to refine',
           ].map((step) => Padding(
@@ -453,7 +476,7 @@ Return ONLY valid JSON (no markdown):
   }
 
   Widget _buildImageArea() {
-    final bool hasImage    = _pickedImage != null;
+    final bool hasImage    = _pickedXFile != null;
     final bool isAnalysing = _scanState == _ScanState.analysing;
 
     return GestureDetector(
@@ -475,8 +498,13 @@ Return ONLY valid JSON (no markdown):
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (hasImage) Image.file(_pickedImage!, fit: BoxFit.cover)
-            else _buildImagePlaceholder(),
+            // ── Image display — web uses Image.memory, mobile uses Image.file ─
+            if (hasImage)
+              kIsWeb
+                  ? Image.memory(_pickedImageBytes!, fit: BoxFit.cover)
+                  : Image.file(_pickedImageFile!, fit: BoxFit.cover)
+            else
+              _buildImagePlaceholder(),
 
             if (isAnalysing)
               Container(
@@ -498,7 +526,7 @@ Return ONLY valid JSON (no markdown):
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text('Analysing with Gemini AI…',
+                    Text('Analysing with CoffeeCore AI…',
                         style: GoogleFonts.poppins(
                             color: Colors.white,
                             fontSize: 14,
@@ -907,14 +935,14 @@ Return ONLY valid JSON (no markdown):
             textAlign: TextAlign.center),
         const SizedBox(height: 16),
         ElevatedButton.icon(
-          onPressed: _pickedImage != null ? _analyseImage : _resetScan,
+          onPressed: _pickedImageBytes != null ? _analyseImage : _resetScan,
           style: ElevatedButton.styleFrom(
             backgroundColor: _darkBrown, foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           icon: const Icon(Icons.refresh_rounded, size: 18),
-          label: Text(_pickedImage != null ? 'Try Again' : 'Start Over',
+          label: Text(_pickedImageBytes != null ? 'Try Again' : 'Start Over',
               style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
         ),
       ]),
