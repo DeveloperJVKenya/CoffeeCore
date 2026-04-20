@@ -542,9 +542,12 @@ class _PestResultsPageState extends State<PestResultsPage>
               subtitle: 'Images of ${_resolvedPest!} at the $_resolvedStage stage',
             ),
             const SizedBox(height: 12),
-            _onlinePestImages.isNotEmpty
-                ? _buildOnlineImageCarousel(_onlinePestImages)
-                : _buildLocalImageCarousel(List<String>.from(localImages)),
+            if (_onlinePestImages.isNotEmpty)
+              _buildOnlineImageCarousel(_onlinePestImages)
+            else if (localImages.isNotEmpty)
+              _buildLocalImageCarousel(List<String>.from(localImages))
+            else
+              _buildNoImagesAvailable(),
             const SizedBox(height: 24),
             _buildConfirmationCard(),
           ],
@@ -908,7 +911,11 @@ class _PestResultsPageState extends State<PestResultsPage>
             borderRadius: BorderRadius.circular(16),
             child: AspectRatio(
               aspectRatio: 4 / 3,
-              child: Image.file(widget.scannedImageFile!, fit: BoxFit.cover),
+              child: Container(
+                color: const Color(0xFFF5EDE8),
+                child: Image.file(
+                    widget.scannedImageFile!, fit: BoxFit.contain),
+              ),
             ),
           ),
           if (_onlinePestImages.isNotEmpty) ...[
@@ -925,6 +932,7 @@ class _PestResultsPageState extends State<PestResultsPage>
       );
     }
 
+    // ── Non-AI paths (Path A manual, Path B stage-guided) ───────────────────
     final localImages =
         kPestDetails[_resolvedPest]?['lifecycleImages'] as List<dynamic>? ?? [];
 
@@ -935,37 +943,156 @@ class _PestResultsPageState extends State<PestResultsPage>
           icon: Icons.image_search_rounded,
           title: 'Pest Reference Images',
           subtitle: _resolvedPest != null
-              ? 'Online images of ${_resolvedPest!}'
+              ? 'Verified images of ${_resolvedPest!}'
               : 'Reference images',
         ),
         const SizedBox(height: 12),
-        _onlinePestImages.isNotEmpty
-            ? _buildOnlineImageCarousel(_onlinePestImages)
-            : _buildLocalImageCarousel(List<String>.from(localImages)),
+
+        // Priority:
+        //   1. Online verified images (iNaturalist / Wikipedia)
+        //   2. Local lifecycle asset images (bundled with the app)
+        //   3. Clear "no images" message — NEVER fall back to a wrong image
+
+        if (_onlinePestImages.isNotEmpty)
+          _buildOnlineImageCarousel(_onlinePestImages)
+        else if (localImages.isNotEmpty)
+          _buildLocalImageCarousel(List<String>.from(localImages))
+        else
+          _buildNoImagesAvailable(),
       ],
     );
   }
 
-  // ── Online image carousel — ✅ Image.network (no cached_network_image) ─────
+  // ── No-images state — shown when neither online nor local images exist ─────
+  //
+  // Design rationale: A clear "unavailable" message is ALWAYS better than
+  // showing a wrong insect image. The farmer reads the description cards below
+  // to identify the pest — images are supplementary, not the primary source.
+
+  Widget _buildNoImagesAvailable() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 24),
+      decoration: BoxDecoration(
+        color: Colors.brown.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD7C5BC)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.image_search_rounded,
+            color: _lightBrown.withValues(alpha: .55),
+            size: 40,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No Reference Images Available',
+            style: GoogleFonts.poppins(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              color: _midBrown,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Reference photos for this pest could not be loaded.\n'
+            'Use the description and symptom details below to identify it.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: _lightBrown,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Online image carousel ────────────────────────────────────────────────
+  //
+  // IMAGE DISPLAY FIX:
+  //   Previously used SizedBox(height:200) + BoxFit.cover, which cropped
+  //   portrait images (top of insect cut off) and stretched landscape ones.
+  //
+  //   New design:
+  //   • AspectRatio(4/3) container — a stable, consistent display area that
+  //     works for both portrait and landscape photos without guessing.
+  //   • BoxFit.contain — the FULL image is always visible. No pixel is ever
+  //     cropped. The image scales to fit within the 4:3 frame.
+  //   • Cream background (Color(0xFFF5EDE8)) — fills the letterbox areas
+  //     (empty space beside portrait images or above/below landscape images)
+  //     with a colour that matches the app's warm brown palette rather than
+  //     an abrupt black or white bar.
+  //   • Image counter badge — shows "2 / 5" so the farmer knows more photos
+  //     are available even when the dots are off-screen on small devices.
 
   Widget _buildOnlineImageCarousel(List<String> urls) {
     return Column(
       children: [
-        SizedBox(
-          height: 200,
-          child: PageView.builder(
-            controller:    _carouselController,
-            itemCount:     urls.length,
-            onPageChanged: (i) => setState(() => _currentCarouselPage = i),
-            itemBuilder:   (_, i) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: _netImage(url: urls[i]),
-              ),
+        // ── Carousel frame ───────────────────────────────────────────────
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: AspectRatio(
+            // 4:3 is the most neutral ratio: wide enough for landscape macro
+            // shots, tall enough that portrait insect photos are not tiny.
+            aspectRatio: 4 / 3,
+            child: Stack(
+              children: [
+                // ── Page swiper ──────────────────────────────────────────
+                PageView.builder(
+                  controller:    _carouselController,
+                  itemCount:     urls.length,
+                  onPageChanged: (i) =>
+                      setState(() => _currentCarouselPage = i),
+                  itemBuilder: (_, i) => Container(
+                    // Cream background fills letterbox areas; avoids harsh
+                    // black bars beside narrow portrait insect photos.
+                    color: const Color(0xFFF5EDE8),
+                    child: Image.network(
+                      urls[i],
+                      // contain = entire image visible, never cropped
+                      fit: BoxFit.contain,
+                      loadingBuilder: (_, child, progress) =>
+                          progress == null ? child : _imagePlaceholder(),
+                      errorBuilder: (_, error, __) {
+                        debugPrint('[PestResultsPage] ⚠️ Image failed: '
+                            '${urls[i].substring(0, urls[i].length.clamp(0, 80))} — $error');
+                        return _imageFallback();
+                      },
+                    ),
+                  ),
+                ),
+
+                // ── Counter badge (top-right) ────────────────────────────
+                if (urls.length > 1)
+                  Positioned(
+                    top: 10, right: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _darkBrown.withValues(alpha: .72),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${_currentCarouselPage + 1} / ${urls.length}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
+
+        // ── Dot indicators ───────────────────────────────────────────────
         if (urls.length > 1) ...[
           const SizedBox(height: 10),
           Row(
@@ -991,10 +1118,16 @@ class _PestResultsPageState extends State<PestResultsPage>
     );
   }
 
+  // ── Local asset image carousel ───────────────────────────────────────────
+  //
+  // Used as fallback when online images are unavailable.
+  // Same AspectRatio + BoxFit.contain approach as the online carousel so
+  // local lifecycle images are also never cropped.
+
   Widget _buildLocalImageCarousel(List<String> assets) {
     if (assets.isEmpty) return const SizedBox.shrink();
     return SizedBox(
-      height: 160,
+      height: 170,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount:       assets.length,
@@ -1002,10 +1135,17 @@ class _PestResultsPageState extends State<PestResultsPage>
           padding: const EdgeInsets.only(right: 10),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
-            child: Image.asset(assets[i],
-                width: 130,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _imageFallback(width: 130)),
+            child: AspectRatio(
+              aspectRatio: 4 / 3,
+              child: Container(
+                color: const Color(0xFFF5EDE8),
+                child: Image.asset(
+                  assets[i],
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => _imageFallback(),
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -1349,7 +1489,11 @@ class _PestResultsPageState extends State<PestResultsPage>
     );
   }
 
-  // ── ✅ Image.network helper — replaces CachedNetworkImage ─────────────────
+  // ── Image.network helper — used for pest card thumbnails in Path B ──────────
+  // Card thumbnails are small (110×90) and use BoxFit.cover intentionally —
+  // a tight crop is appropriate and looks better in the compact card layout.
+  // The online carousel does NOT use this helper; it constructs its own
+  // Image.network with BoxFit.contain for full-image display.
 
   Widget _netImage({required String url, BoxFit fit = BoxFit.cover}) {
     return Image.network(
@@ -1357,17 +1501,16 @@ class _PestResultsPageState extends State<PestResultsPage>
       fit: fit,
       loadingBuilder: (_, child, progress) =>
           progress == null ? child : _imagePlaceholder(),
-      errorBuilder: (context, error, stackTrace) {
-        debugPrint('[PestResultsPage] ⚠️ Image failed to load: '
-            '${url.substring(0, url.length.clamp(0, 80))}… — error: $error');
+      errorBuilder: (_, error, __) {
+        debugPrint('[PestResultsPage] ⚠️ Thumbnail failed: '
+            '${url.substring(0, url.length.clamp(0, 80))}… — $error');
         return _imageFallback();
       },
     );
   }
 
-  Widget _imagePlaceholder({double width = double.infinity}) {
+  Widget _imagePlaceholder() {
     return Container(
-      width: width,
       color: Colors.brown.shade50,
       child: const Center(
         child: CircularProgressIndicator(color: _lightBrown, strokeWidth: 1.5),
@@ -1375,16 +1518,15 @@ class _PestResultsPageState extends State<PestResultsPage>
     );
   }
 
-  Widget _imageFallback({double width = double.infinity}) {
+  Widget _imageFallback() {
     return Container(
-      width: width,
       color: Colors.brown.shade50,
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(Icons.image_not_supported_rounded,
-            color: _lightBrown.withValues(alpha: .5), size: 28),
+            color: _lightBrown.withValues(alpha: .5), size: 22),
         const SizedBox(height: 4),
         Text('No image',
-            style: GoogleFonts.poppins(fontSize: 11, color: _lightBrown)),
+            style: GoogleFonts.poppins(fontSize: 10, color: _lightBrown)),
       ]),
     );
   }

@@ -714,7 +714,7 @@ Return ONLY valid JSON (no markdown):
           shadowColor: _darkBrown.withValues(alpha: .4),
         ),
         icon: const Icon(Icons.auto_awesome_rounded, size: 20),
-        label: Text('Analyse with Gemini AI',
+        label: Text('Analyse with CoffeeCore AI',
             style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: 0.2)),
       ),

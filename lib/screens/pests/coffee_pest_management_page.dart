@@ -537,9 +537,9 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
                   _buildModeCard(
                     mode: _DetectionMode.aiScan,
                     icon: Icons.document_scanner_rounded,
-                    title: 'Scan with AI Camera',
+                    title: 'Scan/Capture with Camera',
                     subtitle:
-                        'Take or upload a photo of the affected crop — Gemini AI will identify the pest.',
+                        'Take or upload a photo of the affected crop — CoffeeCore AI will identify the pest.',
                     accentColor: _lightBrown,
                     isActionCard: true,
                   ),
@@ -641,7 +641,7 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
                         color: _amber, size: 14),
                     const SizedBox(width: 6),
                     Text(
-                      'Powered by Gemini AI',
+                      'Powered by CoffeeCore AI',
                       style: GoogleFonts.poppins(
                         color: _amber,
                         fontSize: 11,
