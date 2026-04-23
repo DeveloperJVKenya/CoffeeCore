@@ -273,7 +273,7 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
           biologicalControls: List<String>.from(_diseaseDetails[_selectedDisease!]!['biologicalControls']),
           possibleCauses: List<String>.from(_diseaseDetails[_selectedDisease!]!['possibleCauses']),
           preventiveMeasures: List<String>.from(_diseaseDetails[_selectedDisease!]!['preventiveMeasures']),
-          lifecycleImages: List<String>.from(_diseaseDetails[_selectedDisease!]!['lifecycleImages']),
+          //lifecycleImages: List<String>.from(_diseaseDetails[_selectedDisease!]!['lifecycleImages']), 
         );
       });
     }
@@ -329,7 +329,7 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
               ],
               if (_diseaseData != null) ...[
                 const SizedBox(height: 16),
-                _buildLifecycleCarousel(_diseaseData!.lifecycleImages),
+                //_buildLifecycleCarousel(_diseaseData!.lifecycleImages),
               ],
               const SizedBox(height: 16),
               GestureDetector(
@@ -438,7 +438,7 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
     );
   }
 
-  Widget _buildLifecycleCarousel(List<String> images) {
+  /*Widget _buildLifecycleCarousel(List<String> images) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -471,7 +471,7 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
         ),
       ),
     );
-  }
+  }*/
 
   Widget _buildHintCard(String title, String content, IconData icon) {
     return Card(

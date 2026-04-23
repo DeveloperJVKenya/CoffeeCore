@@ -9,7 +9,7 @@ class CoffeeDiseaseData {
   final List<String> biologicalControls;
   final List<String> possibleCauses;
   final List<String> preventiveMeasures;
-  final List<String> lifecycleImages; // Added this field
+  //final List<String> lifecycleImages; // Added this field
 
   CoffeeDiseaseData({
     required this.name,
@@ -20,7 +20,7 @@ class CoffeeDiseaseData {
     required this.biologicalControls,
     required this.possibleCauses,
     required this.preventiveMeasures,
-    required this.lifecycleImages, // Added this parameter
+   // required this.lifecycleImages,// Added this parameter
   });
 }
 

@@ -1,6 +1,7 @@
-import 'package:coffeecore/screens/Disease%20Management/coffee_disease_management.dart';
+//import 'package:coffeecore/screens/Disease%20Management/coffee_disease_management.dart';
 //import 'package:coffeecore/screens/Pest%20Management/coffee_pest_management_page.dart';
 import 'package:coffeecore/screens/Symptom%20Analysis/coffee_symptom_checker_page.dart';
+import 'package:coffeecore/screens/diseases/coffee_disease_management_page.dart';
 import 'package:coffeecore/screens/pests/coffee_pest_management_page.dart';
 import 'package:flutter/material.dart';
 
