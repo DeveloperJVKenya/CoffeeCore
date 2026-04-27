@@ -1,6 +1,8 @@
 import 'dart:developer' as developer;
 import 'package:coffeecore/models/coffee_soil_data.dart';
+import 'package:coffeecore/screens/Field%20Data/gemini_soil_ai_service.dart';
 import 'package:coffeecore/screens/Field%20Data/helpers/nutrient_analysis_helper.dart';
+import 'package:coffeecore/screens/Field%20Data/soil_advisor_chat_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -25,16 +27,28 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
     'Volcanic', 'Red', 'Alluvial', 'Forest', 'Laterite'
   ];
 
+  // ── ⑤ Trend Analyst state ────────────────────────────────────────────────
+  SoilTrendResult? _trendResult;
+  bool _isTrendLoading = false;
+  bool _trendExpanded = true;
+
+  // ── ⑥ Latest soil context for chat FAB ───────────────────────────────────
+  Map<String, double>? _latestNutrients;
+  String _latestStage = 'Establishment/Seedling';
+  String? _latestSoilType;
+
   @override
   void initState() {
     super.initState();
-    developer.log('Initializing CoffeeSoilSummaryPage for user: ${widget.userId}', name: 'CoffeeSoilSummaryPage');
+    developer.log('Initializing CoffeeSoilSummaryPage for user: ${widget.userId}',
+        name: 'CoffeeSoilSummaryPage');
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
     _loadCachedData();
     _syncUnsyncedChanges();
+    _loadTrendAnalysis(); // ⑤
   }
 
   Future<void> _loadCachedData() async {
@@ -42,22 +56,108 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
       final prefs = await SharedPreferences.getInstance();
       final cachedData = prefs.getString('cached_soil_data_${widget.userId}');
       if (cachedData != null) {
-        developer.log('Loaded cached soil data for user: ${widget.userId}', name: 'CoffeeSoilSummaryPage');
+        developer.log('Loaded cached soil data for user: ${widget.userId}',
+            name: 'CoffeeSoilSummaryPage');
       } else {
-        developer.log('No cached soil data found for user: ${widget.userId}', name: 'CoffeeSoilSummaryPage');
+        developer.log('No cached soil data found for user: ${widget.userId}',
+            name: 'CoffeeSoilSummaryPage');
       }
     } catch (e, stackTrace) {
-      developer.log('Error loading cached data: $e', name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error loading cached data. Please try again.'),
-            backgroundColor: Color(0xFF4A2C2A),
-          ),
-        );
-      }
+      developer.log('Error loading cached data: $e',
+          name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
     }
   }
+
+  // ── ⑤ Trend analysis ─────────────────────────────────────────────────────
+
+  Future<void> _loadTrendAnalysis() async {
+    try {
+      // Check shared-prefs cache first (keyed by user + today's date so it
+      // re-runs at most once per day, not on every screen open).
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = 'trend_${widget.userId}_${DateTime.now().toIso8601String().substring(0, 10)}';
+      final cached = prefs.getString(cacheKey);
+      if (cached != null) {
+        final decoded = jsonDecode(cached) as Map<String, dynamic>;
+        setState(() => _trendResult = SoilTrendResult.fromJson(decoded));
+        developer.log('[CoffeeSoilSummaryPage] ✅ Trend loaded from cache', name: 'CoffeeSoilSummaryPage');
+        return;
+      }
+
+      setState(() => _isTrendLoading = true);
+
+      // Fetch the last 5 readings for this user.
+      final snapshot = await FirebaseFirestore.instance
+          .collection('SoilData')
+          .where('userId', isEqualTo: widget.userId)
+          .where('isDeleted', isEqualTo: false)
+          .orderBy('timestamp', descending: true)
+          .limit(5)
+          .get();
+
+      if (snapshot.docs.length < 2) {
+        developer.log('[CoffeeSoilSummaryPage] ⚠️ Not enough readings for trend (${snapshot.docs.length})',
+            name: 'CoffeeSoilSummaryPage');
+        setState(() => _isTrendLoading = false);
+        return;
+      }
+
+      // Build reading list (oldest first for the trend prompt).
+      final readings = snapshot.docs.reversed.map((doc) {
+        final d = doc.data();
+        final nutrients = <String, dynamic>{};
+        for (final key in ['pH', 'nitrogen', 'phosphorus', 'potassium',
+                           'magnesium', 'calcium', 'zinc', 'boron']) {
+          final v = d[key == 'pH' ? 'ph' : key];
+          if (v != null) nutrients[key] = v;
+        }
+        return {
+          'timestamp': (d['timestamp'] as Timestamp).toDate().toIso8601String(),
+          'nutrients': nutrients,
+        };
+      }).toList();
+
+      // Capture latest context for ⑥ chat FAB while we have the data.
+      final latestDoc = snapshot.docs.first.data();
+      _latestStage  = latestDoc['stage'] as String? ?? 'Establishment/Seedling';
+      _latestSoilType = latestDoc['soilType'] as String?;
+      _latestNutrients = {};
+      for (final key in ['pH', 'nitrogen', 'phosphorus', 'potassium',
+                         'magnesium', 'calcium', 'zinc', 'boron']) {
+        final v = latestDoc[key == 'pH' ? 'ph' : key];
+        if (v != null) _latestNutrients![key] = (v as num).toDouble();
+      }
+
+      final result = await GeminiSoilAiService.analyzeSoilTrend(
+        readings: readings,
+        soilType: _latestSoilType,
+        stage: _latestStage,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _trendResult = result;
+        _isTrendLoading = false;
+      });
+
+      // Cache for today.
+      if (result != null) {
+        await prefs.setString(cacheKey, jsonEncode({
+          'overall_direction':     result.overallDirection,
+          'trend_summary':         result.trendSummary,
+          'critical_alerts':       result.criticalAlerts,
+          'positive_trends':       result.positiveTrends,
+          'recommended_next_action': result.recommendedAction,
+        }));
+      }
+    } catch (e, stackTrace) {
+      developer.log('Error in _loadTrendAnalysis: $e',
+          name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
+      if (mounted) setState(() => _isTrendLoading = false);
+    }
+  }
+
+  // ── Connectivity ──────────────────────────────────────────────────────────
 
   Future<bool> _isConnected() async {
     try {
@@ -67,15 +167,8 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
           name: 'CoffeeSoilSummaryPage');
       return isOnline;
     } catch (e, stackTrace) {
-      developer.log('Error checking connectivity: $e', name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error checking connectivity. Assuming offline.'),
-            backgroundColor: Color(0xFF4A2C2A),
-          ),
-        );
-      }
+      developer.log('Error checking connectivity: $e',
+          name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
       return false;
     }
   }
@@ -94,13 +187,14 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
         return;
       }
 
-      developer.log('Starting sync of unsynced changes for user: ${widget.userId}', name: 'CoffeeSoilSummaryPage');
+      developer.log('Starting sync of unsynced changes for user: ${widget.userId}',
+          name: 'CoffeeSoilSummaryPage');
       final prefs = await SharedPreferences.getInstance();
       final unsyncedEdits = prefs.getStringList('unsynced_edits_${widget.userId}') ?? [];
       final unsyncedDeletions = prefs.getStringList('unsynced_deletions_${widget.userId}') ?? [];
 
-      developer.log('Found ${unsyncedEdits.length} unsynced edits and ${unsyncedDeletions.length} unsynced deletions',
-          name: 'CoffeeSoilSummaryPage');
+      developer.log('Found ${unsyncedEdits.length} unsynced edits and '
+          '${unsyncedDeletions.length} unsynced deletions', name: 'CoffeeSoilSummaryPage');
 
       for (final edit in unsyncedEdits) {
         final decoded = jsonDecode(edit) as Map<String, dynamic>;
@@ -114,9 +208,11 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
       }
 
       for (final deletion in unsyncedDeletions) {
-        final docId = deletion;
-        await FirebaseFirestore.instance.collection('SoilData').doc(docId).update({'isDeleted': true});
-        developer.log('Synced deletion for doc: $docId', name: 'CoffeeSoilSummaryPage');
+        await FirebaseFirestore.instance
+            .collection('SoilData')
+            .doc(deletion)
+            .update({'isDeleted': true});
+        developer.log('Synced deletion for doc: $deletion', name: 'CoffeeSoilSummaryPage');
       }
 
       await prefs.setStringList('unsynced_edits_${widget.userId}', []);
@@ -132,7 +228,8 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
       }
       developer.log('Sync completed successfully', name: 'CoffeeSoilSummaryPage');
     } catch (e, stackTrace) {
-      developer.log('Error syncing unsynced changes: $e', name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
+      developer.log('Error syncing unsynced changes: $e',
+          name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -146,8 +243,8 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
 
   Stream<QuerySnapshot> _getFilteredStream() {
     try {
-      developer.log('Creating filtered stream for user: ${widget.userId}, filter: $_selectedFilter',
-          name: 'CoffeeSoilSummaryPage');
+      developer.log('Creating filtered stream for user: ${widget.userId}, '
+          'filter: $_selectedFilter', name: 'CoffeeSoilSummaryPage');
 
       Query query = FirebaseFirestore.instance
           .collection('SoilData')
@@ -161,391 +258,242 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
       }
 
       query = query.orderBy('timestamp', descending: true);
-
-      developer.log('Query created successfully', name: 'CoffeeSoilSummaryPage');
       return query.snapshots();
     } catch (e, stackTrace) {
-      developer.log('Error creating filtered stream: $e', name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
+      developer.log('Error creating filtered stream: $e',
+          name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
       rethrow;
     }
   }
 
-Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String docId) async {
-  try {
-    developer.log('Starting edit for document: $docId', name: 'CoffeeSoilSummaryPage');
+  // ─────────────────────────────────────────────────────────────────────────
+  // ⑤ TREND INSIGHT CARD
+  // ─────────────────────────────────────────────────────────────────────────
 
-    final controllers = {
-      'pH': TextEditingController(text: entry.ph?.toString()),
-      'nitrogen': TextEditingController(text: entry.nitrogen?.toString()),
-      'phosphorus': TextEditingController(text: entry.phosphorus?.toString()),
-      'potassium': TextEditingController(text: entry.potassium?.toString()),
-      'magnesium': TextEditingController(text: entry.magnesium?.toString()),
-      'calcium': TextEditingController(text: entry.calcium?.toString()),
-      'zinc': TextEditingController(text: entry.zinc?.toString()),
-      'boron': TextEditingController(text: entry.boron?.toString()),
-      'plantDensity': TextEditingController(text: entry.plantDensity.toString()),
-      'interventionMethod': TextEditingController(text: entry.interventionMethod),
-      'interventionQuantity': TextEditingController(text: entry.interventionQuantity),
-      'interventionUnit': TextEditingController(text: entry.interventionUnit),
-    };
-    String? selectedSoilType = entry.soilType;
-    String selectedStage = entry.stage;
-    DateTime? interventionFollowUpDate = entry.interventionFollowUpDate?.toDate();
-    bool saveWithRecommendations = entry.saveWithRecommendations;
-
-    // Store context in a local variable
-    final localContext = context;
-
-    final result = await showDialog<bool>(
-      context: localContext,
-      builder: (dialogContext) => Dialog(
-        insetPadding: const EdgeInsets.all(16),
+  Widget _buildTrendInsightCard() {
+    // Show loading shimmer
+    if (_isTrendLoading) {
+      return Card(
+        elevation: 3,
+        margin: const EdgeInsets.only(bottom: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(dialogContext).size.height * 0.9,
-            maxWidth: MediaQuery.of(dialogContext).size.width * 0.95,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: const Color(0xFFF5E8C7),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          padding: const EdgeInsets.all(16),
+          child: const Row(
             children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF0E4D7),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(8),
-                    topRight: Radius.circular(8),
+              SizedBox(
+                width: 20, height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF3A5F0B)),
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Analysing soil trends…',
+                style: TextStyle(color: Color(0xFF4A2C2A), fontStyle: FontStyle.italic),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_trendResult == null) return const SizedBox.shrink();
+
+    final r = _trendResult!;
+    final directionColor = r.overallDirection == 'improving'
+        ? Colors.green
+        : r.overallDirection == 'declining'
+            ? Colors.red
+            : Colors.orange;
+    final directionIcon = r.overallDirection == 'improving'
+        ? Icons.trending_up
+        : r.overallDirection == 'declining'
+            ? Icons.trending_down
+            : Icons.trending_flat;
+
+    return Card(
+      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF3C2F2F).withValues(alpha: 0.06),
+              const Color(0xFFF5E8C7),
+            ],
+          ),
+        ),
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            initiallyExpanded: _trendExpanded,
+            onExpansionChanged: (v) => setState(() => _trendExpanded = v),
+            tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            title: Row(
+              children: [
+                const Icon(Icons.auto_awesome, color: Color(0xFF3A5F0B), size: 18),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'AI Soil Trend Insight',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4A2C2A)),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Edit Soil Data',
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: directionColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: directionColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(directionIcon, size: 14, color: directionColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        r.overallDirection.toUpperCase(),
                         style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF4A2C2A),
-                        ),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: directionColor),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(dialogContext, false),
-                      icon: const Icon(Icons.close, color: Color(0xFF4A2C2A)),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            children: [
+              // Summary
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  r.trendSummary,
+                  style: const TextStyle(
+                      fontSize: 13, color: Color(0xFF3A5F0B), height: 1.4),
                 ),
               ),
-              // Content
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+
+              // Critical alerts
+              if (r.criticalAlerts.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                ...r.criticalAlerts.map((alert) => Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: Colors.red.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.warning_amber,
+                              size: 16, color: Colors.red),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              alert,
+                              style: const TextStyle(
+                                  fontSize: 12, color: Color(0xFF4A2C2A)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+              ],
+
+              // Positive trends
+              if (r.positiveTrends.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                ...r.positiveTrends.map((trend) => Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: Colors.green.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.check_circle_outline,
+                              size: 16, color: Colors.green),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              trend,
+                              style: const TextStyle(
+                                  fontSize: 12, color: Color(0xFF4A2C2A)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+              ],
+
+              // Recommended next action
+              if (r.recommendedAction.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3A5F0B).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: const Color(0xFF3A5F0B).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Soil Type Section
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: DropdownButtonFormField<String>(
-                          initialValue: selectedSoilType,
-                          decoration: const InputDecoration(
-                            labelText: 'Soil Type (Optional)',
-                            border: OutlineInputBorder(),
-                            labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          items: [
-                            const DropdownMenuItem<String>(
-                              value: null,
-                              child: Text('Select Soil Type', style: TextStyle(color: Color(0xFF3A5F0B))),
-                            ),
-                            ..._soilTypes.map((soilType) => DropdownMenuItem(
-                                  value: soilType,
-                                  child: Text(soilType, style: const TextStyle(color: Color(0xFF3A5F0B))),
-                                )),
-                          ],
-                          onChanged: (value) {
-                            selectedSoilType = value;
-                            developer.log('Selected soil type: $value', name: 'CoffeeSoilSummaryPage');
-                          },
-                        ),
-                      ),
-                      
-                      // Growth Stage Section
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: DropdownButtonFormField<String>(
-                          initialValue: selectedStage,
-                          decoration: const InputDecoration(
-                            labelText: 'Growth Stage',
-                            border: OutlineInputBorder(),
-                            labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                                value: 'Establishment/Seedling',
-                                child: Text('Establishment/Seedling', style: TextStyle(color: Color(0xFF3A5F0B)))),
-                            DropdownMenuItem(
-                                value: 'Vegetative Growth', child: Text('Vegetative Growth', style: TextStyle(color: Color(0xFF3A5F0B)))),
-                            DropdownMenuItem(
-                                value: 'Flowering and Fruiting',
-                                child: Text('Flowering and Fruiting', style: TextStyle(color: Color(0xFF3A5F0B)))),
-                            DropdownMenuItem(
-                                value: 'Maturation and Harvesting',
-                                child: Text('Maturation and Harvesting', style: TextStyle(color: Color(0xFF3A5F0B)))),
-                          ],
-                          onChanged: (value) {
-                            selectedStage = value ?? 'Establishment/Seedling';
-                            developer.log('Selected stage: $value', name: 'CoffeeSoilSummaryPage');
-                          },
-                        ),
-                      ),
-                      
-                      // Plant Density Section
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 20),
-                        child: TextFormField(
-                          controller: controllers['plantDensity'],
-                          decoration: const InputDecoration(
-                            labelText: 'Plant Density (plants/acre)',
-                            border: OutlineInputBorder(),
-                            labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator: (value) =>
-                              value == null || int.tryParse(value) == null ? 'Enter a valid number' : null,
-                        ),
-                      ),
-                      
-                      // Macronutrients Section
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Macronutrients', 
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold, 
-                                color: Color(0xFF4A2C2A)
-                              )
-                            ),
-                            const SizedBox(height: 12),
-                            ...['pH', 'nitrogen', 'phosphorus', 'potassium', 'magnesium', 'calcium'].map((nutrient) => Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              child: TextFormField(
-                                controller: controllers[nutrient],
-                                decoration: InputDecoration(
-                                  labelText: '${nutrient.toUpperCase()} ${NutrientAnalysisHelper.getNutrientUnit(nutrient, false)}',
-                                  border: const OutlineInputBorder(),
-                                  labelStyle: const TextStyle(color: Color(0xFF3A5F0B)),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                ),
-                                keyboardType: TextInputType.number,
-                                validator: (value) =>
-                                    value != null && value.isNotEmpty && double.tryParse(value) == null
-                                        ? 'Enter a valid number'
-                                        : null,
-                              ),
-                            )),
-                          ],
-                        ),
-                      ),
-                      
-                      // Micronutrients Section
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Micronutrients', 
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold, 
-                                color: Color(0xFF4A2C2A)
-                              )
-                            ),
-                            const SizedBox(height: 12),
-                            ...['zinc', 'boron'].map((nutrient) => Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              child: TextFormField(
-                                controller: controllers[nutrient],
-                                decoration: InputDecoration(
-                                  labelText: '${nutrient.toUpperCase()} ${NutrientAnalysisHelper.getNutrientUnit(nutrient, false)}',
-                                  border: const OutlineInputBorder(),
-                                  labelStyle: const TextStyle(color: Color(0xFF3A5F0B)),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                ),
-                                keyboardType: TextInputType.number,
-                                validator: (value) =>
-                                    value != null && value.isNotEmpty && double.tryParse(value) == null
-                                        ? 'Enter a valid number'
-                                        : null,
-                              ),
-                            )),
-                          ],
-                        ),
-                      ),
-                      
-                      // Intervention Section
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Intervention', 
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold, 
-                                color: Color(0xFF4A2C2A)
-                              )
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              child: TextFormField(
-                                controller: controllers['interventionMethod'],
-                                decoration: const InputDecoration(
-                                  labelText: 'Intervention Method (Optional)',
-                                  border: OutlineInputBorder(),
-                                  labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                ),
-                                maxLines: 2,
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Container(
-                                    margin: const EdgeInsets.only(right: 8),
-                                    child: TextFormField(
-                                      controller: controllers['interventionQuantity'],
-                                      decoration: const InputDecoration(
-                                        labelText: 'Quantity (Optional)',
-                                        border: OutlineInputBorder(),
-                                        labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
-                                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Container(
-                                    margin: const EdgeInsets.only(left: 8),
-                                    child: TextFormField(
-                                      controller: controllers['interventionUnit'],
-                                      decoration: const InputDecoration(
-                                        labelText: 'Unit (Optional)',
-                                        border: OutlineInputBorder(),
-                                        labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
-                                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            InkWell(
-                              onTap: () async {
-                                final picked = await showDatePicker(
-                                  context: localContext,
-                                  initialDate: interventionFollowUpDate ?? DateTime.now(),
-                                  firstDate: DateTime.now(),
-                                  lastDate: DateTime(2030),
-                                );
-                                if (picked != null) {
-                                  interventionFollowUpDate = picked;
-                                  developer.log('Selected follow-up date: $picked', name: 'CoffeeSoilSummaryPage');
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.calendar_today, color: Color(0xFF3A5F0B), size: 20),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        interventionFollowUpDate != null
-                                            ? 'Follow-up: ${interventionFollowUpDate!.toString().substring(0, 10)}'
-                                            : 'No Follow-up Date',
-                                        style: const TextStyle(color: Color(0xFF3A5F0B)),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      // Save Options Section
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Save with Recommendations', style: TextStyle(color: Color(0xFF4A2C2A))),
-                          subtitle: const Text('Include all recommendations in saved data',
-                              style: TextStyle(color: Color(0xFF3A5F0B), fontSize: 12)),
-                          value: saveWithRecommendations,
-                          onChanged: (value) {
-                            saveWithRecommendations = value ?? false;
-                            developer.log('Save with recommendations: $value', name: 'CoffeeSoilSummaryPage');
-                          },
-                          activeColor: const Color(0xFF4A2C2A),
+                      const Icon(Icons.arrow_forward_ios,
+                          size: 14, color: Color(0xFF3A5F0B)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          r.recommendedAction,
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF4A2C2A)),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              // Footer with action buttons
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(8),
-                    bottomRight: Radius.circular(8),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(dialogContext, false),
-                      child: const Text('Cancel', style: TextStyle(color: Color(0xFF4A2C2A))),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(dialogContext, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4A2C2A),
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('Save'),
-                    ),
-                  ],
+              ],
+
+              // Refresh button
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _trendResult = null;
+                      _isTrendLoading = false;
+                    });
+                    _loadTrendAnalysis();
+                  },
+                  icon: const Icon(Icons.refresh, size: 14, color: Color(0xFF3A5F0B)),
+                  label: const Text('Refresh',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF3A5F0B))),
                 ),
               ),
             ],
@@ -553,156 +501,584 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
         ),
       ),
     );
+  }
 
-    if (result == true && localContext.mounted) {
-      final plantDensity = int.tryParse(controllers['plantDensity']!.text) ?? entry.plantDensity;
-      final recommendations = <String, Map<String, String>>{};
-      final nutrients = [
-        'pH',
-        'nitrogen',
-        'phosphorus',
-        'potassium',
-        'magnesium',
-        'calcium',
-        'zinc',
-        'boron'
-      ];
+  // ─────────────────────────────────────────────────────────────────────────
+  // ④ AI PREDICTION SECTION (shown inside each history card if saved)
+  // ─────────────────────────────────────────────────────────────────────────
 
-      if (saveWithRecommendations) {
-        for (final nutrient in nutrients) {
-          final value = controllers[nutrient]!.text.isNotEmpty ? double.tryParse(controllers[nutrient]!.text) : null;
-          if (value != null) {
-            final status = NutrientAnalysisHelper.getNutrientStatus(nutrient, value, selectedStage);
-            if (status != 'Optimal') {
-              recommendations[nutrient] = NutrientAnalysisHelper.getRecommendations(
-                nutrient,
-                status,
-                selectedStage,
-                selectedSoilType,
-                _isPerPlant,
-                plantDensity,
+  Widget _buildAiPredictionSection(Map<String, dynamic> rawDocData) {
+    final prediction = rawDocData['aiPrediction'] as Map<String, dynamic>?;
+    if (prediction == null) return const SizedBox.shrink();
+
+    final summary = prediction['summary'] as String? ?? '';
+    final caveats = List<String>.from(prediction['caveats'] ?? []);
+    final predictions = prediction['predictions'] as Map<String, dynamic>? ?? {};
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.teal.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.teal.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.timeline, color: Colors.teal, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Expected at Follow-up (AI)',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF4A2C2A)),
+              ),
+            ],
+          ),
+          if (summary.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              summary,
+              style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF3A5F0B),
+                  fontStyle: FontStyle.italic),
+            ),
+          ],
+          const SizedBox(height: 10),
+
+          // Nutrient predictions grid
+          ...predictions.entries.map((e) {
+            final nutrient = e.key;
+            final data = e.value as Map<String, dynamic>? ?? {};
+            final current     = (data['current']      as num?)?.toDouble();
+            final expLow      = (data['expectedLow']   as num?)?.toDouble();
+            final expHigh     = (data['expectedHigh']  as num?)?.toDouble();
+            final confidence  = data['confidence'] as String? ?? 'medium';
+            if (current == null || expLow == null || expHigh == null) {
+              return const SizedBox.shrink();
+            }
+            final same = expLow == current && expHigh == current;
+            if (same) return const SizedBox.shrink(); // unchanged nutrients
+
+            final confidenceColor = confidence == 'high'
+                ? Colors.green
+                : confidence == 'medium'
+                    ? Colors.orange
+                    : Colors.grey;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 88,
+                    child: Text(
+                      nutrient.toUpperCase(),
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF4A2C2A)),
+                    ),
+                  ),
+                  Text(
+                    '${current.toStringAsFixed(1)} → ',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  ),
+                  Text(
+                    '${expLow.toStringAsFixed(1)}–${expHigh.toStringAsFixed(1)}',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: confidenceColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      confidence,
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: confidenceColor),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+
+          // Caveats
+          if (caveats.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            ...caveats.map((c) => Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline, size: 12, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          c,
+                          style:
+                              TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // EDIT
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _editSoilData(
+      BuildContext context, CoffeeSoilData entry, String docId) async {
+    try {
+      developer.log('Starting edit for document: $docId',
+          name: 'CoffeeSoilSummaryPage');
+
+      final controllers = {
+        'pH': TextEditingController(text: entry.ph?.toString()),
+        'nitrogen': TextEditingController(text: entry.nitrogen?.toString()),
+        'phosphorus': TextEditingController(text: entry.phosphorus?.toString()),
+        'potassium': TextEditingController(text: entry.potassium?.toString()),
+        'magnesium': TextEditingController(text: entry.magnesium?.toString()),
+        'calcium': TextEditingController(text: entry.calcium?.toString()),
+        'zinc': TextEditingController(text: entry.zinc?.toString()),
+        'boron': TextEditingController(text: entry.boron?.toString()),
+        'plantDensity': TextEditingController(text: entry.plantDensity.toString()),
+        'interventionMethod': TextEditingController(text: entry.interventionMethod),
+        'interventionQuantity': TextEditingController(text: entry.interventionQuantity),
+        'interventionUnit': TextEditingController(text: entry.interventionUnit),
+      };
+      String? selectedSoilType = entry.soilType;
+      String selectedStage = entry.stage;
+      DateTime? interventionFollowUpDate =
+          entry.interventionFollowUpDate?.toDate();
+      bool saveWithRecommendations = entry.saveWithRecommendations;
+
+      final localContext = context;
+
+      final result = await showDialog<bool>(
+        context: localContext,
+        builder: (dialogContext) => Dialog(
+          insetPadding: const EdgeInsets.all(16),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(dialogContext).size.height * 0.9,
+              maxWidth: MediaQuery.of(dialogContext).size.width * 0.95,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF0E4D7),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      topRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Edit Soil Data',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF4A2C2A)),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        icon: const Icon(Icons.close, color: Color(0xFF4A2C2A)),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Soil Type
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: DropdownButtonFormField<String>(
+                            initialValue: selectedSoilType,
+                            decoration: const InputDecoration(
+                              labelText: 'Soil Type (Optional)',
+                              border: OutlineInputBorder(),
+                              labelStyle:
+                                  TextStyle(color: Color(0xFF3A5F0B)),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                            ),
+                            items: [
+                              const DropdownMenuItem<String>(
+                                value: null,
+                                child: Text('Select Soil Type',
+                                    style:
+                                        TextStyle(color: Color(0xFF3A5F0B))),
+                              ),
+                              ..._soilTypes.map((soilType) =>
+                                  DropdownMenuItem(
+                                    value: soilType,
+                                    child: Text(soilType,
+                                        style: const TextStyle(
+                                            color: Color(0xFF3A5F0B))),
+                                  )),
+                            ],
+                            onChanged: (value) {
+                              selectedSoilType = value;
+                            },
+                          ),
+                        ),
+                        // Growth Stage
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: DropdownButtonFormField<String>(
+                            initialValue: selectedStage,
+                            decoration: const InputDecoration(
+                              labelText: 'Growth Stage',
+                              border: OutlineInputBorder(),
+                              labelStyle:
+                                  TextStyle(color: Color(0xFF3A5F0B)),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                  value: 'Establishment/Seedling',
+                                  child: Text('Establishment/Seedling',
+                                      style: TextStyle(
+                                          color: Color(0xFF3A5F0B)))),
+                              DropdownMenuItem(
+                                  value: 'Vegetative Growth',
+                                  child: Text('Vegetative Growth',
+                                      style: TextStyle(
+                                          color: Color(0xFF3A5F0B)))),
+                              DropdownMenuItem(
+                                  value: 'Flowering and Fruiting',
+                                  child: Text('Flowering and Fruiting',
+                                      style: TextStyle(
+                                          color: Color(0xFF3A5F0B)))),
+                              DropdownMenuItem(
+                                  value: 'Maturation and Harvesting',
+                                  child: Text('Maturation and Harvesting',
+                                      style: TextStyle(
+                                          color: Color(0xFF3A5F0B)))),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) selectedStage = value;
+                            },
+                          ),
+                        ),
+                        // Nutrient fields
+                        ...[
+                          'pH', 'nitrogen', 'phosphorus', 'potassium',
+                          'magnesium', 'calcium', 'zinc', 'boron', 'plantDensity'
+                        ].map((field) => Container(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              child: TextFormField(
+                                controller: controllers[field],
+                                decoration: InputDecoration(
+                                  labelText: field == 'plantDensity'
+                                      ? 'Plant Density (plants/acre)'
+                                      : field.toUpperCase(),
+                                  border: const OutlineInputBorder(),
+                                  labelStyle: const TextStyle(
+                                      color: Color(0xFF3A5F0B)),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
+                                ),
+                                keyboardType: TextInputType.number,
+                              ),
+                            )),
+                        // Intervention
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: TextFormField(
+                            controller: controllers['interventionMethod'],
+                            decoration: const InputDecoration(
+                              labelText: 'Intervention Method (Optional)',
+                              border: OutlineInputBorder(),
+                              labelStyle:
+                                  TextStyle(color: Color(0xFF3A5F0B)),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                            ),
+                            maxLines: 2,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                margin: const EdgeInsets.only(
+                                    bottom: 16, right: 8),
+                                child: TextFormField(
+                                  controller: controllers['interventionQuantity'],
+                                  decoration: const InputDecoration(
+                                    labelText: 'Quantity',
+                                    border: OutlineInputBorder(),
+                                    labelStyle: TextStyle(
+                                        color: Color(0xFF3A5F0B)),
+                                    contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 16),
+                                child: TextFormField(
+                                  controller: controllers['interventionUnit'],
+                                  decoration: const InputDecoration(
+                                    labelText: 'Unit',
+                                    border: OutlineInputBorder(),
+                                    labelStyle: TextStyle(
+                                        color: Color(0xFF3A5F0B)),
+                                    contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Follow-up date
+                        StatefulBuilder(
+                          builder: (ctx, setS) => ListTile(
+                            title: Text(
+                              interventionFollowUpDate != null
+                                  ? 'Follow-up: ${DateFormat('MMM dd, yyyy').format(interventionFollowUpDate!)}'
+                                  : 'Set Follow-up Date',
+                              style: const TextStyle(
+                                  color: Color(0xFF3A5F0B)),
+                            ),
+                            trailing: const Icon(Icons.calendar_today,
+                                color: Color(0xFF3A5F0B)),
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: ctx,
+                                initialDate:
+                                    interventionFollowUpDate ?? DateTime.now(),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime(2030),
+                              );
+                              if (picked != null) {
+                                setS(() =>
+                                    interventionFollowUpDate = picked);
+                              }
+                            },
+                          ),
+                        ),
+                        CheckboxListTile(
+                          title: const Text('Save with recommendations',
+                              style: TextStyle(
+                                  color: Color(0xFF4A2C2A), fontSize: 14)),
+                          value: saveWithRecommendations,
+                          onChanged: (value) {
+                            saveWithRecommendations = value ?? false;
+                          },
+                          activeColor: const Color(0xFF4A2C2A),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Footer buttons
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF0E4D7),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(8),
+                      bottomRight: Radius.circular(8),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.pop(dialogContext, false),
+                        child: const Text('Cancel',
+                            style: TextStyle(color: Color(0xFF4A2C2A))),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () =>
+                            Navigator.pop(dialogContext, true),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4A2C2A),
+                            foregroundColor: Colors.white),
+                        child: const Text('Save'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      if (result == true && localContext.mounted) {
+        final isOnline = await _isConnected();
+
+        final updatedData = entry.copyWith(
+          soilType: selectedSoilType,
+          stage: selectedStage,
+          ph: double.tryParse(controllers['pH']!.text),
+          nitrogen: double.tryParse(controllers['nitrogen']!.text),
+          phosphorus: double.tryParse(controllers['phosphorus']!.text),
+          potassium: double.tryParse(controllers['potassium']!.text),
+          magnesium: double.tryParse(controllers['magnesium']!.text),
+          calcium: double.tryParse(controllers['calcium']!.text),
+          zinc: double.tryParse(controllers['zinc']!.text),
+          boron: double.tryParse(controllers['boron']!.text),
+          plantDensity: int.tryParse(controllers['plantDensity']!.text) ?? entry.plantDensity,
+          interventionMethod: controllers['interventionMethod']!.text.isNotEmpty
+              ? controllers['interventionMethod']!.text
+              : null,
+          interventionQuantity: controllers['interventionQuantity']!.text.isNotEmpty
+              ? controllers['interventionQuantity']!.text
+              : null,
+          interventionUnit: controllers['interventionUnit']!.text.isNotEmpty
+              ? controllers['interventionUnit']!.text
+              : null,
+          interventionFollowUpDate: interventionFollowUpDate != null
+              ? Timestamp.fromDate(interventionFollowUpDate!)
+              : null,
+          saveWithRecommendations: saveWithRecommendations,
+        );
+
+        if (localContext.mounted) {
+          if (isOnline) {
+            await FirebaseFirestore.instance
+                .collection('SoilData')
+                .doc(docId)
+                .set(updatedData.toMap(), SetOptions(merge: true));
+            developer.log('Successfully updated soil data for doc: $docId',
+                name: 'CoffeeSoilSummaryPage');
+
+            if (localContext.mounted) {
+              ScaffoldMessenger.of(localContext).showSnackBar(
+                const SnackBar(
+                  content: Text('Soil data updated successfully'),
+                  backgroundColor: Color(0xFF4A2C2A),
+                ),
               );
-              developer.log('Generated recommendations for $nutrient: $status', name: 'CoffeeSoilSummaryPage');
+            }
+          } else {
+            final prefs = await SharedPreferences.getInstance();
+            final unsyncedEdits =
+                prefs.getStringList('unsynced_edits_${widget.userId}') ?? [];
+            unsyncedEdits
+                .add(jsonEncode({'docId': docId, 'data': updatedData.toMap()}));
+            await prefs.setStringList(
+                'unsynced_edits_${widget.userId}', unsyncedEdits);
+            developer.log('Saved edit locally for doc: $docId',
+                name: 'CoffeeSoilSummaryPage');
+
+            if (localContext.mounted) {
+              ScaffoldMessenger.of(localContext).showSnackBar(
+                const SnackBar(
+                  content:
+                      Text('Changes saved locally, will sync when online'),
+                  backgroundColor: Color(0xFF4A2C2A),
+                ),
+              );
             }
           }
         }
-      }
 
-      final updatedData = CoffeeSoilData(
-        userId: widget.userId,
-        plotId: entry.plotId,
-        stage: selectedStage,
-        soilType: selectedSoilType,
-        ph: controllers['pH']!.text.isNotEmpty ? double.parse(controllers['pH']!.text) : null,
-        nitrogen: controllers['nitrogen']!.text.isNotEmpty ? double.parse(controllers['nitrogen']!.text) : null,
-        phosphorus: controllers['phosphorus']!.text.isNotEmpty ? double.parse(controllers['phosphorus']!.text) : null,
-        potassium: controllers['potassium']!.text.isNotEmpty ? double.parse(controllers['potassium']!.text) : null,
-        magnesium: controllers['magnesium']!.text.isNotEmpty ? double.parse(controllers['magnesium']!.text) : null,
-        calcium: controllers['calcium']!.text.isNotEmpty ? double.parse(controllers['calcium']!.text) : null,
-        zinc: controllers['zinc']!.text.isNotEmpty ? double.parse(controllers['zinc']!.text) : null,
-        boron: controllers['boron']!.text.isNotEmpty ? double.parse(controllers['boron']!.text) : null,
-        plantDensity: plantDensity,
-        interventionMethod:
-            controllers['interventionMethod']!.text.isNotEmpty ? controllers['interventionMethod']!.text : null,
-        interventionQuantity:
-            controllers['interventionQuantity']!.text.isNotEmpty ? controllers['interventionQuantity']!.text : null,
-        interventionUnit:
-            controllers['interventionUnit']!.text.isNotEmpty ? controllers['interventionUnit']!.text : null,
-        interventionFollowUpDate: interventionFollowUpDate != null ? Timestamp.fromDate(interventionFollowUpDate!) : null,
-        notificationTriggered: entry.notificationTriggered,
-        recommendations: saveWithRecommendations ? recommendations : null,
-        saveWithRecommendations: saveWithRecommendations,
-        timestamp: Timestamp.now(),
-        isDeleted: false,
-      );
-
-      final isOnline = await _isConnected();
-      if (localContext.mounted) { // Check if the context is still mounted before proceeding
-        if (isOnline) {
-          await FirebaseFirestore.instance
-              .collection('SoilData')
-              .doc(docId)
-              .set(updatedData.toMap(), SetOptions(merge: true));
-          developer.log('Successfully updated soil data in Firestore for doc: $docId', name: 'CoffeeSoilSummaryPage');
-
-          if (localContext.mounted) { // Check again before showing the SnackBar
-            ScaffoldMessenger.of(localContext).showSnackBar(
-              const SnackBar(
-                content: Text('Soil data updated successfully'),
-                backgroundColor: Color(0xFF4A2C2A),
-              ),
-            );
-          }
-        } else {
-          final prefs = await SharedPreferences.getInstance();
-          final unsyncedEdits = prefs.getStringList('unsynced_edits_${widget.userId}') ?? [];
-          unsyncedEdits.add(jsonEncode({'docId': docId, 'data': updatedData.toMap()}));
-          await prefs.setStringList('unsynced_edits_${widget.userId}', unsyncedEdits);
-          developer.log('Saved edit locally for doc: $docId', name: 'CoffeeSoilSummaryPage');
-
-          if (localContext.mounted) { // Check again before showing the SnackBar
-            ScaffoldMessenger.of(localContext).showSnackBar(
-              const SnackBar(
-                content: Text('Changes saved locally, will sync when online'),
-                backgroundColor: Color(0xFF4A2C2A),
-              ),
-            );
-          }
+        for (final controller in controllers.values) {
+          controller.dispose();
         }
       }
-
-      for (final controller in controllers.values) {
-        controller.dispose();
+    } catch (e, stackTrace) {
+      developer.log('Error editing soil data: $e',
+          name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to save changes. Please try again.'),
+            backgroundColor: Color(0xFF4A2C2A),
+          ),
+        );
       }
     }
-  } catch (e, stackTrace) {
-    developer.log('Error editing soil data: $e', name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to save changes. Please try again.'),
-          backgroundColor: Color(0xFF4A2C2A),
-        ),
-      );
-    }
   }
-}
 
   Future<void> _deleteSoilData(BuildContext context, String docId) async {
     try {
-      developer.log('Starting delete for document: $docId', name: 'CoffeeSoilSummaryPage');
+      developer.log('Starting delete for document: $docId',
+          name: 'CoffeeSoilSummaryPage');
 
-      // Store the context in a local variable
       final localContext = context;
 
       final confirm = await showDialog<bool>(
         context: localContext,
         builder: (context) => AlertDialog(
-          title: const Text('Confirm Deletion', style: TextStyle(color: Color(0xFF4A2C2A))),
-          content: const Text('Are you sure you want to delete this soil analysis entry? This action cannot be undone.'),
+          title: const Text('Confirm Deletion',
+              style: TextStyle(color: Color(0xFF4A2C2A))),
+          content: const Text(
+              'Are you sure you want to delete this soil analysis entry? '
+              'This action cannot be undone.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(localContext, false),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF4A2C2A))),
+              child: const Text('Cancel',
+                  style: TextStyle(color: Color(0xFF4A2C2A))),
             ),
             TextButton(
               onPressed: () => Navigator.pop(localContext, true),
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: const Text('Delete',
+                  style: TextStyle(color: Colors.red)),
             ),
           ],
         ),
       );
 
-      // Check if the dialog was confirmed and if the widget is still mounted
       if (confirm != true) return;
 
       final isOnline = await _isConnected();
 
       if (isOnline) {
-        await FirebaseFirestore.instance.collection('SoilData').doc(docId).update({'isDeleted': true});
-        developer.log('Successfully deleted soil data in Firestore for doc: $docId', name: 'CoffeeSoilSummaryPage');
+        await FirebaseFirestore.instance
+            .collection('SoilData')
+            .doc(docId)
+            .update({'isDeleted': true});
+        developer.log('Successfully deleted doc: $docId',
+            name: 'CoffeeSoilSummaryPage');
 
-        // Check if the widget is still mounted before using the context
         if (localContext.mounted) {
           ScaffoldMessenger.of(localContext).showSnackBar(
             const SnackBar(
@@ -713,25 +1089,28 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
         }
       } else {
         final prefs = await SharedPreferences.getInstance();
-        final unsyncedDeletions = prefs.getStringList('unsynced_deletions_${widget.userId}') ?? [];
+        final unsyncedDeletions =
+            prefs.getStringList('unsynced_deletions_${widget.userId}') ?? [];
         unsyncedDeletions.add(docId);
-        await prefs.setStringList('unsynced_deletions_${widget.userId}', unsyncedDeletions);
-        developer.log('Saved deletion locally for doc: $docId', name: 'CoffeeSoilSummaryPage');
+        await prefs.setStringList(
+            'unsynced_deletions_${widget.userId}', unsyncedDeletions);
+        developer.log('Saved deletion locally for doc: $docId',
+            name: 'CoffeeSoilSummaryPage');
 
-        // Check if the widget is still mounted before using the context
         if (localContext.mounted) {
           ScaffoldMessenger.of(localContext).showSnackBar(
             const SnackBar(
-              content: Text('Deletion saved locally, will sync when online'),
+              content:
+                  Text('Deletion saved locally, will sync when online'),
               backgroundColor: Color(0xFF4A2C2A),
             ),
           );
         }
       }
     } catch (e, stackTrace) {
-      developer.log('Error deleting soil data: $e', name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
+      developer.log('Error deleting soil data: $e',
+          name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
 
-      // Check if the widget is still mounted before using the context
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -743,6 +1122,10 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // BUILD
+  // ─────────────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -750,23 +1133,25 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
         backgroundColor: const Color(0xFF3C2F2F),
         title: const Text(
           'Enhanced Soil History',
-          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            developer.log('Navigating back from CoffeeSoilSummaryPage', name: 'CoffeeSoilSummaryPage');
+            developer.log('Navigating back from CoffeeSoilSummaryPage',
+                name: 'CoffeeSoilSummaryPage');
             Navigator.pop(context);
           },
         ),
         actions: [
           IconButton(
-            icon: Icon(_isPerPlant ? Icons.person : Icons.landscape, color: Colors.white),
+            icon: Icon(_isPerPlant ? Icons.person : Icons.landscape,
+                color: Colors.white),
             onPressed: () {
-              setState(() {
-                _isPerPlant = !_isPerPlant;
-              });
-              developer.log('Toggled unit display: ${_isPerPlant ? "per plant" : "per acre"}',
+              setState(() => _isPerPlant = !_isPerPlant);
+              developer.log(
+                  'Toggled unit display: ${_isPerPlant ? "per plant" : "per acre"}',
                   name: 'CoffeeSoilSummaryPage');
             },
             tooltip: _isPerPlant ? 'Switch to per acre' : 'Switch to per plant',
@@ -789,58 +1174,71 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
               items: _filterOptions
                   .map((filter) => DropdownMenuItem(
                         value: filter,
-                        child: Text(filter, style: const TextStyle(color: Color(0xFF3A5F0B))),
+                        child: Text(filter,
+                            style: const TextStyle(
+                                color: Color(0xFF3A5F0B))),
                       ))
                   .toList(),
               onChanged: (value) {
-                setState(() {
-                  _selectedFilter = value ?? 'All';
-                });
-                developer.log('Filter changed to: $value', name: 'CoffeeSoilSummaryPage');
+                setState(() => _selectedFilter = value ?? 'All');
+                developer.log('Filter changed to: $value',
+                    name: 'CoffeeSoilSummaryPage');
               },
             ),
           ),
         ),
       ),
       backgroundColor: const Color(0xFFF5E8C7),
+
+      // ⑥ Soil Advisor Chat FAB
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => SoilAdvisorChatSheet.show(
+          context,
+          currentNutrients:
+              _latestNutrients?.isNotEmpty == true ? _latestNutrients : null,
+          stage: _latestStage,
+          soilType: _latestSoilType,
+        ),
+        backgroundColor: const Color(0xFF3A5F0B),
+        tooltip: 'Soil Advisor',
+        child: const Icon(Icons.eco, color: Colors.white),
+      ),
+
       body: StreamBuilder<QuerySnapshot>(
         stream: _getFilteredStream(),
         builder: (context, snapshot) {
-          developer.log('StreamBuilder state: ${snapshot.connectionState}', name: 'CoffeeSoilSummaryPage');
+          developer.log(
+              'StreamBuilder state: ${snapshot.connectionState}',
+              name: 'CoffeeSoilSummaryPage');
 
           if (snapshot.connectionState == ConnectionState.waiting) {
-            developer.log('Loading soil data...', name: 'CoffeeSoilSummaryPage');
             return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            developer.log('Error loading data: ${snapshot.error}', name: 'CoffeeSoilSummaryPage', error: snapshot.error);
+            developer.log('Error loading data: ${snapshot.error}',
+                name: 'CoffeeSoilSummaryPage', error: snapshot.error);
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.error, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Error loading data',
-                    style: TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  const Text('Error loading data',
+                      style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text(
-                    'Error: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red, fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
+                  Text('Error: ${snapshot.error}',
+                      style: const TextStyle(color: Colors.red, fontSize: 14),
+                      textAlign: TextAlign.center),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () {
-                      setState(() {});
-                      developer.log('Retrying data load...', name: 'CoffeeSoilSummaryPage');
-                    },
+                    onPressed: () => setState(() {}),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4A2C2A),
-                      foregroundColor: Colors.white,
-                    ),
+                        backgroundColor: const Color(0xFF4A2C2A),
+                        foregroundColor: Colors.white),
                     child: const Text('Retry'),
                   ),
                 ],
@@ -849,37 +1247,28 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
           }
 
           if (!snapshot.hasData) {
-            developer.log('No snapshot data available', name: 'CoffeeSoilSummaryPage');
             return const Center(child: Text('No data available'));
           }
 
           final docs = snapshot.data!.docs;
-          developer.log('Retrieved ${docs.length} documents from Firestore', name: 'CoffeeSoilSummaryPage');
+          developer.log('Retrieved ${docs.length} documents',
+              name: 'CoffeeSoilSummaryPage');
 
           if (docs.isEmpty) {
-            developer.log('No soil data found for user: ${widget.userId}', name: 'CoffeeSoilSummaryPage');
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.eco, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
-                  Text(
-                    'No soil data available',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  Text('No soil data available',
+                      style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500)),
                   const SizedBox(height: 8),
-                  Text(
-                    'Start by adding your first soil analysis',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
-                  ),
+                  Text('Start by adding your first soil analysis',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[500])),
                 ],
               ),
             );
@@ -888,27 +1277,40 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
           try {
             final entries = docs.map((doc) {
               try {
-                final data = doc.data() as Map<String, dynamic>;
-                developer.log('Processing document: ${doc.id}', name: 'CoffeeSoilSummaryPage');
-                return CoffeeSoilData.fromMap(data);
-              } catch (e, stackTrace) {
+                return CoffeeSoilData.fromMap(
+                    doc.data() as Map<String, dynamic>);
+              } catch (e, st) {
                 developer.log('Error parsing document ${doc.id}: $e',
-                    name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
+                    name: 'CoffeeSoilSummaryPage', error: e, stackTrace: st);
                 rethrow;
               }
             }).toList();
 
-            developer.log('Successfully parsed ${entries.length} soil data entries', name: 'CoffeeSoilSummaryPage');
+            developer.log('Successfully parsed ${entries.length} entries',
+                name: 'CoffeeSoilSummaryPage');
+
+            // ⑤ Trend card occupies index 0; real entries start at index 1.
+            final showTrend = _isTrendLoading || _trendResult != null;
+            final itemCount = entries.length + (showTrend ? 1 : 0);
+            final offset = showTrend ? 1 : 0;
 
             return ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: entries.length,
+              itemCount: itemCount,
               itemBuilder: (context, index) {
+                // Trend insight card is the first item
+                if (showTrend && index == 0) {
+                  return _buildTrendInsightCard();
+                }
+
+                final entryIndex = index - offset;
                 try {
-                  return _buildEnhancedSoilCard(entries[index], docs[index].id);
-                } catch (e, stackTrace) {
-                  developer.log('Error building card for index $index: $e',
-                      name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
+                  final rawData = docs[entryIndex].data() as Map<String, dynamic>;
+                  return _buildEnhancedSoilCard(
+                      entries[entryIndex], docs[entryIndex].id, rawData);
+                } catch (e, st) {
+                  developer.log('Error building card for index $entryIndex: $e',
+                      name: 'CoffeeSoilSummaryPage', error: e, stackTrace: st);
                   return Card(
                     child: ListTile(
                       leading: const Icon(Icons.error, color: Colors.red),
@@ -919,25 +1321,24 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
                 }
               },
             );
-          } catch (e, stackTrace) {
-            developer.log('Error processing documents: $e',
-                name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
+          } catch (e, st) {
+            developer.log('Error parsing documents: $e',
+                name: 'CoffeeSoilSummaryPage', error: e, stackTrace: st);
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.error, size: 64, color: Colors.red),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Error processing data',
-                    style: TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  const Text('Error parsing data',
+                      style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text(
-                    'Error: $e',
-                    style: const TextStyle(color: Colors.red, fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
+                  Text('Error: $e',
+                      style: const TextStyle(color: Colors.red, fontSize: 14),
+                      textAlign: TextAlign.center),
                 ],
               ),
             );
@@ -947,9 +1348,17 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
     );
   }
 
-  Widget _buildEnhancedSoilCard(CoffeeSoilData entry, String docId) {
+  // ─────────────────────────────────────────────────────────────────────────
+  // SOIL HISTORY CARD  (now also renders the ④ AI prediction section)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildEnhancedSoilCard(
+      CoffeeSoilData entry, String docId, Map<String, dynamic> rawData) {
     try {
-      final hasRecommendations = entry.recommendations != null && entry.recommendations!.isNotEmpty;
+      final hasRecommendations =
+          entry.recommendations != null && entry.recommendations!.isNotEmpty;
+      final hasPrediction = rawData.containsKey('aiPrediction') &&
+          rawData['aiPrediction'] != null;
 
       return Card(
         elevation: 4,
@@ -961,10 +1370,7 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Colors.white,
-                Colors.grey[50]!,
-              ],
+              colors: [Colors.white, Colors.grey[50]!],
             ),
           ),
           child: ExpansionTile(
@@ -973,7 +1379,8 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
             title: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: const Color(0xFF3A5F0B),
                     borderRadius: BorderRadius.circular(20),
@@ -981,16 +1388,16 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
                   child: Text(
                     entry.plotId,
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12),
                   ),
                 ),
                 const SizedBox(width: 8),
                 if (hasRecommendations)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.blue[100],
                       borderRadius: BorderRadius.circular(12),
@@ -1000,17 +1407,37 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
                       children: [
                         Icon(Icons.lightbulb, size: 12, color: Colors.blue[800]),
                         const SizedBox(width: 4),
-                        Text(
-                          'RECS',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[800],
-                          ),
-                        ),
+                        Text('RECS',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[800])),
                       ],
                     ),
                   ),
+                if (hasPrediction) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.timeline, size: 12, color: Colors.teal.shade800),
+                        const SizedBox(width: 4),
+                        Text('PRED',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.teal.shade800)),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
             subtitle: Column(
@@ -1020,18 +1447,15 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
                 Text(
                   entry.stage,
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF4A2C2A),
-                  ),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF4A2C2A)),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  DateFormat('MMM dd, yyyy • HH:mm').format(entry.timestamp.toDate()),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                  DateFormat('MMM dd, yyyy • HH:mm')
+                      .format(entry.timestamp.toDate()),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -1039,7 +1463,8 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (entry.notificationTriggered)
-                  const Icon(Icons.notifications_active, color: Colors.green, size: 20),
+                  const Icon(Icons.notifications_active,
+                      color: Colors.green, size: 20),
                 PopupMenuButton<String>(
                   onSelected: (value) {
                     if (value == 'edit') {
@@ -1051,23 +1476,19 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
                   itemBuilder: (context) => [
                     const PopupMenuItem(
                       value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit, color: Colors.blue, size: 20),
-                          SizedBox(width: 8),
-                          Text('Edit'),
-                        ],
-                      ),
+                      child: Row(children: [
+                        Icon(Icons.edit, color: Colors.blue, size: 20),
+                        SizedBox(width: 8),
+                        Text('Edit'),
+                      ]),
                     ),
                     const PopupMenuItem(
                       value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, color: Colors.red, size: 20),
-                          SizedBox(width: 8),
-                          Text('Delete'),
-                        ],
-                      ),
+                      child: Row(children: [
+                        Icon(Icons.delete, color: Colors.red, size: 20),
+                        SizedBox(width: 8),
+                        Text('Delete'),
+                      ]),
                     ),
                   ],
                 ),
@@ -1081,11 +1502,16 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
                 const SizedBox(height: 16),
                 _buildInterventionSection(entry),
               ],
+              // ④ AI prediction card
+              if (hasPrediction) ...[
+                const SizedBox(height: 16),
+                _buildAiPredictionSection(rawData),
+              ],
               if (hasRecommendations) ...[
                 const SizedBox(height: 16),
                 _buildRecommendationsSection(entry.recommendations!),
               ],
-            ]
+            ],
           ),
         ),
       );
@@ -1101,6 +1527,10 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
       );
     }
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // EXISTING SECTION BUILDERS (unchanged from original)
+  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildNutrientDataSection(CoffeeSoilData entry) {
     final nutrients = [
@@ -1130,32 +1560,31 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
               children: [
                 const Icon(Icons.science, color: Color(0xFF3A5F0B), size: 20),
                 const SizedBox(width: 8),
-                const Expanded( // Wrap text in Expanded to prevent overflow
+                const Expanded(
                   child: Text(
                     'Nutrient Analysis',
                     style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF4A2C2A),
-                    ),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4A2C2A)),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 8), // Add spacing before the container
-                Flexible( // Make the plant density container flexible
+                const SizedBox(width: 8),
+                Flexible(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), // Reduced padding
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Color(0xFF3A5F0B).withValues(alpha: 0.1),
+                      color: const Color(0xFF3A5F0B).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '${entry.plantDensity} plants/acre',
                       style: const TextStyle(
-                        fontSize: 11, // Slightly smaller font
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF3A5F0B),
-                      ),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF3A5F0B)),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
@@ -1165,10 +1594,9 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
             ),
             if (entry.soilType != null) ...[
               const SizedBox(height: 12),
-              Text(
-                'Soil Type: ${entry.soilType}',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4A2C2A)),
-              ),
+              Text('Soil Type: ${entry.soilType}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, color: Color(0xFF4A2C2A))),
             ],
             const SizedBox(height: 12),
             GridView.builder(
@@ -1176,7 +1604,7 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 2.0, // Further reduced to give more height
+                childAspectRatio: 2.0,
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
               ),
@@ -1188,75 +1616,64 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
 
                 final displayValue = _isPerPlant && nutrient['name'] != 'pH'
                     ? NutrientAnalysisHelper.convertToPerPlant(
-                        nutrient['name'].toString().toLowerCase(), value, entry.plantDensity)
+                        nutrient['name'].toString().toLowerCase(),
+                        value, entry.plantDensity)
                     : value;
                 final status = NutrientAnalysisHelper.getNutrientStatus(
-                  nutrient['name'].toString().toLowerCase(),
-                  value,
-                  entry.stage,
-                );
+                  nutrient['name'].toString().toLowerCase(), value, entry.stage);
 
                 return Container(
-                  padding: const EdgeInsets.all(6), // Reduced padding from 8 to 6
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: _getStatusColor(status).withValues(alpha: 0.3),
-                      width: 2,
-                    ),
+                        color: _getStatusColor(status).withValues(alpha: 0.3),
+                        width: 2),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center, // Changed back to center
+                    mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Nutrient name - no Flexible wrapper to avoid clipping
                       Text(
                         nutrient['name'].toString(),
                         style: const TextStyle(
-                          fontSize: 11, // Slightly smaller font
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF4A2C2A),
-                        ),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF4A2C2A)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4), // Reduced spacing
-                      // Value row with proper overflow handling
+                      const SizedBox(height: 4),
                       Row(
                         children: [
-                          // Value and unit in a single text widget to avoid splitting issues
                           Expanded(
                             child: RichText(
                               text: TextSpan(
                                 children: [
                                   TextSpan(
-                                    text: displayValue.toStringAsFixed(nutrient['name'] == 'pH' ? 1 : 2),
+                                    text: displayValue.toStringAsFixed(
+                                        nutrient['name'] == 'pH' ? 1 : 2),
                                     style: const TextStyle(
-                                      fontSize: 13, // Slightly smaller font
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF3A5F0B),
-                                    ),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF3A5F0B)),
                                   ),
                                   TextSpan(
                                     text: ' ${nutrient['unit'].toString()}',
                                     style: TextStyle(
-                                      fontSize: 9, // Smaller unit text
-                                      color: Colors.grey[600],
-                                    ),
+                                        fontSize: 9, color: Colors.grey[600]),
                                   ),
                                 ],
                               ),
-                              maxLines: 1, // Reduced to 1 line to prevent overflow
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(width: 6),
-                          // Status indicator (fixed size)
                           Container(
-                            width: 8,
-                            height: 8,
+                            width: 8, height: 8,
                             decoration: BoxDecoration(
                               color: _getStatusColor(status),
                               shape: BoxShape.circle,
@@ -1290,31 +1707,31 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
             children: [
               Icon(Icons.build, color: Colors.orange, size: 20),
               SizedBox(width: 8),
-              Text(
-                'Intervention Applied',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF4A2C2A),
-                ),
-              ),
+              Text('Intervention Applied',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4A2C2A))),
             ],
           ),
           const SizedBox(height: 12),
           _buildFieldRow('Method', entry.interventionMethod ?? 'N/A'),
           if (entry.interventionQuantity != null && entry.interventionUnit != null)
-            _buildFieldRow('Quantity', '${entry.interventionQuantity} ${entry.interventionUnit}'),
+            _buildFieldRow('Quantity',
+                '${entry.interventionQuantity} ${entry.interventionUnit}'),
           if (entry.interventionFollowUpDate != null)
             _buildFieldRow(
               'Follow-up Date',
-              DateFormat('MMM dd, yyyy').format(entry.interventionFollowUpDate!.toDate()),
+              DateFormat('MMM dd, yyyy')
+                  .format(entry.interventionFollowUpDate!.toDate()),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildRecommendationsSection(Map<String, dynamic> recommendations) {
+  Widget _buildRecommendationsSection(
+      Map<String, dynamic> recommendations) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1329,64 +1746,62 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
             children: [
               Icon(Icons.lightbulb, color: Colors.blue, size: 20),
               SizedBox(width: 8),
-              Text(
-                'Saved Recommendations',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF4A2C2A),
-                ),
-              ),
+              Text('Saved Recommendations',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4A2C2A))),
             ],
           ),
           const SizedBox(height: 12),
-          ...recommendations.entries.map((entry) => _buildRecommendationCard(
-                entry.key,
-                entry.value as Map<String, dynamic>,
-              )),
+          ...recommendations.entries.map((entry) =>
+              _buildRecommendationCard(
+                  entry.key, entry.value as Map<String, dynamic>)),
         ],
       ),
     );
   }
 
-  Widget _buildRecommendationCard(String nutrient, Map<String, dynamic> recommendations) {
+  Widget _buildRecommendationCard(
+      String nutrient, Map<String, dynamic> recommendations) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ExpansionTile(
         title: Text(
           nutrient.toUpperCase(),
           style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF4A2C2A),
-          ),
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF4A2C2A)),
         ),
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: recommendations.entries.map((rec) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _getRecommendationTypeTitle(rec.key),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: _getRecommendationTypeColor(rec.key),
-                          ),
+              children: recommendations.entries
+                  .map((rec) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _getRecommendationTypeTitle(rec.key),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _getRecommendationTypeColor(rec.key)),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              rec.value.toString(),
+                              style: const TextStyle(
+                                  fontSize: 12, color: Color(0xFF3A5F0B)),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          rec.value.toString(),
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF3A5F0B)),
-                        ),
-                      ],
-                    ),
-                  )).toList(),
+                      ))
+                  .toList(),
             ),
           ),
         ],
@@ -1402,23 +1817,16 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
         children: [
           SizedBox(
             width: 100,
-            child: Text(
-              '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF4A2C2A),
-                fontSize: 13,
-              ),
-            ),
+            child: Text('$label:',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF4A2C2A),
+                    fontSize: 13)),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Color(0xFF3A5F0B),
-                fontSize: 13,
-              ),
-            ),
+            child: Text(value,
+                style: const TextStyle(
+                    color: Color(0xFF3A5F0B), fontSize: 13)),
           ),
         ],
       ),
@@ -1427,52 +1835,34 @@ Future<void> _editSoilData(BuildContext context, CoffeeSoilData entry, String do
 
   String _getRecommendationTypeTitle(String type) {
     switch (type) {
-      case 'natural':
-        return '🌱 Natural';
-      case 'biological':
-        return '🦠 Biological';
-      case 'artificial':
-        return '⚗️ Artificial';
-      case 'application':
-        return '📋 Application';
-      case 'maintain':
-        return '✅ Maintain';
-      case 'avoid':
-        return '⚠️ Avoid';
-      default:
-        return type.toUpperCase();
+      case 'natural': return '🌱 Natural';
+      case 'biological': return '🦠 Biological';
+      case 'artificial': return '⚗️ Artificial';
+      case 'application': return '📋 Application';
+      case 'maintain': return '✅ Maintain';
+      case 'avoid': return '⚠️ Avoid';
+      default: return type.toUpperCase();
     }
   }
 
   Color _getRecommendationTypeColor(String type) {
     switch (type) {
-      case 'natural':
-        return Colors.green;
-      case 'biological':
-        return Colors.blue;
-      case 'artificial':
-        return Colors.orange;
-      case 'application':
-        return Colors.purple;
-      case 'maintain':
-        return Colors.teal;
-      case 'avoid':
-        return Colors.red;
-      default:
-        return Colors.grey;
+      case 'natural': return Colors.green;
+      case 'biological': return Colors.blue;
+      case 'artificial': return Colors.orange;
+      case 'application': return Colors.purple;
+      case 'maintain': return Colors.teal;
+      case 'avoid': return Colors.red;
+      default: return Colors.grey;
     }
   }
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'Low':
-        return Colors.red;
-      case 'High':
-        return Colors.orange;
-      case 'Optimal':
-        return Colors.green;
-      default:
-        return Colors.grey;
+      case 'Low': return Colors.red;
+      case 'High': return Colors.orange;
+      case 'Optimal': return Colors.green;
+      default: return Colors.grey;
     }
   }
 }

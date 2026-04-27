@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:coffeecore/screens/Field%20Data/coffee_soil_form.dart';
+import 'package:coffeecore/screens/Field%20Data/soil_advisor_chat_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -19,13 +20,19 @@ class CoffeeSoilInputPage extends StatefulWidget {
 }
 
 class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
-  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
   List<String> _plotIds = [];
   String _userId = '';
   String? _selectedPlotId;
   bool _isLoading = true;
   bool _hasNotificationPermission = false;
-  final Map<String, String> _tempPlotIds = {}; // Map form index to temp plot ID
+  final Map<String, String> _tempPlotIds = {};
+
+  // ── ⑥ Current soil context fed to the chat FAB ───────────────────────────
+  Map<String, double> _currentNutrients = {};
+  String _currentStage = 'Establishment/Seedling';
+  String? _currentSoilType;
 
   @override
   void initState() {
@@ -36,13 +43,13 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
     _loadPlots();
   }
 
+  // ── User ──────────────────────────────────────────────────────────────────
+
   Future<void> _initializeUser() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        setState(() {
-          _userId = user.uid;
-        });
+        setState(() => _userId = user.uid);
         developer.log('User initialized: $_userId', name: 'CoffeeSoilInputPage');
       } else {
         developer.log('No user logged in', name: 'CoffeeSoilInputPage');
@@ -58,34 +65,32 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
     } catch (e, stackTrace) {
       developer.log('Error initializing user: $e',
           name: 'CoffeeSoilInputPage', error: e, stackTrace: stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to load user data. Please try again.'),
-            backgroundColor: Color(0xFF4A2C2A),
-          ),
-        );
-      }
     }
   }
 
+  // ── Notifications ─────────────────────────────────────────────────────────
+
   Future<void> _initializeNotifications() async {
     try {
-      const androidInitSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-      const initializationSettings = InitializationSettings(android: androidInitSettings);
+      const androidInitSettings =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
+      const initializationSettings =
+          InitializationSettings(android: androidInitSettings);
       await _notificationsPlugin.initialize(initializationSettings);
 
       final androidPlugin = _notificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-      bool? granted = await androidPlugin?.requestNotificationsPermission();
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      final granted =
+          await androidPlugin?.requestNotificationsPermission();
       final prefs = await SharedPreferences.getInstance();
-      bool hasPrompted = prefs.getBool('has_prompted_notifications') ?? false;
+      final hasPrompted =
+          prefs.getBool('has_prompted_notifications') ?? false;
 
-      setState(() {
-        _hasNotificationPermission = granted ?? false;
-      });
+      setState(() => _hasNotificationPermission = granted ?? false);
 
-      developer.log('Notification initialization: permission = $_hasNotificationPermission',
+      developer.log(
+          'Notification init: permission=$_hasNotificationPermission',
           name: 'CoffeeSoilInputPage');
 
       if (!_hasNotificationPermission && !hasPrompted) {
@@ -97,36 +102,31 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
     } catch (e, stackTrace) {
       developer.log('Error initializing notifications: $e',
           name: 'CoffeeSoilInputPage', error: e, stackTrace: stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to set up notifications. Please try again.'),
-            backgroundColor: Color(0xFF4A2C2A),
-          ),
-        );
-      }
     }
   }
 
   Future<void> _promptNotificationPermission() async {
     try {
-      final currentContext = context; // Capture context
       final result = await showDialog<bool>(
-        context: currentContext,
+        context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Enable Notifications', style: TextStyle(color: Color(0xFF4A2C2A))),
+          title: const Text('Enable Notifications',
+              style: TextStyle(color: Color(0xFF4A2C2A))),
           content: const Text(
-            'Notifications are required for soil follow-up reminders. Would you like to enable them now?',
+            'Notifications are required for soil follow-up reminders. '
+            'Would you like to enable them now?',
             style: TextStyle(color: Color(0xFF3A5F0B)),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Skip', style: TextStyle(color: Color(0xFF4A2C2A))),
+              child: const Text('Skip',
+                  style: TextStyle(color: Color(0xFF4A2C2A))),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Enable', style: TextStyle(color: Color(0xFF4A2C2A))),
+              child: const Text('Enable',
+                  style: TextStyle(color: Color(0xFF4A2C2A))),
             ),
           ],
         ),
@@ -134,40 +134,24 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
 
       if (result == true) {
         final androidPlugin = _notificationsPlugin
-            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-        bool? granted = await androidPlugin?.requestNotificationsPermission();
-        setState(() {
-          _hasNotificationPermission = granted ?? false;
-        });
-        if (_hasNotificationPermission) {
-          await _retryPendingNotifications();
-        }
-        developer.log('Notification permission prompt result: $_hasNotificationPermission',
-            name: 'CoffeeSoilInputPage');
-      } else {
-        developer.log('User skipped notification permission prompt', name: 'CoffeeSoilInputPage');
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
+        final granted =
+            await androidPlugin?.requestNotificationsPermission();
+        setState(() => _hasNotificationPermission = granted ?? false);
+        if (_hasNotificationPermission) await _retryPendingNotifications();
       }
     } catch (e, stackTrace) {
       developer.log('Error prompting notification permission: $e',
           name: 'CoffeeSoilInputPage', error: e, stackTrace: stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to request notification permissions. Please enable them in settings.'),
-            backgroundColor: Color(0xFF4A2C2A),
-          ),
-        );
-      }
     }
   }
 
   Future<void> _retryPendingNotifications() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final pendingNotifications = prefs.getStringList('pending_notifications') ?? [];
-      developer.log('Found ${pendingNotifications.length} pending notifications',
-          name: 'CoffeeSoilInputPage');
-
+      final pendingNotifications =
+          prefs.getStringList('pending_notifications') ?? [];
       if (pendingNotifications.isEmpty) return;
 
       for (final notification in pendingNotifications) {
@@ -175,34 +159,30 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
         final date = DateTime.parse(decoded['date'] as String);
         final message = decoded['message'] as String;
         final plotId = decoded['plotId'] as String;
-
         if (date.isAfter(DateTime.now())) {
           await _scheduleReminder(date, message, plotId);
-          developer.log('Retried notification for plot: $plotId at $date', name: 'CoffeeSoilInputPage');
         }
       }
-
       await prefs.setStringList('pending_notifications', []);
-      developer.log('Cleared pending notifications after retry', name: 'CoffeeSoilInputPage');
     } catch (e, stackTrace) {
       developer.log('Error retrying pending notifications: $e',
           name: 'CoffeeSoilInputPage', error: e, stackTrace: stackTrace);
     }
   }
 
-  Future<void> _scheduleReminder(DateTime date, String message, String plotId) async {
+  Future<void> _scheduleReminder(
+      DateTime date, String message, String plotId) async {
     try {
       if (!_hasNotificationPermission) {
         final prefs = await SharedPreferences.getInstance();
-        final pendingNotifications = prefs.getStringList('pending_notifications') ?? [];
-        pendingNotifications.add(jsonEncode({
+        final pending =
+            prefs.getStringList('pending_notifications') ?? [];
+        pending.add(jsonEncode({
           'date': date.toIso8601String(),
           'message': message,
           'plotId': plotId,
         }));
-        await prefs.setStringList('pending_notifications', pendingNotifications);
-        developer.log('Stored notification offline for plot: $plotId at $date',
-            name: 'CoffeeSoilInputPage');
+        await prefs.setStringList('pending_notifications', pending);
         return;
       }
 
@@ -213,7 +193,8 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
         importance: Importance.max,
         priority: Priority.high,
       );
-      const notificationDetails = NotificationDetails(android: androidDetails);
+      const notificationDetails =
+          NotificationDetails(android: androidDetails);
       await _notificationsPlugin.zonedSchedule(
         (_userId + plotId + date.toString()).hashCode,
         'Soil Follow-Up for $plotId',
@@ -228,28 +209,19 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
           .collection('SoilData')
           .where('userId', isEqualTo: _userId)
           .where('plotId', isEqualTo: plotId)
-          .where('interventionFollowUpDate', isEqualTo: Timestamp.fromDate(date))
+          .where('interventionFollowUpDate',
+              isEqualTo: Timestamp.fromDate(date))
           .get();
-
-      for (var doc in querySnapshot.docs) {
+      for (final doc in querySnapshot.docs) {
         await doc.reference.update({'notificationTriggered': true});
-        developer.log('Updated notificationTriggered for doc: ${doc.id}', name: 'CoffeeSoilInputPage');
       }
-
-      developer.log('Scheduled reminder for plot: $plotId at $date', name: 'CoffeeSoilInputPage');
     } catch (e, stackTrace) {
       developer.log('Error scheduling reminder: $e',
           name: 'CoffeeSoilInputPage', error: e, stackTrace: stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to schedule reminder. Please try again.'),
-            backgroundColor: Color(0xFF4A2C2A),
-          ),
-        );
-      }
     }
   }
+
+  // ── Plots ─────────────────────────────────────────────────────────────────
 
   Future<void> _loadPlots() async {
     try {
@@ -258,72 +230,73 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
       final prefs = await SharedPreferences.getInstance();
 
       if (isOnline && _userId.isNotEmpty) {
-        developer.log('Loading plots online for user: $_userId', name: 'CoffeeSoilInputPage');
-        final userDoc = await FirebaseFirestore.instance.collection('Users').doc(_userId).get();
-
-        final plotData = userDoc.data()?['plots'] as Map<String, dynamic>?;
-        final cachedPlots = prefs.getString('cached_plots_$_userId');
+        final userDoc = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(_userId)
+            .get();
+        final plotData =
+            userDoc.data()?['plots'] as Map<String, dynamic>?;
+        final cachedPlots =
+            prefs.getString('cached_plots_$_userId');
 
         if (plotData != null) {
           setState(() {
-            _plotIds = List<String>.from(plotData['plotIds'] ?? []);
-            _selectedPlotId = _plotIds.isNotEmpty ? _plotIds[0] : null;
+            _plotIds =
+                List<String>.from(plotData['plotIds'] ?? []);
+            _selectedPlotId =
+                _plotIds.isNotEmpty ? _plotIds[0] : null;
             if (_plotIds.isEmpty) {
               _plotIds.add('temp_0');
               _selectedPlotId = 'temp_0';
               _tempPlotIds['0'] = 'temp_0';
             }
           });
-
           await prefs.setString('cached_plots_$_userId',
               jsonEncode({'plotIds': _plotIds}));
-          developer.log('Loaded plots from Firestore: $_plotIds',
-              name: 'CoffeeSoilInputPage');
         } else if (cachedPlots != null) {
-          final decoded = jsonDecode(cachedPlots) as Map<String, dynamic>;
+          final decoded =
+              jsonDecode(cachedPlots) as Map<String, dynamic>;
           setState(() {
-            _plotIds = List<String>.from(decoded['plotIds'] ?? []);
-            _selectedPlotId = _plotIds.isNotEmpty ? _plotIds[0] : null;
+            _plotIds =
+                List<String>.from(decoded['plotIds'] ?? []);
+            _selectedPlotId =
+                _plotIds.isNotEmpty ? _plotIds[0] : null;
             if (_plotIds.isEmpty) {
               _plotIds.add('temp_0');
               _selectedPlotId = 'temp_0';
               _tempPlotIds['0'] = 'temp_0';
             }
           });
-          developer.log('Loaded plots from cache: $_plotIds',
-              name: 'CoffeeSoilInputPage');
         } else {
           setState(() {
             _plotIds = ['temp_0'];
             _selectedPlotId = 'temp_0';
             _tempPlotIds['0'] = 'temp_0';
           });
-          developer.log('Initialized default state: no plots',
-              name: 'CoffeeSoilInputPage');
         }
       } else {
-        final cachedPlots = prefs.getString('cached_plots_$_userId');
+        final cachedPlots =
+            prefs.getString('cached_plots_$_userId');
         if (cachedPlots != null) {
-          final decoded = jsonDecode(cachedPlots) as Map<String, dynamic>;
+          final decoded =
+              jsonDecode(cachedPlots) as Map<String, dynamic>;
           setState(() {
-            _plotIds = List<String>.from(decoded['plotIds'] ?? []);
-            _selectedPlotId = _plotIds.isNotEmpty ? _plotIds[0] : null;
+            _plotIds =
+                List<String>.from(decoded['plotIds'] ?? []);
+            _selectedPlotId =
+                _plotIds.isNotEmpty ? _plotIds[0] : null;
             if (_plotIds.isEmpty) {
               _plotIds.add('temp_0');
               _selectedPlotId = 'temp_0';
               _tempPlotIds['0'] = 'temp_0';
             }
           });
-          developer.log('Loaded plots from cache (offline): $_plotIds',
-              name: 'CoffeeSoilInputPage');
         } else {
           setState(() {
             _plotIds = ['temp_0'];
             _selectedPlotId = 'temp_0';
             _tempPlotIds['0'] = 'temp_0';
           });
-          developer.log('Initialized default state (offline): no plots',
-              name: 'CoffeeSoilInputPage');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -336,19 +309,9 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
       }
 
       setState(() => _isLoading = false);
-      developer.log('Plots loaded: $_plotIds, selected: $_selectedPlotId',
-          name: 'CoffeeSoilInputPage');
     } catch (e, stackTrace) {
       developer.log('Error loading plots: $e',
           name: 'CoffeeSoilInputPage', error: e, stackTrace: stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to load plot data. Please try again.'),
-            backgroundColor: Color(0xFF4A2C2A),
-          ),
-        );
-      }
       setState(() => _isLoading = false);
     }
   }
@@ -356,81 +319,42 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
   Future<void> _syncPlots() async {
     try {
       final isOnline = await _isConnected();
-      if (!isOnline || _userId.isEmpty) {
-        developer.log('Skipping plot sync: offline=${!isOnline}, userId=$_userId',
-            name: 'CoffeeSoilInputPage');
-        if (!isOnline && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Device offline. Plot changes will sync when online.'),
-              backgroundColor: Color(0xFF4A2C2A),
-            ),
-          );
-        }
-        return;
-      }
+      if (!isOnline || _userId.isEmpty) return;
 
-      developer.log('Syncing plots for user: $_userId, plots: $_plotIds', name: 'CoffeeSoilInputPage');
-      await FirebaseFirestore.instance.collection('Users').doc(_userId).set({
+      await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(_userId)
+          .set({
         'plots': {
-          'plotIds': _plotIds.where((id) => !id.startsWith('temp_')).toList(),
+          'plotIds':
+              _plotIds.where((id) => !id.startsWith('temp_')).toList(),
         },
       }, SetOptions(merge: true));
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('cached_plots_$_userId',
           jsonEncode({'plotIds': _plotIds}));
-      developer.log('Successfully synced plots: $_plotIds', name: 'CoffeeSoilInputPage');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Plot data synced successfully'),
-            backgroundColor: Color(0xFF4A2C2A),
-          ),
-        );
-      }
     } catch (e, stackTrace) {
       developer.log('Error syncing plots: $e',
           name: 'CoffeeSoilInputPage', error: e, stackTrace: stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to sync plot data. Please try again.'),
-            backgroundColor: Color(0xFF4A2C2A),
-          ),
-        );
-      }
     }
   }
 
   Future<void> _addNewPlot() async {
     try {
-// Capture context
-      String newPlotId = 'temp_${Uuid().v4()}';
+      final newPlotId = 'temp_${const Uuid().v4()}';
       setState(() {
         _plotIds.add(newPlotId);
         _selectedPlotId = newPlotId;
         _tempPlotIds[_plotIds.length.toString()] = newPlotId;
       });
-      developer.log('Added new temporary plot: $newPlotId', name: 'CoffeeSoilInputPage');
     } catch (e, stackTrace) {
       developer.log('Error adding new plot: $e',
           name: 'CoffeeSoilInputPage', error: e, stackTrace: stackTrace);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to add new plot. Please try again.'),
-            backgroundColor: Color(0xFF4A2C2A),
-          ),
-        );
-      }
     }
   }
 
-  void _onInputInteraction() {
-    developer.log('Input interaction detected', name: 'CoffeeSoilInputPage');
-  }
+  void _onInputInteraction() {}
 
   void _onSave(String tempPlotId, String newPlotId) {
     setState(() {
@@ -442,23 +366,33 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
       }
     });
     _syncPlots();
-    developer.log('Updated plot ID from $tempPlotId to $newPlotId', name: 'CoffeeSoilInputPage');
   }
+
+  // ── ⑥ Nutrients callback — called by CoffeeSoilForm on every change ───────
+
+  void _onNutrientsChanged(
+    Map<String, double> nutrients,
+    String stage,
+    String? soilType,
+  ) {
+    _currentNutrients = nutrients;
+    _currentStage = stage;
+    _currentSoilType = soilType;
+  }
+
+  // ── Connectivity ──────────────────────────────────────────────────────────
 
   Future<bool> _isConnected() async {
     try {
-      final connectivityResult = await Connectivity().checkConnectivity();
-      final isOnline = connectivityResult.contains(ConnectivityResult.mobile) ||
-          connectivityResult.contains(ConnectivityResult.wifi);
-      developer.log('Connectivity check: isOnline=$isOnline, result=$connectivityResult',
-          name: 'CoffeeSoilInputPage');
-      return isOnline;
-    } catch (e, stackTrace) {
-      developer.log('Error checking connectivity: $e',
-          name: 'CoffeeSoilInputPage', error: e, stackTrace: stackTrace);
+      final result = await Connectivity().checkConnectivity();
+      return result.contains(ConnectivityResult.mobile) ||
+          result.contains(ConnectivityResult.wifi);
+    } catch (_) {
       return false;
     }
   }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -467,24 +401,37 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
         backgroundColor: const Color(0xFF3C2F2F),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            developer.log('Navigating back from CoffeeSoilInputPage', name: 'CoffeeSoilInputPage');
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Enhanced Soil Analysis',
-          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4.0),
-          child: Container(
-            color: const Color(0xFF3A5F0B),
-            height: 4.0,
-          ),
+          child: Container(color: const Color(0xFF3A5F0B), height: 4.0),
         ),
       ),
       backgroundColor: const Color(0xFFF5E8C7),
+
+      // ⑥ Soil Advisor FAB
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => SoilAdvisorChatSheet.show(
+          context,
+          currentNutrients: _currentNutrients.isNotEmpty
+              ? _currentNutrients
+              : null,
+          stage: _currentStage,
+          soilType: _currentSoilType,
+        ),
+        backgroundColor: const Color(0xFF3A5F0B),
+        tooltip: 'Soil Advisor',
+        child: const Icon(Icons.eco, color: Colors.white),
+      ),
+
       body: _isLoading
           ? const Center(
               child: Column(
@@ -492,7 +439,8 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
                 children: [
                   CircularProgressIndicator(color: Color(0xFF4A2C2A)),
                   SizedBox(height: 16),
-                  Text('Loading...', style: TextStyle(color: Color(0xFF4A2C2A))),
+                  Text('Loading...',
+                      style: TextStyle(color: Color(0xFF4A2C2A))),
                 ],
               ),
             )
@@ -501,32 +449,31 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
                 // Plot Selection
                 Container(
                   color: const Color(0xFFF0E4D7),
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 8, horizontal: 16),
                   child: DropdownButton<String>(
                     value: _selectedPlotId,
                     isExpanded: true,
-                    hint: const Text('Select a Plot', style: TextStyle(color: Color(0xFF4A2C2A))),
+                    hint: const Text('Select a Plot',
+                        style: TextStyle(color: Color(0xFF4A2C2A))),
                     items: _plotIds
                         .map((plotId) => DropdownMenuItem(
                               value: plotId,
                               child: Text(
-                                plotId.startsWith('temp_') ? 'New Plot' : plotId,
-                                style: const TextStyle(color: Color(0xFF4A2C2A)),
+                                plotId.startsWith('temp_')
+                                    ? 'New Plot'
+                                    : plotId,
+                                style: const TextStyle(
+                                    color: Color(0xFF4A2C2A)),
                               ),
                             ))
                         .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedPlotId = value;
-                      });
-                      developer.log('Selected plot: $value', name: 'CoffeeSoilInputPage');
-                    },
+                    onChanged: (value) =>
+                        setState(() => _selectedPlotId = value),
                     style: const TextStyle(color: Color(0xFF4A2C2A)),
                     dropdownColor: const Color(0xFFF0E4D7),
                     underline: Container(
-                      height: 2,
-                      color: const Color(0xFF3A5F0B),
-                    ),
+                        height: 2, color: const Color(0xFF3A5F0B)),
                   ),
                 ),
                 // Form
@@ -538,6 +485,7 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
                     notificationsPlugin: _notificationsPlugin,
                     onSave: _onSave,
                     onInputInteraction: _onInputInteraction,
+                    onNutrientsChanged: _onNutrientsChanged,
                   ),
                 ),
                 // Add New Plot button
@@ -545,18 +493,22 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
                   padding: const EdgeInsets.all(16),
                   decoration: const BoxDecoration(
                     color: Color(0xFFF0E4D7),
-                    border: Border(top: BorderSide(color: Color(0xFF3A5F0B), width: 2)),
+                    border: Border(
+                        top: BorderSide(
+                            color: Color(0xFF3A5F0B), width: 2)),
                   ),
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: _addNewPlot,
                       icon: const Icon(Icons.add, color: Colors.white),
-                      label: const Text('Add New Plot', style: TextStyle(color: Colors.white)),
+                      label: const Text('Add New Plot',
+                          style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4A2C2A),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
                   ),
