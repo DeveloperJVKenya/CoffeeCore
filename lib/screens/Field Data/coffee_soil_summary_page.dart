@@ -516,41 +516,57 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
     final predictions = prediction['predictions'] as Map<String, dynamic>? ?? {};
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.teal.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.teal.shade200),
+        color: const Color(0xFFF0FAF8),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF80CBC4).withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.timeline, color: Colors.teal, size: 20),
-              SizedBox(width: 8),
-              Text(
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00695C).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.auto_graph,
+                    color: Color(0xFF00695C), size: 15),
+              ),
+              const SizedBox(width: 8),
+              const Text(
                 'Expected at Follow-up (AI)',
                 style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF4A2C2A)),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2A1F1F)),
               ),
             ],
           ),
           if (summary.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(
-              summary,
-              style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF3A5F0B),
-                  fontStyle: FontStyle.italic),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                summary,
+                style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF3A5F0B),
+                    fontStyle: FontStyle.italic,
+                    height: 1.5),
+              ),
             ),
           ],
           const SizedBox(height: 10),
 
-          // Nutrient predictions grid
+          // Nutrient predictions
           ...predictions.entries.map((e) {
             final nutrient = e.key;
             final data = e.value as Map<String, dynamic>? ?? {};
@@ -562,7 +578,7 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
               return const SizedBox.shrink();
             }
             final same = expLow == current && expHigh == current;
-            if (same) return const SizedBox.shrink(); // unchanged nutrients
+            if (same) return const SizedBox.shrink();
 
             final confidenceColor = confidence == 'high'
                 ? Colors.green
@@ -570,44 +586,63 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
                     ? Colors.orange
                     : Colors.grey;
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+            final trend = expLow > current
+                ? Icons.trending_up
+                : expHigh < current
+                    ? Icons.trending_down
+                    : Icons.trending_flat;
+            final trendColor = expLow > current
+                ? Colors.green
+                : expHigh < current
+                    ? Colors.red
+                    : Colors.orange;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Row(
                 children: [
                   SizedBox(
-                    width: 88,
+                    width: 80,
                     child: Text(
                       nutrient.toUpperCase(),
                       style: const TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF4A2C2A)),
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2A1F1F),
+                          letterSpacing: 0.3),
                     ),
                   ),
                   Text(
-                    '${current.toStringAsFixed(1)} → ',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                    current.toStringAsFixed(1),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                   ),
+                  const SizedBox(width: 4),
+                  Icon(trend, size: 14, color: trendColor),
+                  const SizedBox(width: 4),
                   Text(
                     '${expLow.toStringAsFixed(1)}–${expHigh.toStringAsFixed(1)}',
                     style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF00695C)),
                   ),
                   const Spacer(),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: confidenceColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
+                      color: confidenceColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       confidence,
                       style: TextStyle(
                           fontSize: 9,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                           color: confidenceColor),
                     ),
                   ),
@@ -618,19 +653,22 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
 
           // Caveats
           if (caveats.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             ...caveats.map((c) => Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
+                  padding: const EdgeInsets.only(bottom: 3),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_outline, size: 12, color: Colors.grey),
-                      const SizedBox(width: 4),
+                      const Icon(Icons.info_outline, size: 11,
+                          color: Color(0xFF8A7A70)),
+                      const SizedBox(width: 5),
                       Expanded(
                         child: Text(
                           c,
-                          style:
-                              TextStyle(fontSize: 11, color: Colors.grey[600]),
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                              height: 1.4),
                         ),
                       ),
                     ],
@@ -720,7 +758,7 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Soil Type
                         Container(
@@ -1129,15 +1167,46 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF0EAE0),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF3C2F2F),
-        title: const Text(
-          'Enhanced Soil History',
-          style: TextStyle(
-              color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+        backgroundColor: const Color(0xFF2A1F1F),
+        elevation: 0,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF3A5F0B).withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.yard, color: Color(0xFF8BBF4D), size: 18),
+            ),
+            const SizedBox(width: 10),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Soil History',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2),
+                ),
+                Text(
+                  'Plot Records',
+                  style: TextStyle(
+                      color: Color(0xFF8BBF4D),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5),
+                ),
+              ],
+            ),
+          ],
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
           onPressed: () {
             developer.log('Navigating back from CoffeeSoilSummaryPage',
                 name: 'CoffeeSoilSummaryPage');
@@ -1145,53 +1214,99 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
           },
         ),
         actions: [
-          IconButton(
-            icon: Icon(_isPerPlant ? Icons.person : Icons.landscape,
-                color: Colors.white),
-            onPressed: () {
+          GestureDetector(
+            onTap: () {
               setState(() => _isPerPlant = !_isPerPlant);
               developer.log(
                   'Toggled unit display: ${_isPerPlant ? "per plant" : "per acre"}',
                   name: 'CoffeeSoilSummaryPage');
             },
-            tooltip: _isPerPlant ? 'Switch to per acre' : 'Switch to per plant',
+            child: Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _isPerPlant ? Icons.person_outline : Icons.landscape_outlined,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _isPerPlant ? 'Plant' : 'Acre',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60.0),
+          preferredSize: const Size.fromHeight(62.0),
           child: Container(
-            color: const Color(0xFFF0E4D7),
-            padding: const EdgeInsets.all(16),
-            child: DropdownButtonFormField<String>(
-              initialValue: _selectedFilter,
-              decoration: const InputDecoration(
-                labelText: 'Filter by',
-                border: OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-                labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
-              ),
-              items: _filterOptions
-                  .map((filter) => DropdownMenuItem(
-                        value: filter,
-                        child: Text(filter,
-                            style: const TextStyle(
-                                color: Color(0xFF3A5F0B))),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                setState(() => _selectedFilter = value ?? 'All');
-                developer.log('Filter changed to: $value',
-                    name: 'CoffeeSoilSummaryPage');
-              },
+            color: const Color(0xFF2A1F1F),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: Row(
+              children: _filterOptions.map((filter) {
+                final isSelected = _selectedFilter == filter;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() => _selectedFilter = filter);
+                      developer.log('Filter changed to: $filter',
+                          name: 'CoffeeSoilSummaryPage');
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFF3A5F0B)
+                            : Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFF3A5F0B)
+                              : Colors.white.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      child: Text(
+                        filter == 'With Recommendations'
+                            ? 'With Recs'
+                            : filter == 'Without Recommendations'
+                                ? 'No Recs'
+                                : filter,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.white60,
+                          fontSize: 11,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ),
       ),
-      backgroundColor: const Color(0xFFF5E8C7),
 
       // ⑥ Soil Advisor Chat FAB
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => SoilAdvisorChatSheet.show(
           context,
           currentNutrients:
@@ -1200,8 +1315,15 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
           soilType: _latestSoilType,
         ),
         backgroundColor: const Color(0xFF3A5F0B),
+        icon: const Icon(Icons.eco, color: Colors.white, size: 18),
+        label: const Text(
+          'Soil Advisor',
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 13),
+        ),
         tooltip: 'Soil Advisor',
-        child: const Icon(Icons.eco, color: Colors.white),
       ),
 
       body: StreamBuilder<QuerySnapshot>(
@@ -1295,7 +1417,7 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
             final offset = showTrend ? 1 : 0;
 
             return ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 90),
               itemCount: itemCount,
               itemBuilder: (context, index) {
                 // Trend insight card is the first item
@@ -1360,157 +1482,286 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
       final hasPrediction = rawData.containsKey('aiPrediction') &&
           rawData['aiPrediction'] != null;
 
-      return Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Colors.white, Colors.grey[50]!],
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 7),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF3C2F2F).withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-          ),
-          child: ExpansionTile(
-            tilePadding: const EdgeInsets.all(16),
-            childrenPadding: const EdgeInsets.all(16),
-            title: Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3A5F0B),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    entry.plotId,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Plot ID Header Banner ────────────────────────────────────
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 13, 12, 13),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [Color(0xFF2A3D1A), Color(0xFF3A5F0B)],
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (hasRecommendations)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[100],
-                      borderRadius: BorderRadius.circular(12),
+                child: Row(
+                  children: [
+                    // Plot ID pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.grid_view_rounded,
+                              color: Colors.white70, size: 12),
+                          const SizedBox(width: 5),
+                          Text(
+                            entry.plotId,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                                letterSpacing: 0.5),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lightbulb, size: 12, color: Colors.blue[800]),
-                        const SizedBox(width: 4),
-                        Text('RECS',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue[800])),
+                    const SizedBox(width: 8),
+                    // Soil type chip
+                    if (entry.soilType != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD4A054).withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          entry.soilType!,
+                          style: const TextStyle(
+                              color: Color(0xFFFFD88A),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    const Spacer(),
+                    // Notification badge
+                    if (entry.notificationTriggered)
+                      Container(
+                        margin: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.25),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.notifications_active,
+                            color: Color(0xFF8FE06A), size: 13),
+                      ),
+                    // Action menu
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _editSoilData(context, entry, docId);
+                        } else if (value == 'delete') {
+                          _deleteSoilData(context, docId);
+                        }
+                      },
+                      icon: const Icon(Icons.more_vert,
+                          color: Colors.white70, size: 20),
+                      color: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(children: [
+                            Icon(Icons.edit_outlined, color: Color(0xFF3A5F0B), size: 18),
+                            SizedBox(width: 10),
+                            Text('Edit Entry',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF2A1F1F),
+                                    fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(children: [
+                            Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                            SizedBox(width: 10),
+                            Text('Delete',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
                       ],
-                    ),
-                  ),
-                if (hasPrediction) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.teal.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.timeline, size: 12, color: Colors.teal.shade800),
-                        const SizedBox(width: 4),
-                        Text('PRED',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.teal.shade800)),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-                Text(
-                  entry.stage,
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF4A2C2A)),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  DateFormat('MMM dd, yyyy • HH:mm')
-                      .format(entry.timestamp.toDate()),
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (entry.notificationTriggered)
-                  const Icon(Icons.notifications_active,
-                      color: Colors.green, size: 20),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      _editSoilData(context, entry, docId);
-                    } else if (value == 'delete') {
-                      _deleteSoilData(context, docId);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(children: [
-                        Icon(Icons.edit, color: Colors.blue, size: 20),
-                        SizedBox(width: 8),
-                        Text('Edit'),
-                      ]),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(children: [
-                        Icon(Icons.delete, color: Colors.red, size: 20),
-                        SizedBox(width: 8),
-                        Text('Delete'),
-                      ]),
                     ),
                   ],
                 ),
-              ],
-            ),
-            children: [
-              SingleChildScrollView(
-                child: _buildNutrientDataSection(entry),
               ),
-              if (entry.interventionMethod != null) ...[
-                const SizedBox(height: 16),
-                _buildInterventionSection(entry),
-              ],
-              // ④ AI prediction card
-              if (hasPrediction) ...[
-                const SizedBox(height: 16),
-                _buildAiPredictionSection(rawData),
-              ],
-              if (hasRecommendations) ...[
-                const SizedBox(height: 16),
-                _buildRecommendationsSection(entry.recommendations!),
-              ],
+
+              // ── Stage + Date Row ─────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.stage,
+                            style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF2A1F1F),
+                                letterSpacing: -0.2),
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              const Icon(Icons.schedule_outlined,
+                                  size: 12, color: Color(0xFF8A7A70)),
+                              const SizedBox(width: 4),
+                              Text(
+                                DateFormat('MMM dd, yyyy · HH:mm')
+                                    .format(entry.timestamp.toDate()),
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF8A7A70),
+                                    fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Feature badges
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (hasRecommendations)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1565C0).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: const Color(0xFF1565C0)
+                                      .withValues(alpha: 0.3)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.lightbulb_outline,
+                                    size: 10, color: Color(0xFF1565C0)),
+                                SizedBox(width: 4),
+                                Text('RECS',
+                                    style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF1565C0),
+                                        letterSpacing: 0.5)),
+                              ],
+                            ),
+                          ),
+                        if (hasPrediction)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00695C).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: const Color(0xFF00695C)
+                                      .withValues(alpha: 0.3)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.auto_graph,
+                                    size: 10, color: Color(0xFF00695C)),
+                                SizedBox(width: 4),
+                                Text('AI PRED',
+                                    style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF00695C),
+                                        letterSpacing: 0.5)),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Quick stats strip ────────────────────────────────────────
+              _buildQuickStatsStrip(entry),
+
+              // ── Expandable Detail ────────────────────────────────────────
+              Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  childrenPadding: const EdgeInsets.fromLTRB(14, 4, 14, 16),
+                  dense: true,
+                  title: Row(
+                    children: [
+                      Container(
+                        width: 18,
+                        height: 2,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3A5F0B).withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(1),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Full Analysis',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF3A5F0B)),
+                      ),
+                    ],
+                  ),
+                  children: [
+                    _buildNutrientDataSection(entry),
+                    if (entry.interventionMethod != null) ...[
+                      const SizedBox(height: 12),
+                      _buildInterventionSection(entry),
+                    ],
+                    if (hasPrediction) ...[
+                      const SizedBox(height: 12),
+                      _buildAiPredictionSection(rawData),
+                    ],
+                    if (hasRecommendations) ...[
+                      const SizedBox(height: 12),
+                      _buildRecommendationsSection(entry.recommendations!),
+                    ],
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -1519,13 +1770,97 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
       developer.log('Error building enhanced soil card: $e',
           name: 'CoffeeSoilSummaryPage', error: e, stackTrace: stackTrace);
       return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         child: ListTile(
-          leading: const Icon(Icons.error, color: Colors.red),
-          title: const Text('Error displaying this entry'),
-          subtitle: Text('Error: $e'),
+          leading: const Icon(Icons.error_outline, color: Colors.red),
+          title: const Text('Error displaying this entry',
+              style: TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: Text('Error: $e',
+              style: const TextStyle(fontSize: 11)),
         ),
       );
     }
+  }
+
+  // ── Quick stats strip (pH + key nutrients at a glance) ──────────────────
+  Widget _buildQuickStatsStrip(CoffeeSoilData entry) {
+    final items = <Map<String, dynamic>>[];
+    if (entry.ph != null) {
+      items.add({
+        'label': 'pH',
+        'value': entry.ph!.toStringAsFixed(1),
+        'status': NutrientAnalysisHelper.getNutrientStatus('ph', entry.ph!, entry.stage),
+      });
+    }
+    if (entry.nitrogen != null) {
+      items.add({
+        'label': 'N',
+        'value': entry.nitrogen!.toStringAsFixed(1),
+        'status': NutrientAnalysisHelper.getNutrientStatus('nitrogen', entry.nitrogen!, entry.stage),
+      });
+    }
+    if (entry.phosphorus != null) {
+      items.add({
+        'label': 'P',
+        'value': entry.phosphorus!.toStringAsFixed(1),
+        'status': NutrientAnalysisHelper.getNutrientStatus('phosphorus', entry.phosphorus!, entry.stage),
+      });
+    }
+    if (entry.potassium != null) {
+      items.add({
+        'label': 'K',
+        'value': entry.potassium!.toStringAsFixed(1),
+        'status': NutrientAnalysisHelper.getNutrientStatus('potassium', entry.potassium!, entry.stage),
+      });
+    }
+    if (items.isEmpty) return const SizedBox(height: 8);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4EEE6),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: items.map((item) {
+          final statusColor = _getStatusColor(item['status'] as String);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                item['value'] as String,
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: statusColor == Colors.grey
+                        ? const Color(0xFF4A2C2A)
+                        : statusColor),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                item['label'] as String,
+                style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF8A7A70),
+                    letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 3),
+              Container(
+                width: 20,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1545,183 +1880,211 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        color: const Color(0xFFF8F4EF),
+        borderRadius: BorderRadius.circular(14),
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.science, color: Color(0xFF3A5F0B), size: 20),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Nutrient Analysis',
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF4A2C2A)),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3A5F0B).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3A5F0B).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${entry.plantDensity} plants/acre',
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF3A5F0B)),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (entry.soilType != null) ...[
-              const SizedBox(height: 12),
-              Text('Soil Type: ${entry.soilType}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Color(0xFF4A2C2A))),
-            ],
-            const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 2.0,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
+                child: const Icon(Icons.science_outlined,
+                    color: Color(0xFF3A5F0B), size: 15),
               ),
-              itemCount: nutrients.length,
-              itemBuilder: (context, index) {
-                final nutrient = nutrients[index];
-                final value = nutrient['value'] as double?;
-                if (value == null) return const SizedBox.shrink();
+              const SizedBox(width: 8),
+              const Text(
+                'Nutrient Analysis',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2A1F1F),
+                    letterSpacing: 0.1),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3A5F0B).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${entry.plantDensity} plants/acre',
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF3A5F0B)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
 
-                final displayValue = _isPerPlant && nutrient['name'] != 'pH'
-                    ? NutrientAnalysisHelper.convertToPerPlant(
-                        nutrient['name'].toString().toLowerCase(),
-                        value, entry.plantDensity)
-                    : value;
-                final status = NutrientAnalysisHelper.getNutrientStatus(
-                  nutrient['name'].toString().toLowerCase(), value, entry.stage);
+          // Nutrient grid — IntrinsicHeight pairs so both tiles match height
+          for (int i = 0; i < nutrients.length; i += 2) ...[
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _buildNutrientTile(nutrients[i], entry)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: i + 1 < nutrients.length
+                        ? _buildNutrientTile(nutrients[i + 1], entry)
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
 
-                return Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: _getStatusColor(status).withValues(alpha: 0.3),
-                        width: 2),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        nutrient['name'].toString(),
-                        style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF4A2C2A)),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: displayValue.toStringAsFixed(
-                                        nutrient['name'] == 'pH' ? 1 : 2),
-                                    style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF3A5F0B)),
-                                  ),
-                                  TextSpan(
-                                    text: ' ${nutrient['unit'].toString()}',
-                                    style: TextStyle(
-                                        fontSize: 9, color: Colors.grey[600]),
-                                  ),
-                                ],
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 8, height: 8,
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(status),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
+  Widget _buildNutrientTile(Map<String, dynamic> nutrient, CoffeeSoilData entry) {
+    final value = nutrient['value'] as double?;
+    if (value == null) return const SizedBox.shrink();
+
+    final displayValue = _isPerPlant && nutrient['name'] != 'pH'
+        ? NutrientAnalysisHelper.convertToPerPlant(
+            nutrient['name'].toString().toLowerCase(),
+            value, entry.plantDensity)
+        : value;
+    final status = NutrientAnalysisHelper.getNutrientStatus(
+        nutrient['name'].toString().toLowerCase(), value, entry.stage);
+    final statusColor = _getStatusColor(status);
+    final unit = nutrient['unit'] as String;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border(
+          left: BorderSide(color: statusColor, width: 3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: statusColor.withValues(alpha: 0.08),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Nutrient name + status pill on same row
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  nutrient['name'].toString(),
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF8A7A70),
+                      letterSpacing: 0.4),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: statusColor,
+                      letterSpacing: 0.2),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          // Value — large and coloured by status
+          Text(
+            displayValue.toStringAsFixed(nutrient['name'] == 'pH' ? 1 : 2),
+            style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: statusColor == Colors.grey
+                    ? const Color(0xFF2A1F1F)
+                    : statusColor,
+                height: 1.0),
+          ),
+          // Unit on its own line, small but readable
+          if (unit.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              unit,
+              style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF8A7A70),
+                  fontWeight: FontWeight.w600),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildInterventionSection(CoffeeSoilData entry) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.orange[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange[200]!),
+        color: const Color(0xFFFFF8F0),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFFD4A0).withValues(alpha: 0.6)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.build, color: Colors.orange, size: 20),
-              SizedBox(width: 8),
-              Text('Intervention Applied',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF4A2C2A))),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.build_circle_outlined,
+                    color: Colors.deepOrange, size: 15),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Intervention Applied',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2A1F1F)),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _buildFieldRow('Method', entry.interventionMethod ?? 'N/A'),
           if (entry.interventionQuantity != null && entry.interventionUnit != null)
             _buildFieldRow('Quantity',
                 '${entry.interventionQuantity} ${entry.interventionUnit}'),
           if (entry.interventionFollowUpDate != null)
             _buildFieldRow(
-              'Follow-up Date',
+              'Follow-up',
               DateFormat('MMM dd, yyyy')
                   .format(entry.interventionFollowUpDate!.toDate()),
             ),
@@ -1733,27 +2096,37 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
   Widget _buildRecommendationsSection(
       Map<String, dynamic> recommendations) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!),
+        color: const Color(0xFFF0F4FF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFB0C4F8).withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.lightbulb, color: Colors.blue, size: 20),
-              SizedBox(width: 8),
-              Text('Saved Recommendations',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF4A2C2A))),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1565C0).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.lightbulb_outlined,
+                    color: Color(0xFF1565C0), size: 15),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Saved Recommendations',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2A1F1F)),
+              ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           ...recommendations.entries.map((entry) =>
               _buildRecommendationCard(
                   entry.key, entry.value as Map<String, dynamic>)),
@@ -1764,47 +2137,86 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
 
   Widget _buildRecommendationCard(
       String nutrient, Map<String, dynamic> recommendations) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ExpansionTile(
-        title: Text(
-          nutrient.toUpperCase(),
-          style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF4A2C2A)),
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          title: Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1565C0),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                nutrient.toUpperCase(),
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2A1F1F),
+                    letterSpacing: 0.5),
+              ),
+            ],
+          ),
+          children: [
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: recommendations.entries
-                  .map((rec) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
+                  .map((rec) => Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _getRecommendationTypeColor(rec.key)
+                              .withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _getRecommendationTypeColor(rec.key)
+                                .withValues(alpha: 0.2),
+                          ),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               _getRecommendationTypeTitle(rec.key),
                               style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
                                   color: _getRecommendationTypeColor(rec.key)),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 3),
                             Text(
                               rec.value.toString(),
                               style: const TextStyle(
-                                  fontSize: 12, color: Color(0xFF3A5F0B)),
+                                  fontSize: 11,
+                                  color: Color(0xFF3A5F0B),
+                                  height: 1.4),
                             ),
                           ],
                         ),
                       ))
                   .toList(),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1816,17 +2228,19 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
+            width: 90,
             child: Text('$label:',
                 style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF4A2C2A),
-                    fontSize: 13)),
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF8A7A70),
+                    fontSize: 12)),
           ),
           Expanded(
             child: Text(value,
                 style: const TextStyle(
-                    color: Color(0xFF3A5F0B), fontSize: 13)),
+                    color: Color(0xFF2A1F1F),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500)),
           ),
         ],
       ),

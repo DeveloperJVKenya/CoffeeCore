@@ -166,6 +166,7 @@ class FertilizationWeek {
   final String action;
   final String product;
   final double quantityKgPerAcre;
+  final double quantityGPerPlant; // = (quantityKgPerAcre × 1000) ÷ plantDensity
   final String timing;
   final String notes;
 
@@ -174,6 +175,7 @@ class FertilizationWeek {
     required this.action,
     required this.product,
     required this.quantityKgPerAcre,
+    required this.quantityGPerPlant,
     required this.timing,
     required this.notes,
   });
@@ -184,6 +186,7 @@ class FertilizationWeek {
         action:             json['action']   as String? ?? '',
         product:            json['product']  as String? ?? '',
         quantityKgPerAcre:  (json['quantity_kg_per_acre'] as num?)?.toDouble() ?? 0,
+        quantityGPerPlant:  (json['quantity_g_per_plant']  as num?)?.toDouble() ?? 0,
         timing:             json['timing']   as String? ?? '',
         notes:              json['notes']    as String? ?? '',
       );
@@ -442,11 +445,16 @@ If you are less than 65% confident:
         'stage="$stage" soilType="$soilType"');
 
     try {
+      // Gemini 2.5 Flash consumes ~1500–3000 tokens for its internal thinking
+      // pass BEFORE emitting any visible output. With the old 2048 limit the
+      // thinking pass ate the entire budget, leaving only ~200 visible chars —
+      // never enough to close the JSON object.  16 384 matches _advisorMaxTokens
+      // and is confirmed sufficient: thinking gets ~3000, output gets ~13 000+.
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature:     0.3,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 16384,
         ),
       );
 
@@ -454,11 +462,17 @@ If you are less than 65% confident:
         Content.text(_buildAnalysisPrompt(
             nutrientValues, stage, soilType, plantDensity, isPerPlant)),
       ]);
-      final rawText = response.text ?? '';
+      final rawText      = response.text ?? '';
+      final finishReason = response.candidates.firstOrNull?.finishReason;
 
       debugPrint('[GeminiSoilAI] 📥 Analysis response: '
-          '${rawText.length} chars. '
+          '${rawText.length} chars, finishReason=$finishReason. '
           'Preview: "${rawText.substring(0, rawText.length.clamp(0, 80)).replaceAll('\n', '↵')}"');
+
+      if (finishReason.toString().toUpperCase().contains('MAX_TOKENS')) {
+        debugPrint('[GeminiSoilAI] ⚠️ Analysis hit MAX_TOKENS — '
+            'response may still be recoverable via partial parse.');
+      }
 
       if (rawText.isEmpty) {
         debugPrint('[GeminiSoilAI] ❌ Empty analysis response.');
@@ -511,11 +525,12 @@ If you are less than 65% confident:
         'stage="$stage" soilType="$soilType"');
 
     try {
+      // 8 192 tokens: thinking pass ~2000 + full plan JSON ~6000 headroom.
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature:     0.3,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 8192,
         ),
       );
 
@@ -524,7 +539,11 @@ If you are less than 65% confident:
             nutrientValues, nutrientStatus, stage, soilType,
             plantDensity, isPerPlant)),
       ]);
-      final rawText = response.text ?? '';
+      final rawText      = response.text ?? '';
+      final finishReason = response.candidates.firstOrNull?.finishReason;
+
+      debugPrint('[GeminiSoilAI] 📥 Fertilization plan response: '
+          '${rawText.length} chars, finishReason=$finishReason.');
 
       if (rawText.isEmpty) {
         debugPrint('[GeminiSoilAI] ❌ Empty fertilization plan response.');
@@ -578,11 +597,12 @@ If you are less than 65% confident:
         'qty=${interventionQuantityKgPerAcre}kg/acre');
 
     try {
+      // 4 096 tokens: thinking ~1500 + compact 8-nutrient prediction JSON.
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature:     0.2,
-          maxOutputTokens: 1500,
+          maxOutputTokens: 4096,
         ),
       );
 
@@ -647,11 +667,12 @@ If you are less than 65% confident:
         '(${readings.length} readings, soilType="$soilType", stage="$stage")');
 
     try {
+      // 4 096 tokens: thinking ~1500 + compact trend JSON ~2500 headroom.
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature:     0.3,
-          maxOutputTokens: 1200,
+          maxOutputTokens: 4096,
         ),
       );
 
@@ -774,22 +795,71 @@ If you are less than 65% confident:
             '${e.key == 'pH' ? '' : ' $unit'}')
         .join('\n');
 
+    // ── Research-based reference ranges (KCRI / IITA / ICO / CABI) ──────────
+    // Per-acre soil test ranges (mg/kg equivalent, applied as kg/acre):
+    //   pH        : Low < 5.5 | Optimal 5.5–6.5 | High > 6.5   (Arabica)
+    //   Nitrogen  : Low < 40  | Optimal 40–80    | High > 80    kg N/acre
+    //   Phosphorus: Low < 10  | Optimal 10–25    | High > 25    kg P/acre
+    //   Potassium : Low < 80  | Optimal 80–160   | High > 160   kg K/acre
+    //   Magnesium : Low < 20  | Optimal 20–60    | High > 60    kg Mg/acre
+    //   Calcium   : Low < 400 | Optimal 400–1600 | High > 1600  kg Ca/acre
+    //   Zinc      : Low < 0.4 | Optimal 0.4–2.5  | High > 2.5   kg Zn/acre
+    //   Boron     : Low < 0.2 | Optimal 0.2–0.8  | High > 0.8   kg B/acre
+    //
+    // Per-plant (mg/plant) — divide per-acre by plant density:
+    //   Nitrogen   : Low < 40 000/D | Optimal 40 000–80 000/D | High > 80 000/D
+    //   (where D = plants/acre; exact thresholds scale linearly)
+    // ────────────────────────────────────────────────────────────────────────
+
+    // Build per-plant threshold note for the prompt
+    final densityNote = isPerPlant
+        ? 'Plant density $plantDensity plants/acre. '
+          'Scale reference thresholds: divide per-acre benchmark by $plantDensity '
+          'to get mg/plant threshold.'
+        : 'Plant density $plantDensity plants/acre. '
+          'For application rates per plant divide kg/acre values by $plantDensity.';
+
     return '''
 You are a specialist agricultural AI for coffee farming in East Africa (Kenya, Uganda, Tanzania, Ethiopia).
-Your knowledge is grounded in peer-reviewed coffee agronomy research from CABI, ICO, IITA, CIAT, KENDAT, KEFRI, Jimma University, and national coffee boards of Kenya, Uganda, Tanzania and Ethiopia.
+Your knowledge is grounded in peer-reviewed coffee agronomy research from KCRI (Kenya Coffee Research Institute), IITA, CABI Crop Protection Compendium, ICO technical papers, UCDA, TaCRI, EIAR, and Jimma University.
 
 Analyse the following soil nutrient data for a coffee plot and provide a holistic assessment.
 IMPORTANT: reason about nutrient INTERACTIONS — e.g. high Ca can lock out Mg, low pH makes P unavailable regardless of P quantity, high K inhibits B uptake, low pH reduces N mineralisation.
 
 Growth stage: "$stage"
 Soil type: "${soilType ?? 'Unknown'}"
-Plant density: $plantDensity plants/acre
+$densityNote
 Measurement unit: $unit
 
 Soil readings:
 $valuesStr
 
+─── RESEARCH-BASED REFERENCE RANGES FOR EAST AFRICAN ARABICA COFFEE ───
+Use these peer-reviewed thresholds (KCRI/IITA/CABI) to classify each nutrient:
+
+Nutrient     | Unit      | Low (Deficient)   | Optimal Range    | High (Excess)
+-------------|-----------|-------------------|------------------|----------------
+pH           | —         | < 5.5             | 5.5 – 6.5        | > 6.5
+Nitrogen (N) | kg/acre   | < 40              | 40 – 80          | > 80
+Phosphorus(P)| kg/acre   | < 10              | 10 – 25          | > 25
+Potassium (K)| kg/acre   | < 80              | 80 – 160         | > 160
+Magnesium(Mg)| kg/acre   | < 20              | 20 – 60          | > 60
+Calcium (Ca) | kg/acre   | < 400             | 400 – 1600       | > 1600
+Zinc (Zn)    | kg/acre   | < 0.4             | 0.4 – 2.5        | > 2.5
+Boron (B)    | kg/acre   | < 0.2             | 0.2 – 0.8        | > 0.8
+
+If unit is mg/plant, divide each threshold above by $plantDensity (plants/acre) to get the per-plant equivalent before classifying.
+
+Stage-specific notes:
+- Establishment/Seedling: N and P are most critical; keep pH >5.8 to avoid Al toxicity.
+- Vegetative Growth: high N demand (up to 100 kg N/acre/year), adequate K for stem strength.
+- Flowering & Fruiting: B and Zn critical for fruit set; Ca for cell integrity.
+- Maturation & Harvesting: K highest demand for cherry fill; reduce N to avoid over-vegetative growth.
+──────────────────────────────────────────────────────────────────────────
+
 Return ONLY valid JSON. Start with { and end with }. No markdown, no code fences.
+CRITICAL: The JSON must be complete — every opened array [ and object { MUST have a matching ] and }.
+Do NOT truncate the response mid-sentence or mid-field. If you are running out of space, shorten individual text fields but complete all structural JSON brackets.
 
 {
   "health_score": <integer 0-100, overall soil health>,
@@ -817,8 +887,8 @@ Return ONLY valid JSON. Start with { and end with }. No markdown, no code fences
       "nutrient":             "<nutrient name>",
       "priority":             "<critical | high | medium | low>",
       "causes":               "<2-3 sentences: most likely agronomic causes of this deficiency or excess — leaching, soil pH lock-out, over-application, crop removal, erosion etc.>",
-      "artificial":           "<specific registered product name(s) + rate in kg/acre or g/plant — e.g. CAN 26% at 50 kg/acre>",
-      "natural":              "<locally available organic alternative + rate — e.g. well-rotted coffee husks at 2 t/acre>",
+      "artificial":           "<specific registered product name(s) + rate in kg/acre AND g/plant (e.g. CAN 26% at 50 kg/acre = ${(50000 / plantDensity).toStringAsFixed(0)} g/plant at $plantDensity plants/acre)>",
+      "natural":              "<locally available organic alternative + rate — e.g. well-rotted coffee husks at 2 t/acre (~${(2000000 / plantDensity).toStringAsFixed(0)} g/plant)>",
       "biological":           "<microbial or biostimulant option if relevant — e.g. Rhizobium inoculant, mycorrhizal drench, EM solution — or empty string if not applicable>",
       "application":          "<step-by-step: timing relative to rain, placement depth, how to mix/dilute, any safety notes>",
       "avoid":                "<specific inputs, practices or timing combinations that will worsen this condition or harm coffee roots>",
@@ -831,8 +901,10 @@ Return ONLY valid JSON. Start with { and end with }. No markdown, no code fences
 
 Rules:
 - Start response with { and end with }. No markdown. No code fences.
-- Optimal pH for East African Arabica/Robusta coffee: 5.5-6.5.
-- Fix pH first in recommendations — it controls bioavailability of everything else.
+- COMPLETE THE FULL JSON — do not cut off mid-field. Every recommendation must include all 8 fields.
+- Classify nutrients using the research-based thresholds table above — not generic intuition.
+- Always express application rates BOTH per-acre AND per-plant (per-plant = per-acre ÷ $plantDensity).
+- Optimal pH for East African Arabica/Robusta coffee: 5.5–6.5. Fix pH first — it controls bioavailability of everything else.
 - List ONLY genuinely present interactions — do not fabricate theoretical ones.
 - Use real product names: CAN 26%, DAP, TSP, KNO3, MgSO4, ZnSO4, Borax, agricultural lime, elemental sulfur, Rhizobium, Trichoderma.
 - Maximum 4 interactions. Maximum 6 recommendations. Prioritise: critical then high then medium then low.
@@ -871,6 +943,7 @@ Deficient nutrients: ${deficient.isEmpty ? 'None' : deficient.join(', ')}
 Excess nutrients: ${excess.isEmpty ? 'None' : excess.join(', ')}
 
 Return ONLY valid JSON. Start with { and end with }. No markdown, no code fences.
+CRITICAL: The JSON must be complete — every opened array [ and object { MUST have a matching ] and }.
 
 {
   "weeks": [
@@ -878,7 +951,8 @@ Return ONLY valid JSON. Start with { and end with }. No markdown, no code fences
       "week":                  <week number 1–12>,
       "action":                "<brief action title>",
       "product":               "<specific Kenya/Uganda-registered product name>",
-      "quantity_kg_per_acre":  <number>,
+      "quantity_kg_per_acre":  <number — kg of product per acre>,
+      "quantity_g_per_plant":  <number — grams per plant = (quantity_kg_per_acre × 1000) ÷ $plantDensity>,
       "timing":                "<e.g. early morning before rain | after light rain>",
       "notes":                 "<1 sentence practical tip>"
     }
@@ -889,10 +963,12 @@ Return ONLY valid JSON. Start with { and end with }. No markdown, no code fences
 
 Rules:
 - Start response with { and end with }. No markdown. No code fences.
+- ALWAYS include quantity_g_per_plant = (quantity_kg_per_acre × 1000) ÷ $plantDensity for each week entry.
 - Use real available East African products: CAN 26%, DAP, TSP, KNO₃, MgSO₄, ZnSO₄, Borax, agricultural lime, elemental sulfur, farmyard manure, compost.
 - Correct sequencing: if pH correction needed, apply lime in week 1 and wait 2 weeks before other fertilizers.
-- Maximum 6 week entries. Keep achievable for a smallholder with limited cash — prioritise the most critical deficiency.
+- Maximum 8 week entries. Keep achievable for a smallholder with limited cash — prioritise the most critical deficiency.
 - If all nutrients are Optimal, return a light maintenance schedule.
+- COMPLETE THE FULL JSON — include the closing summary field and all closing brackets.
 ''';
   }
 
@@ -1227,12 +1303,13 @@ Rules:
 ''';
 
     try {
-      // Use Google Search grounding so the model fetches real research content.
+      // 8 192 tokens: Google Search grounding adds overhead (~2000 thinking +
+      // grounding scaffold); this ensures the full 7-field JSON is never cut.
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature:     0.2,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
         ),
         tools: [
           Tool.googleSearch(),

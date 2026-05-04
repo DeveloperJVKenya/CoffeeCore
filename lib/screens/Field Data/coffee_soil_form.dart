@@ -1014,12 +1014,14 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             gradient: const LinearGradient(
+              // Deficient → approaching optimal → optimal → excess → high excess
+              // All within app palette: deep red → warm brown → app green → brown → deep red
               colors: [
-                Colors.red,
-                Colors.orange,
-                Colors.green,
-                Colors.orange,
-                Colors.red
+                Color(0xFFB71C1C), // deep red  — very low / deficient
+                Color(0xFF5D4037), // warm brown — below optimal
+                Color(0xFF3A5F0B), // app green  — optimal zone
+                Color(0xFF4A2C2A), // app brown  — above optimal
+                Color(0xFFB71C1C), // deep red   — excess / high
               ],
               stops: [0.0, 0.25, 0.5, 0.75, 1.0],
             ),
@@ -1030,7 +1032,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                 left: position *
                     (MediaQuery.of(context).size.width - 64),
                 child: Container(
-                    width: 4, height: 20, color: Colors.black),
+                    width: 4, height: 20, color: Colors.white),
               ),
             ],
           ),
@@ -1169,12 +1171,12 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     if (_aiAnalysisResult == null) return const SizedBox.shrink();
     final r = _aiAnalysisResult!;
 
-    // Health score colour.
+    // Health score colour — all within the app's brown/green palette.
     final scoreColor = r.healthScore >= 70
-        ? Colors.green
+        ? const Color(0xFF3A5F0B)   // healthy green
         : r.healthScore >= 40
-            ? Colors.orange
-            : Colors.red;
+            ? const Color(0xFF4A2C2A) // cautionary brown
+            : const Color(0xFFB71C1C); // critical deep red
 
     return Card(
       elevation: 3,
@@ -1198,7 +1200,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
+              // ── Header ──────────────────────────────────────────────────
               Row(
                 children: [
                   const Icon(Icons.auto_awesome,
@@ -1218,9 +1220,10 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: scoreColor.withValues(alpha: 0.15),
+                      color: scoreColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: scoreColor),
+                      border: Border.all(
+                          color: scoreColor.withValues(alpha: 0.6)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1241,12 +1244,15 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Summary
+
+              // ── Summary ─────────────────────────────────────────────────
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.grey[50],
+                  color: const Color(0xFF3A5F0B).withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: const Color(0xFF3A5F0B).withValues(alpha: 0.2)),
                 ),
                 child: Text(
                   r.summary,
@@ -1256,9 +1262,47 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                       height: 1.4),
                 ),
               ),
-              // Interactions
+
+              // ── Nutrient Status Grid ─────────────────────────────────────
+              if (r.nutrientStatus.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                const Text(
+                  'Nutrient Status Overview',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4A2C2A),
+                      fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: r.nutrientStatus.entries.map((e) {
+                    final chipColor = _getStatusColor(e.value);
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: chipColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: chipColor.withValues(alpha: 0.5)),
+                      ),
+                      child: Text(
+                        '${e.key.toUpperCase()} · ${e.value}',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: chipColor),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+
+              // ── Nutrient Interactions ────────────────────────────────────
               if (r.interactions.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 const Text(
                   'Nutrient Interactions Detected',
                   style: TextStyle(
@@ -1268,46 +1312,62 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                 ),
                 const SizedBox(height: 6),
                 ...r.interactions.map((interaction) {
-                  final isHigh =
-                      interaction.severity == 'high';
-                  final color = isHigh
-                      ? Colors.red
+                  // Severity mapped to app palette only — no orange/amber.
+                  final color = interaction.severity == 'high'
+                      ? const Color(0xFFB71C1C)   // deep red
                       : interaction.severity == 'medium'
-                          ? Colors.orange
-                          : Colors.amber;
+                          ? const Color(0xFF4A2C2A) // app brown
+                          : const Color(0xFF5D4037); // warm brown for low
+                  final icon = interaction.type == 'antagonism'
+                      ? Icons.warning_rounded
+                      : Icons.link_rounded;
                   return Container(
                     margin: const EdgeInsets.only(bottom: 6),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.08),
+                      color: color.withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                          color: color.withValues(alpha: 0.3)),
+                          color: color.withValues(alpha: 0.25)),
                     ),
                     child: Row(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          interaction.type == 'antagonism'
-                              ? Icons.warning_amber
-                              : Icons.link,
-                          size: 16,
-                          color: color,
-                        ),
+                        Icon(icon, size: 16, color: color),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '${interaction.nutrient1} ↔ ${interaction.nutrient2}',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                    color: color),
+                              Row(
+                                children: [
+                                  Text(
+                                    '${interaction.nutrient1} ↔ ${interaction.nutrient2}',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                        color: color),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.12),
+                                      borderRadius:
+                                          BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      interaction.severity.toUpperCase(),
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: color),
+                                    ),
+                                  ),
+                                ],
                               ),
+                              const SizedBox(height: 2),
                               Text(
                                 interaction.description,
                                 style: const TextStyle(
@@ -1322,28 +1382,187 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                   );
                 }),
               ],
-              // Moisture
+
+              // ── Moisture ────────────────────────────────────────────────
               if (r.moisture.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.water_drop,
-                        size: 16, color: Colors.blue),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        r.moisture,
-                        style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF4A2C2A)),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1565C0).withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: const Color(0xFF1565C0).withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.water_drop_outlined,
+                          size: 16,
+                          color: Color(0xFF1565C0)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          r.moisture,
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF1A237E)),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+              ],
+
+              // ── Per-Nutrient Recommendations ─────────────────────────────
+              if (r.recommendations.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Divider(color: Color(0xFF4A2C2A), thickness: 0.4),
+                const SizedBox(height: 8),
+                const Text(
+                  'Full Recommendations by Nutrient',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4A2C2A),
+                      fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                ...r.recommendations.map(
+                    (rec) => _buildAiNutrientRecommendationCard(rec)),
               ],
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ── Per-nutrient recommendation card inside the AI analysis panel ─────────
+
+  Widget _buildAiNutrientRecommendationCard(SoilRecommendation rec) {
+    // Priority badge colour — all app palette.
+    final priorityColor = switch (rec.priority) {
+      'critical' => const Color(0xFFB71C1C),
+      'high'     => const Color(0xFF4A2C2A),
+      'medium'   => const Color(0xFF5D4037),
+      _          => const Color(0xFF757575),
+    };
+
+    // Build non-empty field rows in display order.
+    final sections = <(String label, String icon, String value, Color color)>[];
+    if (rec.causes.isNotEmpty) {
+      sections.add(('Possible Causes',       '🔍', rec.causes,             const Color(0xFF4A2C2A)));
+    }
+    if (rec.artificial.isNotEmpty) {
+      sections.add(('Chemical Solutions',    '⚗️', rec.artificial,         const Color(0xFF5D4037)));
+    }
+    if (rec.natural.isNotEmpty) {
+      sections.add(('Natural Solutions',     '🌱', rec.natural,            const Color(0xFF3A5F0B)));
+    }
+    if (rec.biological.isNotEmpty) {
+      sections.add(('Biological Solutions',  '🦠', rec.biological,         const Color(0xFF1B5E20)));
+    }
+    if (rec.application.isNotEmpty) {
+      sections.add(('Application Method',   '📋', rec.application,        const Color(0xFF3E2723)));
+    }
+    if (rec.avoid.isNotEmpty) {
+      sections.add(('What to Avoid',         '⚠️', rec.avoid,              const Color(0xFFB71C1C)));
+    }
+    if (rec.futureEnhancements.isNotEmpty) {
+      sections.add(('Future Enhancements',   '🚀', rec.futureEnhancements, const Color(0xFF33691E)));
+    }
+
+    final expansionKey = 'ai_rec_${rec.nutrient}';
+    final isExpanded = _expandedRecommendations[expansionKey] ?? false;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(
+            color: priorityColor.withValues(alpha: 0.3), width: 1),
+      ),
+      child: ExpansionTile(
+        initiallyExpanded: isExpanded,
+        onExpansionChanged: (v) =>
+            setState(() => _expandedRecommendations[expansionKey] = v),
+        tilePadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                rec.nutrient.toUpperCase(),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Color(0xFF4A2C2A)),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: priorityColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: priorityColor.withValues(alpha: 0.4)),
+              ),
+              child: Text(
+                rec.priority.toUpperCase(),
+                style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: priorityColor),
+              ),
+            ),
+          ],
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: sections.map((s) {
+                final (label, emoji, value, color) = s;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(emoji,
+                              style: const TextStyle(fontSize: 13)),
+                          const SizedBox(width: 5),
+                          Text(
+                            label,
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: color),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 22),
+                        child: Text(
+                          value,
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF3A3A3A),
+                              height: 1.45),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1384,38 +1603,43 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
   }
 
   Color _getRecommendationTypeColor(String type) {
+    // All colours are drawn exclusively from the app's brown/green brand palette
+    // so no jarring orange, purple, indigo or bright blue appears anywhere.
     switch (type) {
       case 'causes':
-        return Colors.indigo;
+        return const Color(0xFF4A2C2A);          // app brown
       case 'natural':
-        return Colors.green;
+        return const Color(0xFF3A5F0B);          // app green
       case 'biological':
-        return Colors.blue;
+        return const Color(0xFF1B5E20);          // darker green
       case 'artificial':
-        return Colors.orange;
+        return const Color(0xFF5D4037);          // warm dark brown (≠ orange)
       case 'application':
-        return Colors.purple;
+        return const Color(0xFF3E2723);          // deep espresso brown
       case 'avoid':
-        return Colors.red;
+        return const Color(0xFFB71C1C);          // deep red — warning only
       case 'future_enhancements':
-        return const Color(0xFF3A5F0B);
+        return const Color(0xFF33691E);          // olive green
       case 'maintain':
-        return Colors.teal;
+        return const Color(0xFF3A5F0B);          // app green
       default:
-        return Colors.grey;
+        return const Color(0xFF757575);          // neutral grey
     }
   }
 
   Color _getStatusColor(String status) {
     switch (status) {
       case 'Low':
-        return Colors.red;
+        // Deep red — signals deficiency clearly without being garish.
+        return const Color(0xFFB71C1C);
       case 'High':
-        return Colors.orange;
+        // App brown — conveys excess concern within the brand palette.
+        return const Color(0xFF4A2C2A);
       case 'Optimal':
-        return Colors.green;
+        // App green — matches the whole form's positive accent colour.
+        return const Color(0xFF3A5F0B);
       default:
-        return Colors.grey;
+        return const Color(0xFF757575);
     }
   }
 
@@ -1913,15 +2137,15 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
             const SizedBox(height: 16),
 
             // ── ② Analyse with AI button ─────────────────────────────────
-            SizedBox(
-              width: double.infinity,
+            Align(
+              alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
                 onPressed:
                     _isRunningAiAnalysis ? null : _runAiAnalysis,
                 icon: _isRunningAiAnalysis
                     ? const SizedBox(
-                        width: 18,
-                        height: 18,
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: Color(0xFF3A5F0B)),
@@ -1936,7 +2160,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                 ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Color(0xFF3A5F0B)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 18, vertical: 10),
                 ),
               ),
             ),
@@ -1947,8 +2172,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
             const SizedBox(height: 24),
 
             // ── Intervention ─────────────────────────────────────────────
-            SizedBox(
-              width: double.infinity,
+            Align(
+              alignment: Alignment.centerLeft,
               child: ElevatedButton.icon(
                 onPressed: _nutrientStatus.values
                         .any((status) => status != 'Optimal')
@@ -1959,7 +2184,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4A2C2A),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 18, vertical: 10),
                 ),
               ),
             ),
@@ -2026,15 +2252,15 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                       activeColor: const Color(0xFF4A2C2A),
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
+                    Align(
+                      alignment: Alignment.centerLeft,
                       child: ElevatedButton.icon(
                         onPressed:
                             _isGeneratingPlan ? null : _saveForm,
                         icon: _isGeneratingPlan
                             ? const SizedBox(
-                                width: 18,
-                                height: 18,
+                                width: 16,
+                                height: 16,
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                     color: Colors.white),
@@ -2053,13 +2279,13 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                           backgroundColor: const Color(0xFF4A2C2A),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
-                              vertical: 16),
+                              horizontal: 18, vertical: 10),
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
+                    Align(
+                      alignment: Alignment.centerLeft,
                       child: ElevatedButton.icon(
                         onPressed: () {
                           if (widget.userId.isNotEmpty) {
@@ -2080,7 +2306,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                           backgroundColor: const Color(0xFF4A2C2A),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
-                              vertical: 16),
+                              horizontal: 18, vertical: 10),
                         ),
                       ),
                     ),
