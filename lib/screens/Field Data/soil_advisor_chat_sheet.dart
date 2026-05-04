@@ -422,9 +422,19 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 10),
                 ),
-                maxLines: 3,
+                // null = unlimited growth; no artificial 3-line cap that
+                // forces the user to scroll within the input box.
+                maxLines: null,
                 minLines: 1,
-                textInputAction: TextInputAction.newline,
+                // multiline keyboard keeps the newline key, but onSubmitted
+                // is triggered by the keyboard's send action on mobile.
+                keyboardType: TextInputType.multiline,
+                textCapitalization: TextCapitalization.sentences,
+                // Pressing the keyboard's send/done key submits the message,
+                // matching the behaviour of coffee_ai_chat_screen.dart.
+                onSubmitted: (_) {
+                  if (!_isLoading) _sendMessage();
+                },
               ),
             ),
             const SizedBox(width: 8),

@@ -289,6 +289,14 @@ class GeminiSoilAiService {
 
   static const String _model = 'gemini-2.5-flash';
 
+  // The advisor uses the same model as everything else — gemini-2.5-flash.
+  // gemini-2.0-flash was deprecated for new users (API error confirmed).
+  // Instead we defeat the thinking-token starvation by setting a token limit
+  // large enough to absorb both the internal thinking pass (~2000–4000 tokens)
+  // AND a complete response (~12 000+ tokens remaining = ~48 000 chars).
+  // See _advisorMaxTokens usage in askSoilAdvisor().
+  static const int _advisorMaxTokens = 16384;
+
   // ── In-memory caches ────────────────────────────────────────────────────────
   static final Map<String, SoilTypeResult>        _soilTypeCache    = {};
   static final Map<String, SoilAnalysisResult>    _analysisCache    = {};
@@ -674,46 +682,51 @@ If you are less than 65% confident:
     String?                  soilType,
     List<Map<String, String>> conversationHistory = const [],
   }) async {
-    debugPrint('[GeminiSoilAI] 🤖 Soil advisor Q: '
-        '"${question.substring(0, question.length.clamp(0, 60))}"');
+    // Log the FULL question — the old 60-char substring was misleading users
+    // into thinking their question hadn't been submitted completely.
+    debugPrint('[GeminiSoilAI] 🤖 Soil advisor Q: "$question"');
 
     try {
-      final model = FirebaseAI.googleAI().generativeModel(
-        model: _model,
-        generationConfig: GenerationConfig(
-          temperature:     0.5,
-          // 800 was causing advisor responses to be truncated to ~144 chars.
-          // 2048 lets the model give full, practical answers without cutting off.
-          maxOutputTokens: 2048,
-        ),
-      );
-
       final contextBlock =
           _buildAdvisorContext(currentNutrients, stage, soilType);
 
-      // Build multi-turn history
+      // _model (gemini-2.5-flash) is the only confirmed-available model.
+      // _advisorMaxTokens (16 384) gives the thinking pass ~2000–4000 tokens
+      // and leaves 12 000+ for the visible response — no truncation possible.
+      final model = FirebaseAI.googleAI().generativeModel(
+        model: _model,
+        systemInstruction: Content.system(contextBlock),
+        generationConfig: GenerationConfig(
+          temperature:     0.7,
+          maxOutputTokens: _advisorMaxTokens,
+        ),
+      );
+
+      // Build multi-turn history.  The soil context lives in systemInstruction,
+      // so user turns contain only the farmer's actual words.
       final contents = <Content>[];
       for (final turn in conversationHistory) {
         if (turn['role'] == 'user') {
           contents.add(Content.text(turn['text'] ?? ''));
         } else if (turn['role'] == 'model') {
-          contents
-              .add(Content('model', [TextPart(turn['text'] ?? '')]));
+          contents.add(Content('model', [TextPart(turn['text'] ?? '')]));
         }
       }
-      contents.add(
-          Content.text('$contextBlock\n\nFarmer question: $question'));
+      contents.add(Content.text(question));
 
       final response = await model.generateContent(contents);
       final answer   = response.text ?? '';
+
+      // Log finish reason — stop = clean completion; MAX_TOKENS = still truncating.
+      final finishReason = response.candidates.firstOrNull?.finishReason;
+      debugPrint('[GeminiSoilAI] ✅ Advisor answered '
+          '(${answer.length} chars, finishReason=$finishReason)');
 
       if (answer.isEmpty) {
         debugPrint('[GeminiSoilAI] ❌ Empty advisor response.');
         return null;
       }
 
-      debugPrint(
-          '[GeminiSoilAI] ✅ Advisor answered (${answer.length} chars)');
       return answer;
     } on FirebaseException catch (e) {
       debugPrint('[GeminiSoilAI] ❌ Firebase error in askSoilAdvisor: '
@@ -981,10 +994,15 @@ Rules:
         'Ethiopia). You give clear, complete, practical advice. You know '
         'locally available fertilizers (CAN 26%, DAP, TSP, KNO₃, lime, '
         'compost, manure) and local growing conditions. '
-        'Answer thoroughly — use as many sentences as the question requires '
-        'to give the farmer genuinely useful guidance. Always be specific: '
-        'name products, quantities, and timing where relevant. '
-        'Avoid technical jargon; write for someone with no chemistry background.';
+        'Answer thoroughly and completely — never cut off mid-sentence. '
+        'Use as many sentences as the question requires to give the farmer '
+        'genuinely useful, actionable guidance. Always be specific: name '
+        'products, quantities, and timing where relevant. '
+        'Use emojis naturally to make responses friendly and easy to scan '
+        '(e.g. 🌿 for plant topics, 💧 for water, ⚠️ for warnings, '
+        '✅ for recommendations). '
+        'Write for someone with no chemistry background — no jargon. '
+        'Use bullet points or numbered steps when listing actions.';
 
     if (nutrients == null || nutrients.isEmpty) {
       return systemInstruction;
