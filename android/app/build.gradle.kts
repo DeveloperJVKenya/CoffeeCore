@@ -33,8 +33,8 @@ android {
         applicationId = "com.jvalmacis.coffeecore"
         minSdk = flutter.minSdkVersion.toInt()
         targetSdk = flutter.targetSdkVersion.toInt()
-        versionCode = 6 
-        versionName = "1.0.5"
+        versionCode = 7 
+        versionName = "1.1.0"
         multiDexEnabled = true
         ndk {
             abiFilters.addAll(listOf("arm64-v8a", "x86_64")) // 64-bit ABIs for 16 KB compliance
