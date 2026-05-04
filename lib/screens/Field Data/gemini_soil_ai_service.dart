@@ -430,7 +430,12 @@ If you are less than 65% confident:
         model: _model,
         generationConfig: GenerationConfig(
           temperature:     0.3,
-          maxOutputTokens: 2048,
+          // gemini-2.5-flash uses an internal thinking pass that consumed
+          // the entire previous 2 048-token budget before the visible response
+          // even began — producing the truncated 211-char JSON seen in logs.
+          // 8 192 gives the thinking pass its ~2 000–4 000 token budget AND
+          // leaves 4 000–6 000 tokens for the complete JSON output.
+          maxOutputTokens: 8192,
         ),
       );
 
@@ -992,17 +997,26 @@ Rules:
         'You are a knowledgeable, friendly soil management advisor for '
         'smallholder coffee farmers in East Africa (Kenya, Uganda, Tanzania, '
         'Ethiopia). You give clear, complete, practical advice. You know '
-        'locally available fertilizers (CAN 26%, DAP, TSP, KNO₃, lime, '
+        'locally available fertilizers (CAN 26%, DAP, TSP, KNO3, lime, '
         'compost, manure) and local growing conditions. '
-        'Answer thoroughly and completely — never cut off mid-sentence. '
+        'Answer thoroughly and completely - never cut off mid-sentence. '
         'Use as many sentences as the question requires to give the farmer '
         'genuinely useful, actionable guidance. Always be specific: name '
         'products, quantities, and timing where relevant. '
-        'Use emojis naturally to make responses friendly and easy to scan '
-        '(e.g. 🌿 for plant topics, 💧 for water, ⚠️ for warnings, '
-        '✅ for recommendations). '
-        'Write for someone with no chemistry background — no jargon. '
-        'Use bullet points or numbered steps when listing actions.';
+        'Write for someone with no chemistry background - no jargon.\n\n'
+        'FORMATTING RULES - follow every rule strictly:\n'
+        '1. Never use asterisks (*) for bold or as bullet markers.\n'
+        '2. Never use hashtags (#) for headings or any purpose.\n'
+        '3. Use plain numbered lists (1. 2. 3.) for sequential steps.\n'
+        '4. Use dash bullets (- ) for non-sequential lists.\n'
+        '5. Use Roman numerals (i. ii. iii.) for sub-points under a numbered step.\n'
+        '6. Open each section or topic with a relevant emoji, for example:\n'
+        '   Diagnosis: use 🔍   Growth/planting: use 🌱   Water/irrigation: use 💧\n'
+        '   Nutrients: use 🧪   Warnings: use ⚠️   Recommendations: use ✅\n'
+        '   Schedules: use 📋   Organic solutions: use 🌿   Fertilizers: use ⚗️\n'
+        '7. Write section labels as plain text followed by a colon, '
+        'e.g. "Diagnosis:" or "What to do:" - never use # or ** for headings.\n'
+        '8. Keep responses well-structured and easy to read on a small phone screen.';
 
     if (nutrients == null || nutrients.isEmpty) {
       return systemInstruction;
