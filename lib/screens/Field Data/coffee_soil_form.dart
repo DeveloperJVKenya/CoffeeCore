@@ -234,28 +234,54 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     }
 
     if (result.confident && result.identifiedSoilType != null) {
-      // Auto-fill dropdown.
-      setState(() => _selectedSoilType = result.identifiedSoilType);
-      _updateAnalysis();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF3A5F0B),
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Soil identified as ${result.identifiedSoilType} '
-                    '(${result.confidencePercent?.toStringAsFixed(0)}% confidence)',
-                    style: const TextStyle(color: Colors.white),
+      // Normalise the returned soil type against the known dropdown keys.
+      // Gemini may return e.g. "alluvial", "ALLUVIAL", or "Alluvial soil" —
+      // all should resolve to the canonical "Alluvial" key.
+      final rawType = result.identifiedSoilType!.trim();
+      final normalised = _soilTypes.keys.firstWhere(
+        (k) => k.toLowerCase() == rawType.toLowerCase() ||
+            rawType.toLowerCase().startsWith(k.toLowerCase()),
+        orElse: () => rawType,
+      );
+      final isValidType = _soilTypes.containsKey(normalised);
+
+      if (isValidType) {
+        // Auto-fill dropdown.
+        setState(() => _selectedSoilType = normalised);
+        _updateAnalysis();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: const Color(0xFF3A5F0B),
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Soil identified as $normalised '
+                      '(${result.confidencePercent?.toStringAsFixed(0)}% confidence)',
+                      style: const TextStyle(color: Colors.white),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          );
+        }
+      } else {
+        // Gemini returned a type not in our list — fall through to candidates dialog.
+        developer.log(
+          'Gemini returned unrecognised soil type "$rawType" — '
+          'falling through to candidate selection dialog.',
+          name: 'CoffeeSoilForm',
         );
+        if (!mounted) return;
+        String? chosen = await _showSoilCandidatesDialog(result);
+        if (chosen != null && mounted) {
+          setState(() => _selectedSoilType = chosen);
+          _updateAnalysis();
+        }
       }
     } else {
       // Inconclusive — show candidates.

@@ -323,12 +323,14 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
                   ),
                 ],
               ),
-              child: Text(
+              // SelectableText lets farmers long-press to copy advisor
+              // responses — particularly useful now that answers are longer.
+              child: SelectableText(
                 text,
                 style: TextStyle(
                   color: isUser ? Colors.white : const Color(0xFF3A3A3A),
                   fontSize: 14,
-                  height: 1.4,
+                  height: 1.5,
                 ),
               ),
             ),
@@ -368,13 +370,15 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
                   ),
                 ],
               ),
-              child: const SizedBox(
-                width: 40,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Color(0xFF3A5F0B),
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _TypingDot(delay: 0),
+                  const SizedBox(width: 4),
+                  _TypingDot(delay: 200),
+                  const SizedBox(width: 4),
+                  _TypingDot(delay: 400),
+                ],
               ),
             ),
           ],
@@ -442,4 +446,58 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
           ],
         ),
       );
+}
+
+// ── Animated typing dots ─────────────────────────────────────────────────────
+
+/// A single pulsing dot used in the typing indicator.
+/// The [delay] parameter staggers each dot's animation in milliseconds.
+class _TypingDot extends StatefulWidget {
+  final int delay;
+  const _TypingDot({required this.delay});
+
+  @override
+  State<_TypingDot> createState() => _TypingDotState();
+}
+
+class _TypingDotState extends State<_TypingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _anim = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) _ctrl.repeat(reverse: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _anim,
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: const BoxDecoration(
+          color: Color(0xFF3A5F0B),
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
 }

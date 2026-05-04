@@ -319,7 +319,11 @@ class GeminiSoilAiService {
         model: _model,
         generationConfig: GenerationConfig(
           temperature:     0.2,
-          maxOutputTokens: 512,
+          // 2048 ensures Gemini 2.5 Flash has sufficient budget after its
+          // internal thinking pass — 512 caused the JSON to be truncated at
+          // ~15 tokens, leaving the response without a closing "}" and
+          // preventing autofill of the soil-type dropdown.
+          maxOutputTokens: 2048,
         ),
       );
 
@@ -362,8 +366,10 @@ If you are less than 65% confident:
       ]);
 
       final rawText = response.text ?? '';
+      // Log finish reason to surface future truncations quickly.
+      final finishReason = response.candidates.firstOrNull?.finishReason;
       debugPrint('[GeminiSoilAI] 📥 Soil-type response: '
-          '${rawText.length} chars. '
+          '${rawText.length} chars, finishReason=$finishReason. '
           'Preview: "${rawText.substring(0, rawText.length.clamp(0, 80)).replaceAll('\n', '↵')}"');
 
       if (rawText.isEmpty) {
@@ -676,7 +682,9 @@ If you are less than 65% confident:
         model: _model,
         generationConfig: GenerationConfig(
           temperature:     0.5,
-          maxOutputTokens: 800,
+          // 800 was causing advisor responses to be truncated to ~144 chars.
+          // 2048 lets the model give full, practical answers without cutting off.
+          maxOutputTokens: 2048,
         ),
       );
 
@@ -962,12 +970,21 @@ Rules:
     String? stage,
     String? soilType,
   ) {
+    // NOTE: Deliberately no sentence-count cap here — the previous
+    // "Keep answers to 2–4 sentences" instruction was causing the advisor
+    // to produce ~144-char truncated answers that left farmers with
+    // incomplete guidance. The model is instructed to be thorough but
+    // practical, and the UI supports multi-line scrollable bubbles.
     const systemInstruction =
-        'You are a friendly, knowledgeable soil management advisor for '
+        'You are a knowledgeable, friendly soil management advisor for '
         'smallholder coffee farmers in East Africa (Kenya, Uganda, Tanzania, '
-        'Ethiopia). You speak simply and practically. You know locally available '
-        'fertilizers (CAN 26%, DAP, TSP, KNO₃, lime, compost, manure) and local '
-        'growing conditions. Keep answers to 2–4 sentences. Be specific.';
+        'Ethiopia). You give clear, complete, practical advice. You know '
+        'locally available fertilizers (CAN 26%, DAP, TSP, KNO₃, lime, '
+        'compost, manure) and local growing conditions. '
+        'Answer thoroughly — use as many sentences as the question requires '
+        'to give the farmer genuinely useful guidance. Always be specific: '
+        'name products, quantities, and timing where relevant. '
+        'Avoid technical jargon; write for someone with no chemistry background.';
 
     if (nutrients == null || nutrients.isEmpty) {
       return systemInstruction;
@@ -1032,6 +1049,32 @@ Rules:
       if (lastBrace == -1 || lastBrace <= firstBrace) {
         debugPrint('[GeminiSoilAI] ❌ No closing "}" for $context — '
             'likely truncated (${rawText.length} chars). '
+            'Attempting partial recovery…');
+
+        // ── Partial recovery ─────────────────────────────────────────────
+        // The model sometimes truncates mid-object. Try completing the JSON
+        // by appending the minimum needed closing punctuation.
+        // Strategy: close any open string, then close the object.
+        final partial = cleaned.substring(firstBrace);
+        for (final candidate in [
+          '$partial}',          // plain close
+          '$partial"}',         // close open string then object
+          '$partial"]}',        // close string + array + object
+          '$partial"]}}',       // two levels deep
+        ]) {
+          try {
+            final recovered =
+                jsonDecode(candidate) as Map<String, dynamic>;
+            debugPrint('[GeminiSoilAI] ⚠️ Partial JSON recovered for '
+                '$context (${recovered.keys.length} keys: '
+                '${recovered.keys.toList()})');
+            return recovered;
+          } catch (_) {
+            // Try next candidate.
+          }
+        }
+
+        debugPrint('[GeminiSoilAI] ❌ Recovery also failed for $context. '
             'Preview: "${cleaned.substring(0, cleaned.length.clamp(0, 300))}"');
         return null;
       }
