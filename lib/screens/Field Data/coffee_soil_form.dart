@@ -45,6 +45,9 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
   final Map<String, Map<String, String>> _allRecommendations = {};
   final Map<String, bool> _expandedRecommendations = {};
 
+  // Tracks which nutrients are currently fetching live recommendations
+  final Map<String, bool> _loadingLiveRecs = {};
+
   String? _selectedSoilType;
   String _selectedStage = 'Establishment/Seedling';
   int _plantDensity = 1000;
@@ -122,10 +125,13 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     return map;
   }
 
-  // ── Static analysis (fires on every keystroke) ────────────────────────────
+  // ── Static status update (fires on every keystroke) ──────────────────────
 
   void _updateAnalysis() {
     try {
+      // Collect which nutrients flipped to a non-Optimal status this cycle.
+      final newlyNonOptimal = <String, String>{}; // nutrient → status
+
       setState(() {
         _nutrientStatus.clear();
         _allRecommendations.clear();
@@ -139,15 +145,9 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                   nutrient, value, _selectedStage);
               _nutrientStatus[nutrient] = status;
               if (status != 'Optimal') {
-                _allRecommendations[nutrient] =
-                    NutrientAnalysisHelper.getRecommendations(
-                  nutrient,
-                  status,
-                  _selectedStage,
-                  _selectedSoilType,
-                  _isPerPlant,
-                  _plantDensity,
-                );
+                // Insert a loading placeholder so the UI shows a spinner.
+                _allRecommendations[nutrient] = {};
+                newlyNonOptimal[nutrient] = status;
               }
             }
           }
@@ -165,9 +165,49 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
       if (_aiAnalysisResult != null) {
         setState(() => _aiAnalysisResult = null);
       }
+
+      // Trigger live research fetch for each non-optimal nutrient.
+      for (final entry in newlyNonOptimal.entries) {
+        _fetchLiveRecsForNutrient(entry.key, entry.value);
+      }
     } catch (e, st) {
       developer.log('Error updating analysis: $e',
           name: 'CoffeeSoilForm', error: e, stackTrace: st);
+    }
+  }
+
+  // ── Live research recommendations fetch ───────────────────────────────────
+
+  Future<void> _fetchLiveRecsForNutrient(
+      String nutrient, String status) async {
+    // Avoid duplicate in-flight requests.
+    if (_loadingLiveRecs[nutrient] == true) return;
+
+    setState(() => _loadingLiveRecs[nutrient] = true);
+
+    try {
+      final recs = await GeminiSoilAiService.fetchLiveRecommendations(
+        nutrient:    nutrient,
+        status:      status,
+        stage:       _selectedStage,
+        soilType:    _selectedSoilType,
+        isPerPlant:  _isPerPlant,
+        plantDensity: _plantDensity,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        // Only apply if this nutrient still has the same non-Optimal status
+        // (the farmer might have changed the value while the fetch was running).
+        if (_nutrientStatus[nutrient] == status) {
+          _allRecommendations[nutrient] = recs;
+        }
+        _loadingLiveRecs[nutrient] = false;
+      });
+    } catch (e, st) {
+      developer.log('Error fetching live recs for $nutrient: $e',
+          name: 'CoffeeSoilForm', error: e, stackTrace: st);
+      if (mounted) setState(() => _loadingLiveRecs[nutrient] = false);
     }
   }
 
@@ -820,6 +860,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     final recommendations = _allRecommendations[nutrient];
     final isExpanded =
         _expandedRecommendations[nutrient] ?? false;
+    final isLoadingRecs = _loadingLiveRecs[nutrient] == true;
 
     return Card(
       elevation: 2,
@@ -889,32 +930,57 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                           fontWeight: FontWeight.bold),
                     ),
                   ),
-                  if (recommendations != null &&
-                      recommendations.isNotEmpty) ...[
+                  if (status != 'Optimal') ...[
                     const SizedBox(width: 8),
-                    TextButton.icon(
-                      onPressed: () => setState(() =>
-                          _expandedRecommendations[nutrient] =
-                              !isExpanded),
-                      icon: Icon(
-                        isExpanded
-                            ? Icons.expand_less
-                            : Icons.expand_more,
-                        size: 16,
-                        color: const Color(0xFF3A5F0B),
+                    if (isLoadingRecs)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 13,
+                              height: 13,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF3A5F0B),
+                              ),
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Loading research...',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF3A5F0B)),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (recommendations != null &&
+                        recommendations.isNotEmpty)
+                      TextButton.icon(
+                        onPressed: () => setState(() =>
+                            _expandedRecommendations[nutrient] =
+                                !isExpanded),
+                        icon: Icon(
+                          isExpanded
+                              ? Icons.expand_less
+                              : Icons.expand_more,
+                          size: 16,
+                          color: const Color(0xFF3A5F0B),
+                        ),
+                        label: Text(
+                          isExpanded ? 'Hide' : 'View Research Guide',
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF3A5F0B)),
+                        ),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF3A5F0B),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                        ),
                       ),
-                      label: Text(
-                        isExpanded ? 'Hide' : 'View Recommendations',
-                        style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF3A5F0B)),
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF3A5F0B),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                      ),
-                    ),
                   ],
                 ],
               ),
@@ -983,24 +1049,60 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
 
   Widget _buildRecommendationTabs(
       String nutrient, Map<String, String> recommendations) {
+    // Canonical display order for the categories.
+    const orderedKeys = [
+      'causes',
+      'artificial',
+      'natural',
+      'biological',
+      'application',
+      'avoid',
+      'future_enhancements',
+    ];
+    final sortedEntries = orderedKeys
+        .where(recommendations.containsKey)
+        .map((k) => MapEntry(k, recommendations[k]!))
+        .toList();
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: const Color(0xFFEAF4E3),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue[200]!),
+        border: Border.all(color: const Color(0xFF3A5F0B).withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Recommendations:',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF4A2C2A))),
+          Row(
+            children: [
+              const Icon(Icons.science, size: 14, color: Color(0xFF3A5F0B)),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  'Research-Grounded Guide',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4A2C2A),
+                      fontSize: 13),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3A5F0B).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Live • AI Research',
+                  style: TextStyle(fontSize: 10, color: Color(0xFF3A5F0B)),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
-          ...recommendations.entries.map((entry) =>
-              _buildRecommendationTab(
-                  nutrient, entry.key, entry.value)),
+          ...sortedEntries.map((entry) =>
+              _buildRecommendationTab(nutrient, entry.key, entry.value)),
         ],
       ),
     );
@@ -1260,25 +1362,31 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
 
   String _getRecommendationTypeTitle(String type) {
     switch (type) {
+      case 'causes':
+        return '🔍 Possible Causes';
       case 'natural':
         return '🌱 Natural Solutions';
       case 'biological':
         return '🦠 Biological Solutions';
       case 'artificial':
-        return '⚗️ Artificial Solutions';
+        return '⚗️ Chemical Solutions';
       case 'application':
         return '📋 Application Method';
+      case 'avoid':
+        return '⚠️ What to Avoid';
+      case 'future_enhancements':
+        return '🚀 Future Enhancements';
       case 'maintain':
         return '✅ Maintenance';
-      case 'avoid':
-        return '⚠️ Avoid';
       default:
-        return type.toUpperCase();
+        return type.replaceAll('_', ' ').toUpperCase();
     }
   }
 
   Color _getRecommendationTypeColor(String type) {
     switch (type) {
+      case 'causes':
+        return Colors.indigo;
       case 'natural':
         return Colors.green;
       case 'biological':
@@ -1287,10 +1395,12 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
         return Colors.orange;
       case 'application':
         return Colors.purple;
-      case 'maintain':
-        return Colors.teal;
       case 'avoid':
         return Colors.red;
+      case 'future_enhancements':
+        return const Color(0xFF3A5F0B);
+      case 'maintain':
+        return Colors.teal;
       default:
         return Colors.grey;
     }
@@ -1559,6 +1669,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
       _nutrientStatus.clear();
       _allRecommendations.clear();
       _expandedRecommendations.clear();
+      _loadingLiveRecs.clear();
       _selectedSoilType = null;
       _interventionMethod = null;
       _interventionQuantity = null;

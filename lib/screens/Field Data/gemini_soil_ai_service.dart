@@ -61,33 +61,49 @@ class NutrientInteraction {
 /// A prioritised AI recommendation for a single nutrient from ②
 class SoilRecommendation {
   final String nutrient;
-  final String priority;   // 'critical' | 'high' | 'medium' | 'low'
-  final String artificial;
-  final String natural;
-  final String application;
+  final String priority;         // 'critical' | 'high' | 'medium' | 'low'
+  final String artificial;       // Chemical/fertilizer solution
+  final String natural;          // Organic/natural solution
+  final String biological;       // Biological/microbial solution
+  final String application;      // How & when to apply
+  final String avoid;            // What practices/inputs to avoid
+  final String causes;           // Likely causes of the deficiency/excess
+  final String futureEnhancements; // Long-term improvement strategies
 
   const SoilRecommendation({
     required this.nutrient,
     required this.priority,
     required this.artificial,
     required this.natural,
+    required this.biological,
     required this.application,
+    required this.avoid,
+    required this.causes,
+    required this.futureEnhancements,
   });
 
   factory SoilRecommendation.fromJson(Map<String, dynamic> json) =>
       SoilRecommendation(
-        nutrient:    json['nutrient']    as String? ?? '',
-        priority:    json['priority']    as String? ?? 'medium',
-        artificial:  json['artificial']  as String? ?? '',
-        natural:     json['natural']     as String? ?? '',
-        application: json['application'] as String? ?? '',
+        nutrient:             json['nutrient']              as String? ?? '',
+        priority:             json['priority']              as String? ?? 'medium',
+        artificial:           json['artificial']            as String? ?? '',
+        natural:              json['natural']               as String? ?? '',
+        biological:           json['biological']            as String? ?? '',
+        application:          json['application']           as String? ?? '',
+        avoid:                json['avoid']                 as String? ?? '',
+        causes:               json['causes']                as String? ?? '',
+        futureEnhancements:   json['future_enhancements']  as String? ?? '',
       );
 
-  /// Converts back to the Map String,String> shape used by CoffeeSoilForm
+  /// Converts to the Map\<String,String> shape used by CoffeeSoilForm
   Map<String, String> toRecommendationMap() => {
-        'artificial':  artificial,
-        'natural':     natural,
-        'application': application,
+        if (causes.isNotEmpty)              'causes':              causes,
+        if (artificial.isNotEmpty)          'artificial':          artificial,
+        if (natural.isNotEmpty)             'natural':             natural,
+        if (biological.isNotEmpty)          'biological':          biological,
+        if (application.isNotEmpty)         'application':         application,
+        if (avoid.isNotEmpty)               'avoid':               avoid,
+        if (futureEnhancements.isNotEmpty)  'future_enhancements': futureEnhancements,
       };
 }
 
@@ -430,12 +446,7 @@ If you are less than 65% confident:
         model: _model,
         generationConfig: GenerationConfig(
           temperature:     0.3,
-          // gemini-2.5-flash uses an internal thinking pass that consumed
-          // the entire previous 2 048-token budget before the visible response
-          // even began — producing the truncated 211-char JSON seen in logs.
-          // 8 192 gives the thinking pass its ~2 000–4 000 token budget AND
-          // leaves 4 000–6 000 tokens for the complete JSON output.
-          maxOutputTokens: 8192,
+          maxOutputTokens: 2048,
         ),
       );
 
@@ -765,8 +776,10 @@ If you are less than 65% confident:
 
     return '''
 You are a specialist agricultural AI for coffee farming in East Africa (Kenya, Uganda, Tanzania, Ethiopia).
+Your knowledge is grounded in peer-reviewed coffee agronomy research from CABI, ICO, IITA, CIAT, KENDAT, KEFRI, Jimma University, and national coffee boards of Kenya, Uganda, Tanzania and Ethiopia.
 
-Analyse the following soil nutrient data for a coffee plot and provide a holistic assessment. IMPORTANT: reason about nutrient INTERACTIONS — e.g. high Ca can lock out Mg, low pH makes P unavailable regardless of P quantity, high K inhibits B uptake, low pH reduces N mineralisation.
+Analyse the following soil nutrient data for a coffee plot and provide a holistic assessment.
+IMPORTANT: reason about nutrient INTERACTIONS — e.g. high Ca can lock out Mg, low pH makes P unavailable regardless of P quantity, high K inhibits B uptake, low pH reduces N mineralisation.
 
 Growth stage: "$stage"
 Soil type: "${soilType ?? 'Unknown'}"
@@ -779,7 +792,7 @@ $valuesStr
 Return ONLY valid JSON. Start with { and end with }. No markdown, no code fences.
 
 {
-  "health_score": <integer 0–100, overall soil health>,
+  "health_score": <integer 0-100, overall soil health>,
   "nutrient_status": {
     "pH":         "<Low | Optimal | High>",
     "nitrogen":   "<Low | Optimal | High>",
@@ -801,25 +814,31 @@ Return ONLY valid JSON. Start with { and end with }. No markdown, no code fences
   ],
   "recommendations": [
     {
-      "nutrient":    "<nutrient name>",
-      "priority":    "<critical | high | medium | low>",
-      "artificial":  "<specific Kenya/Uganda-registered product + quantity>",
-      "natural":     "<organic/locally available alternative>",
-      "application": "<when and how to apply — practical for smallholder>"
+      "nutrient":             "<nutrient name>",
+      "priority":             "<critical | high | medium | low>",
+      "causes":               "<2-3 sentences: most likely agronomic causes of this deficiency or excess — leaching, soil pH lock-out, over-application, crop removal, erosion etc.>",
+      "artificial":           "<specific registered product name(s) + rate in kg/acre or g/plant — e.g. CAN 26% at 50 kg/acre>",
+      "natural":              "<locally available organic alternative + rate — e.g. well-rotted coffee husks at 2 t/acre>",
+      "biological":           "<microbial or biostimulant option if relevant — e.g. Rhizobium inoculant, mycorrhizal drench, EM solution — or empty string if not applicable>",
+      "application":          "<step-by-step: timing relative to rain, placement depth, how to mix/dilute, any safety notes>",
+      "avoid":                "<specific inputs, practices or timing combinations that will worsen this condition or harm coffee roots>",
+      "future_enhancements":  "<2-3 long-term soil improvement strategies: cover crops, shade trees, composting systems, crop rotation, soil structure work>"
     }
   ],
-  "summary": "<2–3 sentence plain-language summary of overall soil health for a farmer>",
-  "moisture": "<recommended annual water amount for this soil type and stage>"
+  "summary": "<3-4 sentence plain-language overview of overall soil health, most urgent issue, and expected impact on yield if left unaddressed>",
+  "moisture": "<specific mm/year range recommended for this soil type and growth stage, plus irrigation frequency guidance>"
 }
 
 Rules:
 - Start response with { and end with }. No markdown. No code fences.
-- Optimal pH for East African Arabica/Robusta coffee: 5.5–6.5.
-- Fix pH first in recommendations (it controls bioavailability of everything else).
+- Optimal pH for East African Arabica/Robusta coffee: 5.5-6.5.
+- Fix pH first in recommendations — it controls bioavailability of everything else.
 - List ONLY genuinely present interactions — do not fabricate theoretical ones.
-- Use real product names: CAN 26%, DAP, TSP, KNO₃, MgSO₄, ZnSO₄, Borax, agricultural lime, elemental sulfur.
-- Maximum 4 interactions. Maximum 6 recommendations. All text must be concise and practical.
-- Prioritise recommendations: critical → high → medium → low.
+- Use real product names: CAN 26%, DAP, TSP, KNO3, MgSO4, ZnSO4, Borax, agricultural lime, elemental sulfur, Rhizobium, Trichoderma.
+- Maximum 4 interactions. Maximum 6 recommendations. Prioritise: critical then high then medium then low.
+- Every field in each recommendation must be a non-empty, practical sentence — never leave a field as a generic placeholder.
+- "avoid" must name SPECIFIC inputs or timing mistakes — not generic warnings.
+- "future_enhancements" must name SPECIFIC practices: e.g. Calliandra shade trees, Mucuna cover crop, vermicompost pit.
 ''';
   }
 
@@ -997,26 +1016,17 @@ Rules:
         'You are a knowledgeable, friendly soil management advisor for '
         'smallholder coffee farmers in East Africa (Kenya, Uganda, Tanzania, '
         'Ethiopia). You give clear, complete, practical advice. You know '
-        'locally available fertilizers (CAN 26%, DAP, TSP, KNO3, lime, '
+        'locally available fertilizers (CAN 26%, DAP, TSP, KNO₃, lime, '
         'compost, manure) and local growing conditions. '
-        'Answer thoroughly and completely - never cut off mid-sentence. '
+        'Answer thoroughly and completely — never cut off mid-sentence. '
         'Use as many sentences as the question requires to give the farmer '
         'genuinely useful, actionable guidance. Always be specific: name '
         'products, quantities, and timing where relevant. '
-        'Write for someone with no chemistry background - no jargon.\n\n'
-        'FORMATTING RULES - follow every rule strictly:\n'
-        '1. Never use asterisks (*) for bold or as bullet markers.\n'
-        '2. Never use hashtags (#) for headings or any purpose.\n'
-        '3. Use plain numbered lists (1. 2. 3.) for sequential steps.\n'
-        '4. Use dash bullets (- ) for non-sequential lists.\n'
-        '5. Use Roman numerals (i. ii. iii.) for sub-points under a numbered step.\n'
-        '6. Open each section or topic with a relevant emoji, for example:\n'
-        '   Diagnosis: use 🔍   Growth/planting: use 🌱   Water/irrigation: use 💧\n'
-        '   Nutrients: use 🧪   Warnings: use ⚠️   Recommendations: use ✅\n'
-        '   Schedules: use 📋   Organic solutions: use 🌿   Fertilizers: use ⚗️\n'
-        '7. Write section labels as plain text followed by a colon, '
-        'e.g. "Diagnosis:" or "What to do:" - never use # or ** for headings.\n'
-        '8. Keep responses well-structured and easy to read on a small phone screen.';
+        'Use emojis naturally to make responses friendly and easy to scan '
+        '(e.g. 🌿 for plant topics, 💧 for water, ⚠️ for warnings, '
+        '✅ for recommendations). '
+        'Write for someone with no chemistry background — no jargon. '
+        'Use bullet points or numbered steps when listing actions.';
 
     if (nutrients == null || nutrients.isEmpty) {
       return systemInstruction;
@@ -1139,8 +1149,143 @@ Rules:
       .join('|');
 
   // ════════════════════════════════════════════════════════════════════════════
+  // ⑦ LIVE RESEARCH-GROUNDED INLINE RECOMMENDATIONS
+  //
+  // Uses Gemini's Google Search grounding tool to pull current guidance from
+  // authoritative coffee research databases and extension services, then
+  // synthesises it into the same Map<String,String> shape the form UI expects.
+  //
+  // Called once per nutrient when the farmer enters a value that resolves to
+  // a non-Optimal status. Results are cached in _liveRecCache so a repeat
+  // of the same (nutrient, status, stage, soilType) does not re-query.
+  // ════════════════════════════════════════════════════════════════════════════
+
+  static final Map<String, Map<String, String>> _liveRecCache = {};
+
+  static Future<Map<String, String>> fetchLiveRecommendations({
+    required String nutrient,
+    required String status,     // 'Low' | 'High'
+    required String stage,
+    required String? soilType,
+    required bool   isPerPlant,
+    required int    plantDensity,
+  }) async {
+    final cacheKey =
+        'live_${nutrient}_${status}_${stage}_${soilType ?? "any"}_'
+        '${isPerPlant ? "plant" : "acre"}';
+    if (_liveRecCache.containsKey(cacheKey)) {
+      debugPrint('[GeminiSoilAI] ✅ Cache hit — live recs for $nutrient $status');
+      return _liveRecCache[cacheKey]!;
+    }
+
+    debugPrint('[GeminiSoilAI] 🌐 Fetching live research recs — '
+        '$nutrient $status | stage=$stage | soil=${soilType ?? "unknown"}');
+
+    final unit     = isPerPlant ? 'mg/plant' : 'kg/acre';
+    final soilDesc = soilType != null ? '$soilType soil' : 'unknown soil type';
+
+    final prompt = '''
+You are an expert coffee agronomist. Use Google Search to find current, peer-reviewed recommendations from authoritative sources including:
+- CABI Crop Protection Compendium
+- ICO (International Coffee Organization) technical papers
+- IITA (International Institute of Tropical Agriculture)
+- CIAT coffee research publications
+- Kenya Coffee Research Institute (KCRI / KEFRI)
+- Uganda Coffee Development Authority (UCDA) extension guides
+- Ethiopian Institute of Agricultural Research (EIAR)
+- Jimma University College of Agriculture coffee research
+- Tanzania Coffee Research Institute (TaCRI)
+- FAO soil fertility guides for East Africa
+
+CONTEXT:
+- Nutrient: $nutrient
+- Status: $status (${status == 'Low' ? 'deficient' : 'excess'})
+- Growth stage: $stage
+- Soil type: $soilDesc
+- Measurement units: $unit (plant density: $plantDensity plants/acre)
+
+Search for and synthesise the most current and specific guidance on correcting $nutrient ${status.toLowerCase()} in coffee on $soilDesc during the $stage stage in East Africa.
+
+Return ONLY valid JSON starting with { and ending with }. No markdown. No code fences.
+
+{
+  "causes":              "<2-3 sentences: specific agronomic reasons this condition occurs in East African coffee — leaching, pH lock-out, crop removal rates, soil mineralogy, management practices>",
+  "artificial":          "<most effective registered chemical/mineral fertilizer: product name, exact rate in $unit, frequency — based on research findings>",
+  "natural":             "<best organic/natural option available to East African smallholders: specific material, rate, timing — e.g. coffee pulp compost at 2 t/acre pre-rains>",
+  "biological":          "<microbial or biostimulant approach if research supports it for this nutrient and soil type — or empty string if not applicable>",
+  "application":         "<step-by-step application method: timing relative to rains, soil placement depth, dilution if foliar, any mixing precautions, safety notes>",
+  "avoid":               "<specific inputs, over-application risks, timing mistakes or incompatible combinations that research shows worsen this condition in coffee>",
+  "future_enhancements": "<2-3 long-term soil health strategies recommended by research: shade tree species, cover crops, composting systems, soil structure improvements>"
+}
+
+Rules:
+- Every field must be a complete, specific, actionable sentence — no placeholders or generic advice.
+- Base recommendations on East African conditions and locally available inputs.
+- Name specific products (CAN 26%, DAP, TSP, KNO3, MgSO4, ZnSO4, Borax, lime, elemental sulfur) and organic materials (coffee husks, banana leaves, Tithonia mulch, farmyard manure).
+- "avoid" must name specific harmful combinations or mistakes — not vague cautions.
+- "future_enhancements" must name specific plant species or systems (e.g. Calliandra calothyrsus, Mucuna pruriens, Leucaena leucocephala).
+''';
+
+    try {
+      // Use Google Search grounding so the model fetches real research content.
+      final model = FirebaseAI.googleAI().generativeModel(
+        model: _model,
+        generationConfig: GenerationConfig(
+          temperature:     0.2,
+          maxOutputTokens: 4096,
+        ),
+        tools: [
+          Tool.googleSearch(),
+        ],
+      );
+
+      final response = await model.generateContent([Content.text(prompt)]);
+      final rawText  = response.text ?? '';
+
+      debugPrint('[GeminiSoilAI] 📥 Live recs response: '
+          '${rawText.length} chars for $nutrient $status');
+
+      if (rawText.isEmpty) {
+        debugPrint('[GeminiSoilAI] ❌ Empty live recs response — '
+            'falling back to static for $nutrient');
+        return {};
+      }
+
+      final parsed = _parseJsonResponse(rawText, context: 'fetchLiveRecommendations[$nutrient]');
+      if (parsed == null) return {};
+
+      final result = <String, String>{};
+      for (final key in [
+        'causes', 'artificial', 'natural', 'biological',
+        'application', 'avoid', 'future_enhancements',
+      ]) {
+        final v = parsed[key] as String? ?? '';
+        if (v.isNotEmpty) result[key] = v;
+      }
+
+      _liveRecCache[cacheKey] = result;
+      debugPrint('[GeminiSoilAI] ✅ Live recs fetched for $nutrient $status '
+          '— ${result.length} categories');
+      return result;
+    } on FirebaseException catch (e) {
+      debugPrint('[GeminiSoilAI] ❌ Firebase error in fetchLiveRecommendations: '
+          'code=${e.code} message="${e.message}"');
+      return {};
+    } catch (e, stack) {
+      debugPrint('[GeminiSoilAI] ❌ Error in fetchLiveRecommendations: $e\n$stack');
+      return {};
+    }
+  }
+
+  static void clearLiveRecsCache() {
+    _liveRecCache.clear();
+    debugPrint('[GeminiSoilAI] 🗑 Live recommendations cache cleared.');
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
   // CACHE MANAGEMENT
   // ════════════════════════════════════════════════════════════════════════════
+
 
   static void clearAllCaches() {
     _soilTypeCache.clear();
@@ -1148,6 +1293,7 @@ Rules:
     _planCache.clear();
     _predictionCache.clear();
     _trendCache.clear();
+    _liveRecCache.clear();
     debugPrint('[GeminiSoilAI] 🗑 All caches cleared.');
   }
 
