@@ -33,7 +33,7 @@ android {
         applicationId = "com.jvalmacis.coffeecore"
         minSdk = flutter.minSdkVersion.toInt()
         targetSdk = flutter.targetSdkVersion.toInt()
-        versionCode = 7 
+        versionCode = 8 
         versionName = "1.1.0"
         multiDexEnabled = true
         ndk {
