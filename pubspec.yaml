@@ -51,6 +51,8 @@ dependencies:
   uuid: ^4.5.1
   cross_file: ^0.3.4+2
   firebase_ai: ^3.10.0
+  google_maps_flutter: ^2.17.1
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:

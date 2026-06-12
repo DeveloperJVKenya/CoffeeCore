@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:coffeecore/authentication/splashscreen.dart';
 import 'package:coffeecore/authentication/login.dart';
 import 'package:coffeecore/authentication/registration.dart';
@@ -19,11 +20,11 @@ void main() async {
   // Set transparent overlays (avoids deprecated color APIs)
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,  // Transparent status bar
-      statusBarBrightness: Brightness.dark,  // Dark icons for light backgrounds (or light for dark)
+      statusBarColor: Colors.transparent,
+      statusBarBrightness: Brightness.dark,
       statusBarIconBrightness: Brightness.dark,
-      systemNavigationBarColor: Colors.transparent,  // Transparent nav bar
-      systemNavigationBarContrastEnforced: false,  // Allow drawing behind (set true for varying backgrounds)
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
       systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
@@ -37,20 +38,71 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CoffeeCore', // Updated app name
+      title: 'CoffeeCore',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.brown, // Coffee-inspired color
-          primary: Colors.brown[700], // Darker coffee shade
-          secondary: Colors.green[800], // Hint of coffee plant green
+          seedColor: Colors.brown,
+          primary: Colors.brown[700],
+          secondary: Colors.green[800],
         ),
         useMaterial3: true,
       ),
-      home: const SplashScreen(),
+      home: const AuthGate(),
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegistrationScreen(),
         '/home': (context) => const HomePage(),
+      },
+    );
+  }
+}
+
+// ------------------------------------------------------------------
+// AuthGate
+// ------------------------------------------------------------------
+// Shows SplashScreen for the full 5-second animation, then routes
+// based on Firebase Auth state. Because no platform view is built
+// during startup, the flutter/lifecycle discarded-message warning
+// is eliminated.
+// ------------------------------------------------------------------
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  bool _splashFinished = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) setState(() => _splashFinished = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // Keep splash animation running for the full 5 seconds
+        if (!_splashFinished) {
+          return const SplashScreen();
+        }
+
+        // After 5 s: route based on Firebase Auth state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
+
+        if (snapshot.hasData && snapshot.data != null) {
+          return const HomePage();
+        }
+
+        return const RegistrationScreen();
       },
     );
   }

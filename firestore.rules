@@ -212,6 +212,30 @@ service cloud.firestore {
       allow delete: if isAdmin() || (request.auth.uid == resource.data.userId);
     }
 
+    // ============================================================
+    // FarmPolygons collection  (GPS boundary mapping)
+    // ============================================================
+    match /FarmPolygons/{farmId} {
+      allow read: if isAuthenticated() &&
+                  (request.auth.uid == resource.data.userId ||
+                    isAdmin() ||
+                    (resource.data.userId != null &&
+                    isCoopAdmin(getCoopAdminCooperative()) &&
+                    isUserInCoop(getCoopAdminCooperative(), resource.data.userId)));
+      allow create: if isAuthenticated() &&
+                      request.auth.uid == request.resource.data.userId;
+      allow update: if isAuthenticated() &&
+                      (request.auth.uid == resource.data.userId ||
+                      isAdmin() ||
+                      (resource.data.userId != null &&
+                        isCoopAdmin(getCoopAdminCooperative()) &&
+                        isUserInCoop(getCoopAdminCooperative(), resource.data.userId)));
+      allow delete: if isAdmin() ||
+                      (resource.data.userId != null &&
+                      isCoopAdmin(getCoopAdminCooperative()) &&
+                      isUserInCoop(getCoopAdminCooperative(), resource.data.userId));
+    }
+
     // Coffee pest interventions
     match /coffee_pest_interventions/{documentId} {
       allow read: if isAuthenticated() &&

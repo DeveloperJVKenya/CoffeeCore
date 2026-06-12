@@ -4,6 +4,7 @@ import 'package:coffeecore/screens/Cooperative%20Section/coop_admin_management_s
 import 'package:coffeecore/screens/Cooperative%20Section/market_manager_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/produce_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/coffee_management_screen.dart';
+import 'package:coffeecore/screens/Farm%20Mapping/farm_map_screen.dart';
 import 'package:coffeecore/screens/Field%20Data/coffee_soil_home_page.dart';
 import 'package:coffeecore/screens/admin/admin_management_screen.dart';
 import 'package:flutter/material.dart';
@@ -873,6 +874,13 @@ class _HomePageState extends State<HomePage> {
         Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const WeatherScreen()));
+      }),
+      _buildDrawerItem(Icons.map, 'Farm Mapping', () {
+        logger.i('Navigating to FarmMapScreen');
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const FarmMapScreen()));
       }),
       _buildDrawerItem(Icons.satellite_alt, 'Coffee Satellite Advisor', () {
         logger.i('Navigating to Coffee Satellite Advisor');
