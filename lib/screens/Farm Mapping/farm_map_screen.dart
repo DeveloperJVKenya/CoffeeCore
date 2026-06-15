@@ -1,8 +1,3 @@
-// ============================================================
-// lib/screens/Farm Management/farm_map_screen.dart
-// CoffeeCore – Farm Map & GPS Boundary Mapping Screen
-// ============================================================
-
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:coffeecore/screens/Farm%20Mapping/climate_satellite_service.dart';
@@ -15,6 +10,33 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 import 'farm_detail_screen.dart';
+
+// ── Error Types for User-Friendly Display ───────────────────
+enum MapErrorType {
+  apiKeyMissing,
+  apiKeyInvalid,
+  networkError,
+  locationPermissionDenied,
+  locationServicesDisabled,
+  gpsSignalWeak,
+  mapLoadFailed,
+  firebaseConnectionError,
+  unknownError,
+}
+
+class MapErrorInfo {
+  final MapErrorType type;
+  final String userMessage;
+  final String technicalDetails;
+  final String? recoveryAction;
+
+  const MapErrorInfo({
+    required this.type,
+    required this.userMessage,
+    required this.technicalDetails,
+    this.recoveryAction,
+  });
+}
 
 class FarmMapScreen extends StatefulWidget {
   const FarmMapScreen({super.key});
@@ -34,7 +56,8 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   GoogleMapController? _mapController;
   MapType _mapType = MapType.hybrid;
   bool _isMapReady = false;
-  bool _isMapCrash = false; // <-- NEW: catches missing JS API
+  bool _isMapCrash = false;
+  String? _mapErrorMessage; // User-friendly error to display
 
   // ── GPS / mapping state ─────────────────────────────────────
   StreamSubscription<Position>? _positionStreamSub;
@@ -111,6 +134,167 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   }
 
   // ─────────────────────────────────────────────────────────────
+  // ENHANCED ERROR HANDLING SYSTEM
+  // ─────────────────────────────────────────────────────────────
+
+  /// Converts technical errors into user-friendly messages
+  /// Logs full technical details for developers
+  MapErrorInfo _parseError(dynamic error, StackTrace? stackTrace, {String? context}) {
+    final errorString = error.toString();
+    final contextStr = context != null ? ' [$context]' : '';
+    
+    // Log FULL technical details for developers (never shown to users)
+    _log.e(
+      'TECHNICAL ERROR$contextStr: $error\n'
+      'StackTrace: ${stackTrace?.toString() ?? 'Not available'}\n'
+      'ErrorType: ${error.runtimeType}\n'
+      'Timestamp: ${DateTime.now().toIso8601String()}',
+    );
+
+    // Determine error type and user-friendly message
+    if (errorString.contains('RefererNotAllowedMapError') ||
+        errorString.contains('API key') ||
+        errorString.contains('API_KEY')) {
+      return MapErrorInfo(
+        type: MapErrorType.apiKeyInvalid,
+        userMessage: 'Map cannot be displayed. The map service key needs to be configured for this website address.',
+        technicalDetails: 'Google Maps API key referrer restriction: $errorString',
+        recoveryAction: 'Please contact your system administrator to add this domain to the allowed list in Google Cloud Console.',
+      );
+    }
+
+    if (errorString.contains('MissingPluginException') ||
+        errorString.contains('maps.googleapis.com') ||
+        errorString.contains('Failed to load')) {
+      return MapErrorInfo(
+        type: MapErrorType.mapLoadFailed,
+        userMessage: 'Unable to load the farm map. Please check your internet connection and try again.',
+        technicalDetails: 'Map plugin loading failed: $errorString',
+        recoveryAction: 'Try refreshing the page or check if maps.googleapis.com is accessible.',
+      );
+    }
+
+    if (errorString.contains('permission') ||
+        errorString.contains('Permission')) {
+      return MapErrorInfo(
+        type: MapErrorType.locationPermissionDenied,
+        userMessage: 'Location permission is needed to map your farm boundary. Please allow access when prompted.',
+        technicalDetails: 'Location permission error: $errorString',
+        recoveryAction: 'Go to your browser settings and allow location access for this site.',
+      );
+    }
+
+    if (errorString.contains('Location services') ||
+        errorString.contains('location service')) {
+      return MapErrorInfo(
+        type: MapErrorType.locationServicesDisabled,
+        userMessage: 'GPS is turned off on your device. Please enable location services to continue mapping.',
+        technicalDetails: 'Location services disabled: $errorString',
+        recoveryAction: 'Enable location services in your device settings.',
+      );
+    }
+
+    if (errorString.contains('network') ||
+        errorString.contains('SocketException') ||
+        errorString.contains('Connection refused')) {
+      return MapErrorInfo(
+        type: MapErrorType.networkError,
+        userMessage: 'Connection problem detected. Please check your internet and try again.',
+        technicalDetails: 'Network connectivity error: $errorString',
+        recoveryAction: 'Verify your Wi-Fi or mobile data connection is active.',
+      );
+    }
+
+    if (errorString.contains('Firebase') ||
+        errorString.contains('firestore') ||
+        errorString.contains('Firestore')) {
+      return MapErrorInfo(
+        type: MapErrorType.firebaseConnectionError,
+        userMessage: 'Unable to save or load your farm data. Please try again shortly.',
+        technicalDetails: 'Firebase/Firestore error: $errorString',
+        recoveryAction: 'Check Firebase console for service status or configuration issues.',
+      );
+    }
+
+    // Default unknown error
+    return MapErrorInfo(
+      type: MapErrorType.unknownError,
+      userMessage: 'Something went wrong while loading the map. Please try again.',
+      technicalDetails: 'Unhandled error: $errorString\nContext: $context',
+      recoveryAction: 'If this persists, please contact support with the error code.',
+    );
+  }
+
+  /// Shows user-friendly error with recovery guidance
+  void _showUserFriendlyError(MapErrorInfo errorInfo, {bool isFatal = false}) {
+    if (!mounted) return;
+
+    // Log the technical details for developers
+    _log.w(
+      'USER ERROR DISPLAY [${errorInfo.type.name}]: ${errorInfo.userMessage}\n'
+      'Technical: ${errorInfo.technicalDetails}\n'
+      'Recovery: ${errorInfo.recoveryAction}',
+    );
+
+    setState(() {
+      _mapErrorMessage = errorInfo.userMessage;
+      if (isFatal) _isMapCrash = true;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isFatal ? Icons.error_outline : Icons.warning_amber_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    errorInfo.userMessage,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+            if (errorInfo.recoveryAction != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                errorInfo.recoveryAction!,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.85),
+                ),
+              ),
+            ],
+          ],
+        ),
+        backgroundColor: isFatal ? Colors.red[800] : Colors.orange[800],
+        duration: const Duration(seconds: 6),
+        action: isFatal
+            ? SnackBarAction(
+                label: 'RETRY',
+                textColor: Colors.white,
+                onPressed: () {
+                  setState(() {
+                    _isMapCrash = false;
+                    _mapErrorMessage = null;
+                  });
+                  _checkLocationPermissions();
+                },
+              )
+            : null,
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
   // PERMISSIONS
   // ─────────────────────────────────────────────────────────────
 
@@ -161,10 +345,8 @@ class _FarmMapScreenState extends State<FarmMapScreen>
         _moveCameraToCurrentLocation();
       }
     } catch (e, st) {
-      _log.e(
-        'FarmMapScreen: Error checking permissions – $e',
-        stackTrace: st,
-      );
+      final errorInfo = _parseError(e, st, context: 'Permission Check');
+      _showUserFriendlyError(errorInfo);
     }
   }
 
@@ -186,15 +368,15 @@ class _FarmMapScreenState extends State<FarmMapScreen>
     ).listen(
       _onPositionUpdate,
       onError: (Object e, StackTrace st) {
-        _log.e('FarmMapScreen: GPS stream error – $e', stackTrace: st);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('GPS error: $e'),
-              backgroundColor: Colors.red[700],
-            ),
-          );
-        }
+        final errorInfo = _parseError(e, st, context: 'GPS Stream');
+        _showUserFriendlyError(errorInfo);
+        
+        // Log full technical details for developers
+        _log.e(
+          'GPS STREAM ERROR: $e\n'
+          'StackTrace: $st\n'
+          'Stream was active for: ${_positionStreamSub != null ? "active" : "inactive"}',
+        );
       },
     );
   }
@@ -250,6 +432,8 @@ class _FarmMapScreenState extends State<FarmMapScreen>
       '${fromStream ? "[auto]" : "[manual]"} | '
       'Area: ${_areaHectares.toStringAsFixed(4)} ha',
     );
+    // Force map overlay update after adding point
+    _updateMapOverlays();
   }
 
   void _undoLastPoint() {
@@ -326,7 +510,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   }
 
   // ─────────────────────────────────────────────────────────────
-  // MAP OVERLAYS
+  // MAP OVERLAYS - CRITICAL FIX FOR POLYGON DRAWING
   // ─────────────────────────────────────────────────────────────
 
   void _updateCurrentPositionMarker(Position pos) {
@@ -347,42 +531,59 @@ class _FarmMapScreenState extends State<FarmMapScreen>
             title: 'Your Location',
             snippet: 'Accuracy: ±${pos.accuracy.toStringAsFixed(0)} m',
           ),
-          zIndexInt: 10, 
+          zIndexInt: 10,
         ),
       );
     });
   }
 
+  /// CRITICAL: This method rebuilds all map overlays (polygons, polylines, markers)
+  /// Call this after ANY change to boundary points or farm data
   void _updateMapOverlays() {
     if (!mounted) return;
+
+    _log.d(
+      'FarmMapScreen._updateMapOverlays: Rebuilding overlays. '
+      'Boundary points: ${_boundaryPoints.length}, '
+      'Saved farms: ${_userFarms.length}, '
+      'Selected farm: ${_selectedViewFarm?.farmName ?? "none"}',
+    );
 
     final newPolygons = <Polygon>{};
     final newPolylines = <Polyline>{};
     final newMarkers =
         _markers.where((m) => m.markerId.value == 'current_position').toSet();
 
+    // ── ACTIVE BOUNDARY (being drawn now) ─────────────────────
     if (_boundaryPoints.isNotEmpty) {
       if (_boundaryPoints.length >= 3) {
+        // Create polygon when we have 3+ points
         newPolygons.add(
           Polygon(
             polygonId: const PolygonId('active_boundary'),
-            points: _boundaryPoints,
+            points: List<LatLng>.from(_boundaryPoints), // Create copy to ensure update
             fillColor: _accent.withValues(alpha: 0.18),
             strokeColor: _accent,
             strokeWidth: 2,
+            geodesic: true, // Follow earth curvature
           ),
         );
+        _log.d('FarmMapScreen: Active polygon created with ${_boundaryPoints.length} points');
       } else {
+        // Show polyline preview when < 3 points
         newPolylines.add(
           Polyline(
             polylineId: const PolylineId('boundary_preview'),
-            points: _boundaryPoints,
+            points: List<LatLng>.from(_boundaryPoints),
             color: _accent,
             width: 3,
+            geodesic: true,
           ),
         );
+        _log.d('FarmMapScreen: Boundary preview polyline created');
       }
 
+      // Live preview line from last point to current position
       if (_isMappingActive &&
           _currentPosition != null &&
           _boundaryPoints.isNotEmpty) {
@@ -396,10 +597,12 @@ class _FarmMapScreenState extends State<FarmMapScreen>
             color: Colors.amber,
             width: 2,
             patterns: [PatternItem.dash(12), PatternItem.gap(6)],
+            geodesic: true,
           ),
         );
       }
 
+      // Boundary point markers (limit to 50 for performance)
       if (_boundaryPoints.length <= 50) {
         for (int i = 0; i < _boundaryPoints.length; i++) {
           newMarkers.add(
@@ -425,13 +628,14 @@ class _FarmMapScreenState extends State<FarmMapScreen>
       }
     }
 
+    // ── SAVED FARMS ───────────────────────────────────────────
     for (final farm in _userFarms) {
       if (farm.coordinates.length >= 3) {
         final isSelected = _selectedViewFarm?.farmId == farm.farmId;
         newPolygons.add(
           Polygon(
             polygonId: PolygonId('saved_${farm.farmId}'),
-            points: farm.coordinates,
+            points: List<LatLng>.from(farm.coordinates),
             fillColor: isSelected
                 ? _primary.withValues(alpha: 0.30)
                 : _primary.withValues(alpha: 0.12),
@@ -439,6 +643,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
             strokeWidth: isSelected ? 3 : 2,
             consumeTapEvents: true,
             onTap: () => _onSavedFarmTap(farm),
+            geodesic: true,
           ),
         );
         newMarkers.add(
@@ -453,17 +658,23 @@ class _FarmMapScreenState extends State<FarmMapScreen>
               snippet: farm.areaLabel,
               onTap: () => _navigateToFarmDetail(farm),
             ),
-            zIndexInt: 8, 
+            zIndexInt: 8,
           ),
         );
       }
     }
 
+    // CRITICAL: Use setState to trigger GoogleMap rebuild with new overlays
     setState(() {
       _polygons = newPolygons;
       _polylines = newPolylines;
       _markers = newMarkers;
     });
+
+    _log.d(
+      'FarmMapScreen._updateMapOverlays: Overlays updated. '
+      'Polygons: ${_polygons.length}, Polylines: ${_polylines.length}, Markers: ${_markers.length}',
+    );
   }
 
   void _onSavedFarmTap(FarmPolygon farm) {
@@ -652,15 +863,11 @@ class _FarmMapScreenState extends State<FarmMapScreen>
         );
       }
     } catch (e, st) {
-      _log.e('FarmMapScreen: Error saving farm – $e', stackTrace: st);
+      final errorInfo = _parseError(e, st, context: 'Save Farm');
+      _showUserFriendlyError(errorInfo);
+      
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving farm: $e'),
-            backgroundColor: Colors.red[700],
-          ),
-        );
       }
     }
   }
@@ -764,10 +971,9 @@ class _FarmMapScreenState extends State<FarmMapScreen>
         }
       },
       onError: (Object e, StackTrace st) {
-        _log.e(
-          'FarmMapScreen: Farms stream error – $e',
-          stackTrace: st,
-        );
+        final errorInfo = _parseError(e, st, context: 'Farms Stream');
+        _showUserFriendlyError(errorInfo);
+        
         if (mounted) setState(() => _isLoadingFarms = false);
       },
     );
@@ -810,8 +1016,9 @@ class _FarmMapScreenState extends State<FarmMapScreen>
         'FarmMapScreen: Camera moved to current location '
         '(${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)})',
       );
-    } catch (e) {
-      _log.w('FarmMapScreen: Could not get current location – $e');
+    } catch (e, st) {
+      final errorInfo = _parseError(e, st, context: 'Move Camera');
+      _showUserFriendlyError(errorInfo);
     }
   }
 
@@ -1051,15 +1258,8 @@ class _FarmMapScreenState extends State<FarmMapScreen>
           );
         }
       } catch (e, st) {
-        _log.e('FarmMapScreen: Error deleting farm – $e', stackTrace: st);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error deleting farm: $e'),
-              backgroundColor: Colors.red[700],
-            ),
-          );
-        }
+        final errorInfo = _parseError(e, st, context: 'Delete Farm');
+        _showUserFriendlyError(errorInfo);
       }
     }
   }
@@ -1243,11 +1443,38 @@ class _FarmMapScreenState extends State<FarmMapScreen>
               Icon(Icons.map_outlined, size: 64, color: Colors.grey[400]),
               const SizedBox(height: 12),
               Text(
-                'Google Maps failed to load.\n'
-                'Ensure Maps JavaScript API is enabled\n'
-                'and the script is in web/index.html',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600]),
+                'Map Service Unavailable',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[700],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  _mapErrorMessage ?? 
+                  'The map service is temporarily unavailable. '
+                  'Please check your internet connection or try again later.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _isMapCrash = false;
+                    _mapErrorMessage = null;
+                  });
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.brown[700],
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           ),
@@ -1266,7 +1493,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
               zoom: 17.0,
             )
           : const CameraPosition(
-              target: LatLng(-1.2921, 36.8219),
+              target: LatLng(-1.2921, 36.8219), // Default: Nairobi, Kenya
               zoom: 14.0,
             ),
       onMapCreated: (ctrl) {
@@ -1279,7 +1506,15 @@ class _FarmMapScreenState extends State<FarmMapScreen>
           }
           _updateMapOverlays();
         } catch (e, st) {
-          _log.e('FarmMapScreen: onMapCreated error – $e', stackTrace: st);
+          final errorInfo = _parseError(e, st, context: 'Map Creation');
+          _showUserFriendlyError(errorInfo, isFatal: true);
+          
+          _log.e(
+            'CRITICAL MAP ERROR: $e\n'
+            'StackTrace: $st\n'
+            'This is a fatal error - map will not display',
+          );
+          
           if (mounted) setState(() => _isMapCrash = true);
         }
       },
