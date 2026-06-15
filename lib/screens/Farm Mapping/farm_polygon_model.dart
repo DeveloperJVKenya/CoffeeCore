@@ -1,14 +1,3 @@
-// ============================================================
-// lib/models/farm_polygon_model.dart
-// CoffeeCore – Farm Polygon Data Model
-//
-// Mirrors Agronica GIAS field-record schema:
-//   - Polygon boundary (GPS LatLng list)
-//   - Computed area / perimeter
-//   - Nested ClimateData   (OpenWeatherMap)
-//   - Nested SatelliteData (AgroMonitoring / Sentinel-2 NDVI)
-// ============================================================
-
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
