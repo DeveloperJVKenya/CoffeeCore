@@ -1,15 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
-//import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coffeecore/screens/Farm%20Mapping/farm_polygon_model.dart';
 
 class ClimateSatelliteService {
   final Logger _log = Logger(printer: PrettyPrinter());
 
-  // ── API configuration ───────────────────────────────────────
-  // Replace these placeholders with your own keys.
-  // Keys are identical for both endpoints (same OpenWeatherMap account).
   static const String _weatherApiKey = 'YOUR_OPENWEATHERMAP_API_KEY';
   static const String _agroApiKey = 'YOUR_AGROMONITORING_API_KEY';
 
@@ -22,8 +18,6 @@ class ClimateSatelliteService {
 
   // ── CLIMATE DATA ────────────────────────────────────────────
 
-  /// Fetches current weather for the farm centroid.
-  /// Returns null on API error or if keys are unconfigured.
   Future<ClimateData?> fetchCurrentClimate(
       {required double lat, required double lng}) async {
     if (_isPlaceholderKey(_weatherApiKey)) {
@@ -88,8 +82,6 @@ class ClimateSatelliteService {
 
   // ── 5-DAY FORECAST ──────────────────────────────────────────
 
-  /// Returns up to 5 daily forecast entries (noon snapshot per day).
-  /// Each map contains: date, temp, humidity, description, icon.
   Future<List<Map<String, dynamic>>> fetchFiveDayForecast(
       {required double lat, required double lng}) async {
     if (_isPlaceholderKey(_weatherApiKey)) {
@@ -104,7 +96,6 @@ class ClimateSatelliteService {
         'ClimateSatelliteService.fetchFiveDayForecast: '
         'Requesting 5-day forecast for lat=$lat, lng=$lng',
       );
-      // cnt=40 = 5 days × 8 three-hourly slots
       final uri = Uri.parse(
         '$_owmBase/forecast?lat=$lat&lon=$lng'
         '&appid=$_weatherApiKey&units=metric&cnt=40',
@@ -122,7 +113,6 @@ class ClimateSatelliteService {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       final rawList = data['list'] as List<dynamic>;
 
-      // Pick one entry per calendar day (prefer the 12:00 slot)
       final Map<String, Map<String, dynamic>> dayMap = {};
       for (final item in rawList) {
         final entry = item as Map<String, dynamic>;
@@ -164,15 +154,9 @@ class ClimateSatelliteService {
 
   // ── AGRONOMIC SATELLITE – REGISTER POLYGON ──────────────────
 
-  /// Registers the farm's GeoJSON polygon with AgroMonitoring.
-  /// Must be called once per farm; stores the returned ID in Firestore
-  /// via FarmMappingService so NDVI queries can reference it.
-  ///
-  /// [coordinates]: list of [longitude, latitude] pairs (GeoJSON order).
-  /// Returns the AgroMonitoring polygon ID, or null on failure.
   Future<String?> registerAgroPolygon({
     required String farmName,
-    required List<List<double>> coordinates, // [[lng, lat], …]
+    required List<List<double>> coordinates,
   }) async {
     if (_isPlaceholderKey(_agroApiKey)) {
       _log.w(
@@ -187,7 +171,6 @@ class ClimateSatelliteService {
         'Registering polygon "$farmName" with ${coordinates.length} vertices',
       );
 
-      // Close the polygon ring if not already closed (GeoJSON requirement)
       final ring = List<List<double>>.from(coordinates);
       if (ring.isNotEmpty &&
           (ring.first[0] != ring.last[0] ||
@@ -242,11 +225,6 @@ class ClimateSatelliteService {
 
   // ── NDVI / SATELLITE DATA ───────────────────────────────────
 
-  /// Fetches the latest Sentinel-2 NDVI reading for a registered polygon.
-  ///
-  /// [agroPolyId]: The polygon ID from [registerAgroPolygon].
-  /// Defaults to the past 30 days of data.
-  /// Returns null if no data is available or on error.
   Future<SatelliteData?> fetchLatestNdvi(
       {required String agroPolyId}) async {
     if (_isPlaceholderKey(_agroApiKey)) {
@@ -254,7 +232,6 @@ class ClimateSatelliteService {
         'ClimateSatelliteService.fetchLatestNdvi: '
         'AgroMonitoring API key not configured – returning simulated data',
       );
-      // Return a simulated SatelliteData for development/demo
       return _simulatedNdviData();
     }
     try {
@@ -295,7 +272,6 @@ class ClimateSatelliteService {
         return null;
       }
 
-      // Most-recent entry
       final latest = list.last as Map<String, dynamic>;
       final ndviData =
           (latest['data'] as Map<String, dynamic>?) ?? {};
@@ -329,7 +305,6 @@ class ClimateSatelliteService {
   bool _isPlaceholderKey(String key) =>
       key.startsWith('YOUR_') || key.isEmpty;
 
-  /// NDVI → vegetation health label (Agronica GIAS thresholds)
   String _ndviToHealth(double ndvi) {
     if (ndvi >= 0.60) return 'Excellent';
     if (ndvi >= 0.40) return 'Good';
@@ -337,15 +312,11 @@ class ClimateSatelliteService {
     return 'Poor';
   }
 
-  /// Simple linear model: NDVI ↑ → soil moisture ↑
-  /// Calibrated for tropical coffee-growing regions.
   double _estimateSoilMoisture(double ndvi) =>
       ((ndvi * 85.0).clamp(0.0, 100.0));
 
-  /// Simulated SatelliteData when AgroMonitoring key is absent.
-  /// Useful during development / demo.
   SatelliteData _simulatedNdviData() {
-    const ndvi = 0.52; // Typical healthy young coffee
+    const ndvi = 0.52;
     return SatelliteData(
       ndviScore: ndvi,
       vegetationHealth: _ndviToHealth(ndvi),
@@ -356,7 +327,6 @@ class ClimateSatelliteService {
   }
 }
 
-// ── String extension ────────────────────────────────────────────
 extension _StringCapitalize on String {
   String capitalize() =>
       isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';

@@ -684,40 +684,91 @@ class _HomePageState extends State<HomePage> {
             'Get Coffee Farming Tips',
             'Explore Coffee Soil Insights',
           ];
-          return Stack(
-            children: [
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  image: DecorationImage(
-                    image: AssetImage(image),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 8,
-                left: 8,
-                right: 8,
-                child: Container(
+
+          void onCarouselTap() {
+            switch (index) {
+              case 0:
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const WeatherScreen()),
+                );
+                break;
+              case 1:
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CoffeeManagementScreen()),
+                );
+                break;
+              case 2:
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PestDiseaseHomePage()),
+                );
+                break;
+              case 3:
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CoffeeManagementScreen()),
+                );
+                break;
+              case 4:
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ManualsScreen()),
+                );
+                break;
+              case 5:
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LearnCoffeeFarming()),
+                );
+                break;
+              case 6:
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CoffeeSoilHomePage()),
+                );
+                break;
+            }
+          }
+
+          return GestureDetector(
+            onTap: onCarouselTap,
+            child: Stack(
+              children: [
+                Container(
+                  width: double.infinity,
                   decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Text(
-                    labels[index],
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                    borderRadius: BorderRadius.circular(12),
+                    image: DecorationImage(
+                      image: AssetImage(image),
+                      fit: BoxFit.cover,
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ),
-              ),
-            ],
+                Positioned(
+                  bottom: 8,
+                  left: 8,
+                  right: 8,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Text(
+                      labels[index],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           );
         }).toList(),
       ),

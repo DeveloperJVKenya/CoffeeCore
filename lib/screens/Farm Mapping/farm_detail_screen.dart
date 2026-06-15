@@ -1,18 +1,6 @@
 // ============================================================
 // lib/screens/Farm Management/farm_detail_screen.dart
 // CoffeeCore – Farm Detail & Satellite Intelligence Screen
-//
-// Displays a full agronomic data panel for one saved farm:
-//   • Read-only Google Map with farm polygon
-//   • Area / perimeter / GPS boundary summary
-//   • Live climate data  (OpenWeatherMap)
-//   • NDVI / satellite data (AgroMonitoring / Sentinel-2)
-//   • 5-day weather forecast strip
-//   • Rename / Delete actions
-//   • Refresh all data button
-//
-// Design: CoffeeCore theme – Colors.brown[700] primary,
-// Colors.brown[50] cards, PrettyPrinter logger throughout.
 // ============================================================
 
 import 'dart:async';
@@ -56,9 +44,12 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
   bool _isRefreshingForecast = false;
   bool _isDeleting = false;
 
+  // REMOVED: Unused error fields — error handling is done via _showUserError() 
+  // which shows SnackBars directly without storing state
+
   // ── Theme ────────────────────────────────────────────────────
-  static const Color _primary = Color(0xFF6D4C41); // brown[700]
-  static const Color _cardBg = Color(0xFFF1ECEA); // brown[50]
+  static const Color _primary = Color(0xFF6D4C41);
+  static const Color _cardBg = Color(0xFFF1ECEA);
 
   // ─────────────────────────────────────────────────────────────
   // LIFECYCLE
@@ -75,7 +66,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
       '(id: ${_farm.farmId}, ${_farm.areaLabel})',
     );
 
-    // Always refresh data on open so numbers are current
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshAllData();
     });
@@ -127,6 +117,11 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
       }
     } catch (e, st) {
       _log.e('FarmDetailScreen: Climate refresh error – $e', stackTrace: st);
+      _showUserError(
+        title: 'Weather Data Unavailable',
+        message: 'We couldn\'t fetch the latest weather data. Please check your internet connection.',
+        technicalDetails: 'Climate refresh error: $e\n$st',
+      );
     } finally {
       if (mounted) setState(() => _isRefreshingClimate = false);
     }
@@ -150,6 +145,11 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
       );
     } catch (e, st) {
       _log.e('FarmDetailScreen: Forecast refresh error – $e', stackTrace: st);
+      _showUserError(
+        title: 'Forecast Unavailable',
+        message: 'We couldn\'t load the weather forecast. Please try again later.',
+        technicalDetails: 'Forecast refresh error: $e\n$st',
+      );
     } finally {
       if (mounted) setState(() => _isRefreshingForecast = false);
     }
@@ -179,7 +179,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
           }
         }
       } else {
-        // No polygon registered yet – use simulated data for demo
         _log.w(
           'FarmDetailScreen: No AgroMonitoring polyId for '
           '"${_farm.farmName}" – falling back to simulated NDVI',
@@ -195,6 +194,11 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
       _log.e(
         'FarmDetailScreen: Satellite refresh error – $e',
         stackTrace: st,
+      );
+      _showUserError(
+        title: 'Satellite Data Unavailable',
+        message: 'We couldn\'t fetch the latest satellite imagery. The farm health data may be outdated.',
+        technicalDetails: 'Satellite refresh error: $e\n$st',
       );
     } finally {
       if (mounted) setState(() => _isRefreshingSatellite = false);
@@ -277,14 +281,11 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
       }
     } catch (e, st) {
       _log.e('FarmDetailScreen: Rename error – $e', stackTrace: st);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Rename failed: $e'),
-            backgroundColor: Colors.red[700],
-          ),
-        );
-      }
+      _showUserError(
+        title: 'Rename Failed',
+        message: 'Could not rename the farm. Please try again.',
+        technicalDetails: 'Rename error: $e\n$st',
+      );
     }
   }
 
@@ -335,20 +336,112 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
             backgroundColor: Colors.red[700],
           ),
         );
-        Navigator.pop(context); // go back to farm map
+        Navigator.pop(context);
       }
     } catch (e, st) {
       _log.e('FarmDetailScreen: Delete error – $e', stackTrace: st);
       setState(() => _isDeleting = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Delete failed: $e'),
-            backgroundColor: Colors.red[700],
-          ),
-        );
-      }
+      _showUserError(
+        title: 'Delete Failed',
+        message: 'Could not delete the farm. Please try again.',
+        technicalDetails: 'Delete error: $e\n$st',
+      );
     }
+  }
+
+  // ── User-friendly error handling ────────────────────────────
+  void _showUserError({
+    required String title,
+    required String message,
+    required String technicalDetails,
+  }) {
+    _log.e('USER_ERROR [$title]: $technicalDetails');
+    
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    message,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red[700],
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'DETAILS',
+          textColor: Colors.white,
+          onPressed: () {
+            _showTechnicalErrorDialog(title, message, technicalDetails);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showTechnicalErrorDialog(String title, String message, String technical) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(message, style: const TextStyle(fontSize: 14)),
+              const SizedBox(height: 16),
+              const Text(
+                'Technical Details (for developers):',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: SelectableText(  // FIXED: Use SelectableText for easy copying
+                  technical,
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 10,
+                    color: Colors.green[400],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -424,7 +517,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
         ],
       ),
       actions: [
-        // Refresh
         (_isRefreshingClimate || _isRefreshingSatellite || _isRefreshingForecast)
             ? const Padding(
                 padding: EdgeInsets.all(14),
@@ -440,7 +532,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
                 tooltip: 'Refresh data',
                 onPressed: _refreshAllData,
               ),
-        // More menu
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert, color: Colors.white),
           onSelected: (val) {
@@ -535,8 +626,8 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
             ? {
                 Polygon(
                   polygonId: const PolygonId('farm_boundary'),
-                  points: _farm.coordinates,
-                  fillColor: _primary.withValues(alpha: 0.20),
+                  points: List<LatLng>.from(_farm.coordinates),
+                  fillColor: _primary.withValues(alpha:0.20),
                   strokeColor: _primary,
                   strokeWidth: 3,
                 ),
@@ -553,6 +644,7 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
               title: _farm.farmName,
               snippet: _farm.areaLabel,
             ),
+            zIndexInt: 5,
           ),
         },
       ),
@@ -642,11 +734,9 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Main weather row
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Weather icon + description
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -671,7 +761,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
                       ],
                     ),
                     const SizedBox(width: 16),
-                    // Temperature big display
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -695,7 +784,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
                 const SizedBox(height: 14),
                 const Divider(height: 1),
                 const SizedBox(height: 12),
-                // Climate metrics grid
                 Row(
                   children: [
                     _climateMetric(
@@ -760,28 +848,25 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // NDVI score + health badge
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // NDVI circular indicator
                     _ndviGauge(_satelliteData!.ndviScore),
                     const SizedBox(width: 20),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Vegetation health badge
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: _satelliteData!.healthColor
-                                  .withValues(alpha: 0.12),
+                                  .withValues(alpha:0.12),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: _satelliteData!.healthColor
-                                    .withValues(alpha: 0.4),
+                                    .withValues(alpha:0.4),
                               ),
                             ),
                             child: Row(
@@ -826,7 +911,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // NDVI bar
                 Row(
                   children: [
                     Text('NDVI',
@@ -850,7 +934,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
                 const Divider(height: 1),
                 const SizedBox(height: 12),
 
-                // Soil moisture
                 _infoRow(
                   Icons.water,
                   'Soil Moisture Index',
@@ -870,7 +953,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
                   ),
                 ),
 
-                // Coffee-specific NDVI interpretation
                 const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
@@ -1086,7 +1168,7 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
                         Expanded(
                           child: Text(
                             '${pt.latitude.toStringAsFixed(6)}°N,  '
-                            '${pt.longitude.toStringAsFixed(6)}°E',
+                                '${pt.longitude.toStringAsFixed(6)}°E',
                             style: const TextStyle(
                               fontSize: 12,
                               fontFamily: 'monospace',
@@ -1119,7 +1201,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
   // REUSABLE WIDGET BUILDERS
   // ─────────────────────────────────────────────────────────────
 
-  /// Standard section card shell matching CoffeeCore card style
   Widget _sectionCard({
     required IconData icon,
     required String title,
@@ -1143,7 +1224,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Card header
           Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 10, 10),
             decoration: BoxDecoration(
@@ -1168,7 +1248,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
               ],
             ),
           ),
-          // Card body
           Padding(
             padding: const EdgeInsets.all(14),
             child: child,
@@ -1255,7 +1334,7 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
         padding: const EdgeInsets.symmetric(vertical: 10),
         margin: const EdgeInsets.symmetric(horizontal: 3),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
+          color: color.withValues(alpha:0.08),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
@@ -1302,7 +1381,6 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
     );
   }
 
-  /// Circular NDVI gauge ring
   Widget _ndviGauge(double ndvi) {
     final fraction = ((ndvi + 1) / 2).clamp(0.0, 1.0);
     final color = _satelliteData!.healthColor;
@@ -1344,27 +1422,24 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
     );
   }
 
-  /// Horizontal NDVI colour bar (red → yellow → green)
   Widget _ndviBar(double ndvi) {
     final fraction = ((ndvi + 1) / 2).clamp(0.0, 1.0);
     return Stack(
       children: [
-        // gradient background (NDVI scale: -1 → 1)
         Container(
           height: 10,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(5),
             gradient: const LinearGradient(
               colors: [
-                Color(0xFFE53935), // poor  (< 0.2)
-                Color(0xFFFFB300), // fair  (0.2–0.4)
-                Color(0xFF66BB6A), // good  (0.4–0.6)
-                Color(0xFF2E7D32), // excellent (≥ 0.6)
+                Color(0xFFE53935),
+                Color(0xFFFFB300),
+                Color(0xFF66BB6A),
+                Color(0xFF2E7D32),
               ],
             ),
           ),
         ),
-        // current position indicator
         Positioned(
           left: (fraction * (MediaQuery.of(context).size.width - 120))
               .clamp(0, MediaQuery.of(context).size.width - 120),

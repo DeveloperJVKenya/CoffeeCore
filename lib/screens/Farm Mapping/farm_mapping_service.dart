@@ -4,21 +4,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 
 class FarmMappingService {
-  // ── Singletons / constants ──────────────────────────────────
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Logger _log = Logger(printer: PrettyPrinter());
 
   static const String _collection = 'FarmPolygons';
 
-  // ── Auth helper ─────────────────────────────────────────────
   String? get _uid => _auth.currentUser?.uid;
 
   // ── CREATE ──────────────────────────────────────────────────
 
-  /// Saves a new farm boundary to Firestore and returns the generated doc ID.
-  /// Returns null on auth failure; rethrows all other errors for the caller
-  /// to surface as SnackBar / dialog messages.
   Future<String?> saveFarm(FarmPolygon farm) async {
     if (_uid == null) {
       _log.e('FarmMappingService.saveFarm: No authenticated user');
@@ -42,8 +37,6 @@ class FarmMappingService {
 
   // ── READ (stream) ───────────────────────────────────────────
 
-  /// Real-time stream of the authenticated user's farms, newest first.
-  /// Emits an empty list if not authenticated.
   Stream<List<FarmPolygon>> userFarmsStream() {
     if (_uid == null) {
       _log.w('FarmMappingService.userFarmsStream: No authenticated user');
@@ -77,7 +70,6 @@ class FarmMappingService {
 
   // ── READ (single fetch) ─────────────────────────────────────
 
-  /// Fetches a single farm by its document ID. Returns null if not found.
   Future<FarmPolygon?> getFarmById(String farmId) async {
     try {
       _log.i('FarmMappingService.getFarmById: Fetching farm $farmId');
@@ -86,8 +78,7 @@ class FarmMappingService {
         _log.w('FarmMappingService.getFarmById: Farm $farmId not found');
         return null;
       }
-      return FarmPolygon.fromFirestore(
-          doc);
+      return FarmPolygon.fromFirestore(doc);
     } catch (e, st) {
       _log.e('FarmMappingService.getFarmById: Error – $e', stackTrace: st);
       return null;
@@ -96,7 +87,6 @@ class FarmMappingService {
 
   // ── UPDATE (full document) ──────────────────────────────────
 
-  /// Replaces the entire farm document. Stamp updatedAt = now.
   Future<void> updateFarm(FarmPolygon farm) async {
     if (farm.farmId == null) {
       throw ArgumentError('FarmMappingService.updateFarm: farmId is null');
@@ -121,7 +111,6 @@ class FarmMappingService {
 
   // ── UPDATE (partial – climate data) ────────────────────────
 
-  /// Merges fresh climate data into an existing farm document.
   Future<void> updateClimateData(
       String farmId, ClimateData climate) async {
     try {
@@ -149,7 +138,6 @@ class FarmMappingService {
 
   // ── UPDATE (partial – satellite / NDVI data) ────────────────
 
-  /// Merges fresh satellite/NDVI data into an existing farm document.
   Future<void> updateSatelliteData(
       String farmId, SatelliteData satellite) async {
     try {
@@ -177,7 +165,6 @@ class FarmMappingService {
 
   // ── UPDATE (partial – AgroMonitoring polygon ID) ────────────
 
-  /// Stores the AgroMonitoring polygon ID after successful registration.
   Future<void> setAgroMonitoringPolyId(
       String farmId, String polyId) async {
     try {
@@ -194,13 +181,11 @@ class FarmMappingService {
         'FarmMappingService.setAgroMonitoringPolyId: Error – $e',
         stackTrace: st,
       );
-      // Non-fatal: NDVI will simply be unavailable for this farm
     }
   }
 
   // ── UPDATE (rename) ─────────────────────────────────────────
 
-  /// Renames a farm; only touches the name + updatedAt fields.
   Future<void> renameFarm(String farmId, String newName) async {
     try {
       _log.i(
@@ -222,7 +207,6 @@ class FarmMappingService {
 
   // ── DELETE ──────────────────────────────────────────────────
 
-  /// Permanently deletes a farm polygon from Firestore.
   Future<void> deleteFarm(String farmId) async {
     try {
       _log.i('FarmMappingService.deleteFarm: Deleting farm $farmId');

@@ -15,7 +15,7 @@ class FarmPolygon {
   final String? description;
   final ClimateData? climateData;
   final SatelliteData? satelliteData;
-  final String? agroMonitoringPolyId; // Polygon ID from AgroMonitoring API
+  final String? agroMonitoringPolyId;
 
   const FarmPolygon({
     this.farmId,
@@ -124,7 +124,6 @@ class FarmPolygon {
 
   // ── Derived helpers ─────────────────────────────────────────
 
-  /// Geometric center of the polygon for camera targeting
   LatLng get center {
     if (coordinates.isEmpty) return const LatLng(0, 0);
     final lat = coordinates
@@ -138,7 +137,6 @@ class FarmPolygon {
     return LatLng(lat, lng);
   }
 
-  /// Human-readable area label (ha or m²)
   String get areaLabel {
     if (areaHectares >= 1.0) {
       return '${areaHectares.toStringAsFixed(2)} ha';
@@ -146,7 +144,6 @@ class FarmPolygon {
     return '${(areaHectares * 10000).toStringAsFixed(0)} m²';
   }
 
-  /// Human-readable perimeter label (km or m)
   String get perimeterLabel {
     if (perimeterMeters >= 1000) {
       return '${(perimeterMeters / 1000).toStringAsFixed(2)} km';
@@ -158,11 +155,11 @@ class FarmPolygon {
 // ── Climate / weather snapshot ────────────────────────────────
 class ClimateData {
   final double temperatureCelsius;
-  final double humidity; // %
-  final double rainfallMm; // mm in last hour
-  final double windSpeedMs; // m/s
+  final double humidity;
+  final double rainfallMm;
+  final double windSpeedMs;
   final String weatherDescription;
-  final String weatherIcon; // OpenWeatherMap icon code e.g. "01d"
+  final String weatherIcon;
   final DateTime fetchedAt;
 
   const ClimateData({
@@ -203,20 +200,17 @@ class ClimateData {
     };
   }
 
-  /// OpenWeatherMap icon URL builder
   String get iconUrl =>
       'https://openweathermap.org/img/wn/$weatherIcon@2x.png';
 }
 
 // ── Satellite / NDVI data snapshot ───────────────────────────
 class SatelliteData {
-  /// NDVI score: -1.0 → 1.0
-  /// Healthy coffee vegetation: 0.40 – 0.85
   final double ndviScore;
-  final String vegetationHealth; // 'Excellent' | 'Good' | 'Fair' | 'Poor'
-  final double soilMoistureIndex; // 0 – 100 (%)
+  final String vegetationHealth;
+  final double soilMoistureIndex;
   final DateTime fetchedAt;
-  final String dataSource; // e.g. 'Sentinel-2 / AgroMonitoring'
+  final String dataSource;
 
   const SatelliteData({
     required this.ndviScore,
@@ -250,22 +244,20 @@ class SatelliteData {
     };
   }
 
-  /// Color-coded health badge matching Agronica GIAS convention
   Color get healthColor {
     switch (vegetationHealth.toLowerCase()) {
       case 'excellent':
-        return const Color(0xFF2E7D32); // deep green
+        return const Color(0xFF2E7D32);
       case 'good':
-        return const Color(0xFF66BB6A); // light green
+        return const Color(0xFF66BB6A);
       case 'fair':
-        return const Color(0xFFFFB300); // amber
+        return const Color(0xFFFFB300);
       case 'poor':
-        return const Color(0xFFE53935); // red
+        return const Color(0xFFE53935);
       default:
-        return const Color(0xFF78909C); // grey
+        return const Color(0xFF78909C);
     }
   }
 
-  /// NDVI bar fill fraction (0.0 – 1.0 clamped for display)
   double get ndviFraction => ((ndviScore + 1) / 2).clamp(0.0, 1.0);
 }
