@@ -1834,11 +1834,11 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
       const notificationDetails =
           NotificationDetails(android: androidDetails);
       await widget.notificationsPlugin.zonedSchedule(
-        (widget.userId + widget.plotId + date.toString()).hashCode,
-        'Soil Follow-Up for ${widget.plotId}',
-        message,
-        tz.TZDateTime.from(date, tz.local),
-        notificationDetails,
+        id: (widget.userId + widget.plotId + date.toString()).hashCode,
+        title: 'Soil Follow-Up for ${widget.plotId}',
+        body: message,
+        scheduledDate: tz.TZDateTime.from(date, tz.local),
+        notificationDetails: notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
       );

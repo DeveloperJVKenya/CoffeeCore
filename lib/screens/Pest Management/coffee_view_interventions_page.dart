@@ -282,11 +282,11 @@ class _CoffeeViewInterventionsPageState extends State<CoffeeViewInterventionsPag
 
       try {
         await widget.notificationsPlugin.zonedSchedule(
-          intervention.id.hashCode, // Unique ID for the notification
-          'Follow-Up for ${intervention.pestName}',
-          'Evaluate effectiveness of ${intervention.intervention}',
-          tzDateTime,
-          notificationDetails,
+          id: intervention.id.hashCode, // Unique ID for the notification
+          title: 'Follow-Up for ${intervention.pestName}',
+          body: 'Evaluate effectiveness of ${intervention.intervention}',
+          scheduledDate: tzDateTime,
+          notificationDetails: notificationDetails,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // Ensures exact scheduling
         );
         if (mounted) {

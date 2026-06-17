@@ -71,6 +71,14 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   static const double _captureThresholdMeters = 5.0;
   static const double _minPointsForPolygon = 3;
 
+  // ── NEW: Tuning constants to prevent erroneous points ──────
+  static const double _minAccuracyMeters = 15.0; // Skip GPS if worse
+  static const double _maxJumpMeters = 50.0;       // Reject GPS jumps
+  static const double _minPointSpacingMeters = 2.0; // Ignore duplicates
+
+  // ── NEW: Lock to prevent concurrent point additions ────────
+  bool _isAddingPoint = false;
+
   // ── Computed metrics ─────────────────────────────────────────
   double _areaHectares = 0.0;
   double _perimeterMeters = 0.0;
@@ -143,7 +151,6 @@ class _FarmMapScreenState extends State<FarmMapScreen>
     final errorString = error.toString();
     final contextStr = context != null ? ' [$context]' : '';
     
-    // Log FULL technical details for developers (never shown to users)
     _log.e(
       'TECHNICAL ERROR$contextStr: $error\n'
       'StackTrace: ${stackTrace?.toString() ?? 'Not available'}\n'
@@ -151,7 +158,6 @@ class _FarmMapScreenState extends State<FarmMapScreen>
       'Timestamp: ${DateTime.now().toIso8601String()}',
     );
 
-    // Determine error type and user-friendly message
     if (errorString.contains('RefererNotAllowedMapError') ||
         errorString.contains('API key') ||
         errorString.contains('API_KEY')) {
@@ -216,7 +222,6 @@ class _FarmMapScreenState extends State<FarmMapScreen>
       );
     }
 
-    // Default unknown error
     return MapErrorInfo(
       type: MapErrorType.unknownError,
       userMessage: 'Something went wrong while loading the map. Please try again.',
@@ -229,7 +234,6 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   void _showUserFriendlyError(MapErrorInfo errorInfo, {bool isFatal = false}) {
     if (!mounted) return;
 
-    // Log the technical details for developers
     _log.w(
       'USER ERROR DISPLAY [${errorInfo.type.name}]: ${errorInfo.userMessage}\n'
       'Technical: ${errorInfo.technicalDetails}\n'
@@ -371,7 +375,6 @@ class _FarmMapScreenState extends State<FarmMapScreen>
         final errorInfo = _parseError(e, st, context: 'GPS Stream');
         _showUserFriendlyError(errorInfo);
         
-        // Log full technical details for developers
         _log.e(
           'GPS STREAM ERROR: $e\n'
           'StackTrace: $st\n'
@@ -383,6 +386,10 @@ class _FarmMapScreenState extends State<FarmMapScreen>
 
   void _onPositionUpdate(Position position) {
     if (!mounted) return;
+
+    // NEW: Filter out poor-accuracy fixes before any logic
+    final bool isAccurate = position.accuracy <= _minAccuracyMeters;
+
     setState(() {
       _currentPosition = position;
       _gpsAccuracy = position.accuracy;
@@ -391,24 +398,40 @@ class _FarmMapScreenState extends State<FarmMapScreen>
     _updateCurrentPositionMarker(position);
 
     if (_isMappingActive && _isAutoCapture) {
-      if (_lastCapturedPosition != null) {
-        final dist = Geolocator.distanceBetween(
-          _lastCapturedPosition!.latitude,
-          _lastCapturedPosition!.longitude,
-          position.latitude,
-          position.longitude,
+      if (!isAccurate) {
+        _log.w(
+          'FarmMapScreen: GPS accuracy poor (±${position.accuracy.toStringAsFixed(0)} m), '
+          'skipping auto-capture',
         );
-        _accumulatedDistance += dist;
-      }
+      } else {
+        if (_lastCapturedPosition != null) {
+          final dist = Geolocator.distanceBetween(
+            _lastCapturedPosition!.latitude,
+            _lastCapturedPosition!.longitude,
+            position.latitude,
+            position.longitude,
+          );
 
-      if (_lastCapturedPosition == null ||
-          _accumulatedDistance >= _captureThresholdMeters) {
-        _addBoundaryPoint(
-          LatLng(position.latitude, position.longitude),
-          fromStream: true,
-        );
-        _lastCapturedPosition = position;
-        _accumulatedDistance = 0.0;
+          // NEW: Reject sudden GPS jumps to avoid 700 m phantom points
+          if (dist > _maxJumpMeters) {
+            _log.w(
+              'FarmMapScreen: GPS jump detected (${dist.toStringAsFixed(0)} m), '
+              'ignoring for auto-capture',
+            );
+          } else {
+            _accumulatedDistance += dist;
+          }
+        }
+
+        if (_lastCapturedPosition == null ||
+            _accumulatedDistance >= _captureThresholdMeters) {
+          _addBoundaryPoint(
+            LatLng(position.latitude, position.longitude),
+            fromStream: true,
+          );
+          _lastCapturedPosition = position;
+          _accumulatedDistance = 0.0;
+        }
       }
     }
 
@@ -420,20 +443,89 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   // ─────────────────────────────────────────────────────────────
 
   void _addBoundaryPoint(LatLng point, {bool fromStream = false}) {
-    setState(() {
-      _boundaryPoints.add(point);
-      _areaHectares = _shoelaceAreaHectares(_boundaryPoints);
-      _perimeterMeters = _haversinePerimeterMeters(_boundaryPoints);
-    });
-    _log.i(
-      'FarmMapScreen: Boundary point #${_boundaryPoints.length} added '
-      '(${point.latitude.toStringAsFixed(6)}, '
-      '${point.longitude.toStringAsFixed(6)}) '
-      '${fromStream ? "[auto]" : "[manual]"} | '
-      'Area: ${_areaHectares.toStringAsFixed(4)} ha',
+    // NEW: Prevent double-adds from rapid taps or stream+button race
+    if (_isAddingPoint) return;
+    _isAddingPoint = true;
+
+    try {
+      // NEW: 1. Validate minimum spacing from last point
+      if (_boundaryPoints.isNotEmpty) {
+        final last = _boundaryPoints.last;
+        final dist = _haversineDistance(last, point);
+
+        if (dist < _minPointSpacingMeters) {
+          _log.w(
+            'FarmMapScreen: Point rejected – too close to previous '
+            '(${dist.toStringAsFixed(1)} m < $_minPointSpacingMeters m)',
+          );
+          return;
+        }
+
+        // NEW: 2. Reject GPS jumps from stream
+        if (fromStream && dist > _maxJumpMeters) {
+          _log.w(
+            'FarmMapScreen: Point rejected – GPS jump detected '
+            '(${dist.toStringAsFixed(0)} m > $_maxJumpMeters m)',
+          );
+          return;
+        }
+
+        // NEW: 3. Prevent self-intersecting boundary lines
+        if (_wouldCauseIntersection(last, point)) {
+          _log.w(
+            'FarmMapScreen: Point rejected – would cross existing boundary',
+          );
+          _showUserFriendlyError(
+            const MapErrorInfo(
+              type: MapErrorType.unknownError,
+              userMessage:
+                  'That point would make the farm boundary cross itself. '
+                  'Please continue walking around the edge without cutting across.',
+              technicalDetails:
+                  'Self-intersection detected while adding boundary point.',
+              recoveryAction:
+                  'Walk the perimeter in one continuous direction.',
+            ),
+          );
+          return;
+        }
+      }
+
+      setState(() {
+        _boundaryPoints.add(point);
+        _areaHectares = _shoelaceAreaHectares(_boundaryPoints);
+        _perimeterMeters = _haversinePerimeterMeters(_boundaryPoints);
+      });
+      _log.i(
+        'FarmMapScreen: Boundary point #${_boundaryPoints.length} added '
+        '(${point.latitude.toStringAsFixed(6)}, '
+        '${point.longitude.toStringAsFixed(6)}) '
+        '${fromStream ? "[auto]" : "[manual]"} | '
+        'Area: ${_areaHectares.toStringAsFixed(4)} ha',
+      );
+      _updateMapOverlays();
+    } finally {
+      _isAddingPoint = false;
+    }
+  }
+
+  // NEW: Dedicated manual add that resets auto-capture tracking
+  void _addManualPoint() {
+    if (_currentPosition == null || _isAddingPoint) return;
+
+    final point = LatLng(
+      _currentPosition!.latitude,
+      _currentPosition!.longitude,
     );
-    // Force map overlay update after adding point
-    _updateMapOverlays();
+
+    // If auto-capture is active, reset its tracker so the stream
+    // does not immediately duplicate this point.
+    if (_isAutoCapture) {
+      _lastCapturedPosition = _currentPosition;
+      _accumulatedDistance = 0.0;
+    }
+
+    _addBoundaryPoint(point, fromStream: false);
   }
 
   void _undoLastPoint() {
@@ -458,6 +550,71 @@ class _FarmMapScreenState extends State<FarmMapScreen>
     });
     _updateMapOverlays();
     _log.i('FarmMapScreen: All boundary points cleared');
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // SELF-INTERSECTION PREVENTION (Geometry helpers)
+  // ─────────────────────────────────────────────────────────────
+
+  bool _wouldCauseIntersection(LatLng from, LatLng to) {
+    if (_boundaryPoints.length < 2) return false;
+
+    for (int i = 0; i < _boundaryPoints.length - 1; i++) {
+      final segStart = _boundaryPoints[i];
+      final segEnd = _boundaryPoints[i + 1];
+
+      // Skip the segment that shares the 'from' endpoint (last segment)
+      if (i == _boundaryPoints.length - 2) continue;
+
+      // Skip if any endpoint is identical (corner case safety)
+      if (_isSamePoint(from, segStart) ||
+          _isSamePoint(from, segEnd) ||
+          _isSamePoint(to, segStart) ||
+          _isSamePoint(to, segEnd)) {
+        continue;
+      }
+
+      if (_segmentsIntersect(from, to, segStart, segEnd)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _isSamePoint(LatLng a, LatLng b) {
+    return (a.latitude - b.latitude).abs() < 1e-9 &&
+        (a.longitude - b.longitude).abs() < 1e-9;
+  }
+
+  double _crossProduct(LatLng a, LatLng b, LatLng c) {
+    return (b.latitude - a.latitude) * (c.longitude - a.longitude) -
+        (b.longitude - a.longitude) * (c.latitude - a.latitude);
+  }
+
+  bool _onSegment(LatLng a, LatLng b, LatLng p) {
+    return p.latitude <= math.max(a.latitude, b.latitude) + 1e-9 &&
+        p.latitude >= math.min(a.latitude, b.latitude) - 1e-9 &&
+        p.longitude <= math.max(a.longitude, b.longitude) + 1e-9 &&
+        p.longitude >= math.min(a.longitude, b.longitude) - 1e-9;
+  }
+
+  bool _segmentsIntersect(LatLng p1, LatLng q1, LatLng p2, LatLng q2) {
+    final d1 = _crossProduct(p2, q2, p1);
+    final d2 = _crossProduct(p2, q2, q1);
+    final d3 = _crossProduct(p1, q1, p2);
+    final d4 = _crossProduct(p1, q1, q2);
+
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+      return true;
+    }
+
+    if (d1.abs() < 1e-9 && _onSegment(p2, q2, p1)) return true;
+    if (d2.abs() < 1e-9 && _onSegment(p2, q2, q1)) return true;
+    if (d3.abs() < 1e-9 && _onSegment(p1, q1, p2)) return true;
+    if (d4.abs() < 1e-9 && _onSegment(p1, q1, q2)) return true;
+
+    return false;
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -1431,8 +1588,6 @@ class _FarmMapScreenState extends State<FarmMapScreen>
 
   // ── Google Map ──────────────────────────────────────────────
   Widget _buildGoogleMap() {
-    // WEB SAFETY: If the JS API failed to load, show a placeholder instead
-    // of letting the platform view crash the whole tree.
     if (_isMapCrash) {
       return Container(
         color: Colors.grey[200],
@@ -1526,24 +1681,26 @@ class _FarmMapScreenState extends State<FarmMapScreen>
       polygons: _polygons,
       polylines: _polylines,
       markers: _markers,
+      // FIXED: onTap no longer adds points. Only deselects saved farms.
       onTap: (latLng) {
-        if (_isMappingActive && !_isAutoCapture) {
-          _addBoundaryPoint(latLng);
-          _updateMapOverlays();
-        }
         if (_selectedViewFarm != null) {
           setState(() => _selectedViewFarm = null);
           _updateMapOverlays();
         }
       },
+      // FIXED: onLongPress only works when auto-capture is ON as manual override.
+      // When auto-capture is OFF, the ADD POINT button is the only way.
       onLongPress: (latLng) {
-        if (_isMappingActive) {
+        if (_isMappingActive && _isAutoCapture) {
           _log.i(
             'FarmMapScreen: Manual long-press point at '
             '${latLng.latitude.toStringAsFixed(5)}, '
             '${latLng.longitude.toStringAsFixed(5)}',
           );
-          _addBoundaryPoint(latLng);
+          _addBoundaryPoint(latLng, fromStream: false);
+          // Reset stream tracking so we don't duplicate immediately
+          _lastCapturedPosition = LatLng(latLng.latitude, latLng.longitude) as Position?;
+          _accumulatedDistance = 0.0;
           _updateMapOverlays();
         }
       },
@@ -1705,7 +1862,14 @@ class _FarmMapScreenState extends State<FarmMapScreen>
                 Switch(
                   value: _isAutoCapture,
                   onChanged: (val) {
-                    setState(() => _isAutoCapture = val);
+                    setState(() {
+                      _isAutoCapture = val;
+                      // NEW: Reset tracker when toggling so we don't get a burst
+                      if (val && _currentPosition != null) {
+                        _lastCapturedPosition = _currentPosition;
+                        _accumulatedDistance = 0.0;
+                      }
+                    });
                     _log.i(
                       'FarmMapScreen: Auto-capture '
                       '${val ? "enabled" : "disabled"}',
@@ -1717,7 +1881,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
                 Text(
                   _isAutoCapture
                       ? 'Auto-capture every 5 m'
-                      : 'Tap map / long-press to add points',
+                      : 'Tap ADD POINT to capture',
                   style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[700],
@@ -1766,14 +1930,9 @@ class _FarmMapScreenState extends State<FarmMapScreen>
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _currentPosition != null
-                        ? () {
-                            _addBoundaryPoint(LatLng(
-                              _currentPosition!.latitude,
-                              _currentPosition!.longitude,
-                            ));
-                            _updateMapOverlays();
-                          }
+                    // FIXED: Use debounced _addManualPoint instead of inline lambda
+                    onPressed: _currentPosition != null && !_isAddingPoint
+                        ? _addManualPoint
                         : null,
                     icon: const Icon(Icons.add_location, size: 18),
                     label: const Text('ADD POINT',

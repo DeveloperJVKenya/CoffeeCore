@@ -76,7 +76,7 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
           AndroidInitializationSettings('@mipmap/ic_launcher');
       const initializationSettings =
           InitializationSettings(android: androidInitSettings);
-      await _notificationsPlugin.initialize(initializationSettings);
+      await _notificationsPlugin.initialize(settings: initializationSettings);
 
       final androidPlugin = _notificationsPlugin
           .resolvePlatformSpecificImplementation<
@@ -196,11 +196,11 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
       const notificationDetails =
           NotificationDetails(android: androidDetails);
       await _notificationsPlugin.zonedSchedule(
-        (_userId + plotId + date.toString()).hashCode,
-        'Soil Follow-Up for $plotId',
-        message,
-        tz.TZDateTime.from(date, tz.local),
-        notificationDetails,
+        id: (_userId + plotId + date.toString()).hashCode,
+        title: 'Soil Follow-Up for $plotId',
+        body: message,
+        scheduledDate: tz.TZDateTime.from(date, tz.local),
+        notificationDetails: notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
       );

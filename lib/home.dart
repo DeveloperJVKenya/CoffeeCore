@@ -15,7 +15,7 @@ import 'package:coffeecore/screens/manuals_screen.dart';
 import 'package:coffeecore/screens/pests_diseases_home.dart';
 import 'package:coffeecore/screens/user_profile.dart';
 import 'package:coffeecore/screens/weather_screen.dart';
-import 'package:coffeecore/screens/coffee_satellite_dashboard.dart';
+//import 'package:coffeecore/screens/coffee_satellite_dashboard.dart';
 import 'package:coffeecore/authentication/login.dart';
 import 'package:coffeecore/settings/notifications_settings_screen.dart';
 import 'package:coffeecore/settings/settings_screen.dart';
@@ -933,13 +933,13 @@ class _HomePageState extends State<HomePage> {
             MaterialPageRoute(
                 builder: (context) => const FarmMapScreen()));
       }),
-      _buildDrawerItem(Icons.satellite_alt, 'Coffee Satellite Advisor', () {
+      /*_buildDrawerItem(Icons.satellite_alt, 'Coffee Satellite Advisor', () {
         logger.i('Navigating to Coffee Satellite Advisor');
         Navigator.push(
             context,
             MaterialPageRoute(
                 builder: (context) => const CoffeeSatelliteDashboard()));
-      }),
+      }),*/
       _buildDrawerItem(Icons.input, 'Field Data (Soil)', () {
         logger.i('Navigating to CoffeeSoilHomePage, userId: $_userId');
         if (_userId != null) {

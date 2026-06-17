@@ -143,10 +143,9 @@ class _ManualsScreenState extends State<ManualsScreen> {
 
   Future<void> _uploadManual() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx', 'txt'],
-        withData: kIsWeb,
       );
 
       if (result == null || result.files.isEmpty) return;
@@ -262,9 +261,7 @@ class _ManualsScreenState extends State<ManualsScreen> {
       late UploadTask uploadTask;
 
       if (kIsWeb || Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-        if (platformFile.bytes == null) {
-          throw 'File bytes not available for web/desktop upload';
-        }
+        final fileBytes = await platformFile.readAsBytes();
 
         final metadata = SettableMetadata(
           contentType: _getContentType(fileName),
@@ -275,7 +272,7 @@ class _ManualsScreenState extends State<ManualsScreen> {
           },
         );
 
-        uploadTask = storageRef.putData(platformFile.bytes!, metadata);
+        uploadTask = storageRef.putData(fileBytes, metadata);
       } else {
         if (platformFile.path == null) {
           throw 'File path not available for mobile upload';

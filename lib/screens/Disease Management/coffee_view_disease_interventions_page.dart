@@ -282,11 +282,11 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
 
       try {
         await widget.notificationsPlugin.zonedSchedule(
-          intervention.id.hashCode,
-          'Follow-Up for ${intervention.diseaseName}',
-          'Evaluate effectiveness of ${intervention.intervention}',
-          tzDateTime,
-          notificationDetails,
+          id: intervention.id.hashCode,
+          title: 'Follow-Up for ${intervention.diseaseName}',
+          body: 'Evaluate effectiveness of ${intervention.intervention}',
+          scheduledDate: tzDateTime,
+          notificationDetails: notificationDetails,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         );
         if (mounted) {
