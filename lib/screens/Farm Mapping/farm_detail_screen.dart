@@ -356,9 +356,9 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
     required String technicalDetails,
   }) {
     _log.e('USER_ERROR [$title]: $technicalDetails');
-    
+
     if (!mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -440,6 +440,90 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // FULLSCREEN MAP
+  // ─────────────────────────────────────────────────────────────
+
+  void _showFullScreenMap() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog.fullscreen(
+        child: Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.brown[700],
+            foregroundColor: Colors.white,
+            title: Text(_farm.farmName),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(
+                  _mapType == MapType.hybrid
+                      ? Icons.map_outlined
+                      : Icons.satellite_alt,
+                  color: Colors.white,
+                ),
+                tooltip: 'Toggle Map Type',
+                onPressed: () {
+                  setState(() {
+                    _mapType = _mapType == MapType.hybrid
+                        ? MapType.normal
+                        : MapType.hybrid;
+                  });
+                  // Force rebuild of dialog
+                  Navigator.pop(ctx);
+                  _showFullScreenMap();
+                },
+              ),
+            ],
+          ),
+          body: GoogleMap(
+            mapType: _mapType,
+            initialCameraPosition: CameraPosition(
+              target: _farm.center,
+              zoom: 16.0,
+            ),
+            myLocationEnabled: false,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: true,
+            zoomGesturesEnabled: true,
+            scrollGesturesEnabled: true,
+            tiltGesturesEnabled: true,
+            rotateGesturesEnabled: true,
+            mapToolbarEnabled: true,
+            polygons: _farm.coordinates.length >= 3
+                ? {
+                    Polygon(
+                      polygonId: const PolygonId('farm_boundary_fullscreen'),
+                      points: List<LatLng>.from(_farm.coordinates),
+                      fillColor: _primary.withValues(alpha: 0.20),
+                      strokeColor: _primary,
+                      strokeWidth: 3,
+                      geodesic: true,
+                    ),
+                  }
+                : {},
+            markers: {
+              Marker(
+                markerId: const MarkerId('farm_center_fullscreen'),
+                position: _farm.center,
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueOrange,
+                ),
+                infoWindow: InfoWindow(
+                  title: _farm.farmName,
+                  snippet: _farm.areaLabel,
+                ),
+              ),
+            },
+          ),
+        ),
       ),
     );
   }
@@ -589,64 +673,80 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
   Widget _buildMapCard() {
     return SizedBox(
       height: 220,
-      child: GoogleMap(
-        mapType: _mapType,
-        initialCameraPosition: CameraPosition(
-          target: _farm.center,
-          zoom: 16.0,
-        ),
-        onMapCreated: (ctrl) {
-          _mapController = ctrl;
-          setState(() => _isMapReady = true);
-          _log.i(
-            'FarmDetailScreen: Map ready, zooming to farm boundary',
-          );
-          if (_farm.coordinates.length >= 2) {
-            final bounds = _latLngBounds(_farm.coordinates);
-            Future.delayed(
-              const Duration(milliseconds: 400),
-              () {
-                if (_isMapReady && mounted) {
-                  _mapController?.animateCamera(
-                    CameraUpdate.newLatLngBounds(bounds, 50),
-                  );
-                }
-              },
-            );
-          }
-        },
-        myLocationEnabled: false,
-        myLocationButtonEnabled: false,
-        zoomControlsEnabled: false,
-        scrollGesturesEnabled: true,
-        tiltGesturesEnabled: false,
-        rotateGesturesEnabled: false,
-        mapToolbarEnabled: false,
-        polygons: _farm.coordinates.length >= 3
-            ? {
-                Polygon(
-                  polygonId: const PolygonId('farm_boundary'),
-                  points: List<LatLng>.from(_farm.coordinates),
-                  fillColor: _primary.withValues(alpha:0.20),
-                  strokeColor: _primary,
-                  strokeWidth: 3,
-                ),
+      child: Stack(
+        children: [
+          GoogleMap(
+            mapType: _mapType,
+            initialCameraPosition: CameraPosition(
+              target: _farm.center,
+              zoom: 16.0,
+            ),
+            onMapCreated: (ctrl) {
+              _mapController = ctrl;
+              setState(() => _isMapReady = true);
+              _log.i(
+                'FarmDetailScreen: Map ready, zooming to farm boundary',
+              );
+              if (_farm.coordinates.length >= 2) {
+                final bounds = _latLngBounds(_farm.coordinates);
+                Future.delayed(
+                  const Duration(milliseconds: 400),
+                  () {
+                    if (_isMapReady && mounted) {
+                      _mapController?.animateCamera(
+                        CameraUpdate.newLatLngBounds(bounds, 50),
+                      );
+                    }
+                  },
+                );
               }
-            : {},
-        markers: {
-          Marker(
-            markerId: const MarkerId('farm_center'),
-            position: _farm.center,
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueOrange,
-            ),
-            infoWindow: InfoWindow(
-              title: _farm.farmName,
-              snippet: _farm.areaLabel,
-            ),
-            zIndexInt: 5,
+            },
+            myLocationEnabled: false,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            scrollGesturesEnabled: true,
+            tiltGesturesEnabled: false,
+            rotateGesturesEnabled: false,
+            mapToolbarEnabled: false,
+            polygons: _farm.coordinates.length >= 3
+                ? {
+                    Polygon(
+                      polygonId: const PolygonId('farm_boundary'),
+                      points: List<LatLng>.from(_farm.coordinates),
+                      fillColor: _primary.withValues(alpha: 0.20),
+                      strokeColor: _primary,
+                      strokeWidth: 3,
+                    ),
+                  }
+                : {},
+            markers: {
+              Marker(
+                markerId: const MarkerId('farm_center'),
+                position: _farm.center,
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                  BitmapDescriptor.hueOrange,
+                ),
+                infoWindow: InfoWindow(
+                  title: _farm.farmName,
+                  snippet: _farm.areaLabel,
+                ),
+                zIndexInt: 5,
+              ),
+            },
           ),
-        },
+          Positioned(
+            top: 8,
+            right: 8,
+            child: FloatingActionButton.small(
+              heroTag: 'expand_map_detail',
+              onPressed: _showFullScreenMap,
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.brown[700],
+              tooltip: 'Expand Map',
+              child: const Icon(Icons.fullscreen),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -862,11 +962,11 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
                                 horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: _satelliteData!.healthColor
-                                  .withValues(alpha:0.12),
+                                  .withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: _satelliteData!.healthColor
-                                    .withValues(alpha:0.4),
+                                    .withValues(alpha: 0.4),
                               ),
                             ),
                             child: Row(
@@ -1334,7 +1434,7 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
         padding: const EdgeInsets.symmetric(vertical: 10),
         margin: const EdgeInsets.symmetric(horizontal: 3),
         decoration: BoxDecoration(
-          color: color.withValues(alpha:0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(

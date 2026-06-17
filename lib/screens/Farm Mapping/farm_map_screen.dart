@@ -64,24 +64,21 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   Position? _currentPosition;
   double _gpsAccuracy = 0.0;
   bool _isMappingActive = false;
-  bool _isAutoCapture = true;
   final List<LatLng> _boundaryPoints = [];
-  double _accumulatedDistance = 0.0;
-  Position? _lastCapturedPosition;
-  static const double _captureThresholdMeters = 5.0;
+  double _areaHectares = 0.0;
+  double _perimeterMeters = 0.0;
   static const double _minPointsForPolygon = 3;
 
-  // ── NEW: Tuning constants to prevent erroneous points ──────
-  static const double _minAccuracyMeters = 15.0; // Skip GPS if worse
+  // ── Tuning constants to prevent erroneous points ───────────
+  //static const double _minAccuracyMeters = 15.0; // Skip GPS if worse
   static const double _maxJumpMeters = 50.0;       // Reject GPS jumps
   static const double _minPointSpacingMeters = 2.0; // Ignore duplicates
 
-  // ── NEW: Lock to prevent concurrent point additions ────────
+  // ── Lock to prevent concurrent point additions ──────────────
   bool _isAddingPoint = false;
 
-  // ── Computed metrics ─────────────────────────────────────────
-  double _areaHectares = 0.0;
-  double _perimeterMeters = 0.0;
+  // ── Auto-center once on first GPS fix after map ready ──────
+  bool _hasAutoCentered = false;
 
   // ── Map overlays ─────────────────────────────────────────────
   Set<Polygon> _polygons = {};
@@ -118,6 +115,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   void initState() {
     super.initState();
     _log.i('FarmMapScreen: initState – initialising');
+    _hasAutoCentered = false;
 
     _pulseController = AnimationController(
       vsync: this,
@@ -135,7 +133,9 @@ class _FarmMapScreenState extends State<FarmMapScreen>
     _log.i('FarmMapScreen: dispose – cancelling subscriptions');
     _positionStreamSub?.cancel();
     _farmsStreamSub?.cancel();
-    _mapController?.dispose();
+    // NOTE: Do NOT manually dispose _mapController.
+    // The GoogleMap widget owns the controller and disposes it internally.
+    // Manual dispose causes assertion failures on web.
     _farmNameCtrl.dispose();
     _pulseController.dispose();
     super.dispose();
@@ -150,7 +150,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   MapErrorInfo _parseError(dynamic error, StackTrace? stackTrace, {String? context}) {
     final errorString = error.toString();
     final contextStr = context != null ? ' [$context]' : '';
-    
+
     _log.e(
       'TECHNICAL ERROR$contextStr: $error\n'
       'StackTrace: ${stackTrace?.toString() ?? 'Not available'}\n'
@@ -374,7 +374,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
       onError: (Object e, StackTrace st) {
         final errorInfo = _parseError(e, st, context: 'GPS Stream');
         _showUserFriendlyError(errorInfo);
-        
+
         _log.e(
           'GPS STREAM ERROR: $e\n'
           'StackTrace: $st\n'
@@ -387,8 +387,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   void _onPositionUpdate(Position position) {
     if (!mounted) return;
 
-    // NEW: Filter out poor-accuracy fixes before any logic
-    final bool isAccurate = position.accuracy <= _minAccuracyMeters;
+    final bool wasFirstFix = _currentPosition == null;
 
     setState(() {
       _currentPosition = position;
@@ -397,41 +396,26 @@ class _FarmMapScreenState extends State<FarmMapScreen>
 
     _updateCurrentPositionMarker(position);
 
-    if (_isMappingActive && _isAutoCapture) {
-      if (!isAccurate) {
-        _log.w(
-          'FarmMapScreen: GPS accuracy poor (±${position.accuracy.toStringAsFixed(0)} m), '
-          'skipping auto-capture',
+    // Auto-center camera on the very first GPS fix after map is ready.
+    // This avoids the race condition of calling animateCamera from onMapCreated
+    // before the web map view is fully initialized.
+    if (wasFirstFix && _isMapReady && !_hasAutoCentered && _mapController != null) {
+      _hasAutoCentered = true;
+      try {
+        _mapController!.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: LatLng(position.latitude, position.longitude),
+              zoom: 17.0,
+            ),
+          ),
         );
-      } else {
-        if (_lastCapturedPosition != null) {
-          final dist = Geolocator.distanceBetween(
-            _lastCapturedPosition!.latitude,
-            _lastCapturedPosition!.longitude,
-            position.latitude,
-            position.longitude,
-          );
-
-          // NEW: Reject sudden GPS jumps to avoid 700 m phantom points
-          if (dist > _maxJumpMeters) {
-            _log.w(
-              'FarmMapScreen: GPS jump detected (${dist.toStringAsFixed(0)} m), '
-              'ignoring for auto-capture',
-            );
-          } else {
-            _accumulatedDistance += dist;
-          }
-        }
-
-        if (_lastCapturedPosition == null ||
-            _accumulatedDistance >= _captureThresholdMeters) {
-          _addBoundaryPoint(
-            LatLng(position.latitude, position.longitude),
-            fromStream: true,
-          );
-          _lastCapturedPosition = position;
-          _accumulatedDistance = 0.0;
-        }
+        _log.i(
+          'FarmMapScreen: Auto-centered on first GPS fix '
+          '(${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)})',
+        );
+      } catch (e) {
+        _log.w('FarmMapScreen: Auto-center animateCamera failed – $e');
       }
     }
 
@@ -442,13 +426,13 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   // BOUNDARY POINT MANAGEMENT
   // ─────────────────────────────────────────────────────────────
 
-  void _addBoundaryPoint(LatLng point, {bool fromStream = false}) {
-    // NEW: Prevent double-adds from rapid taps or stream+button race
+  void _addBoundaryPoint(LatLng point) {
+    // Prevent double-adds from rapid taps
     if (_isAddingPoint) return;
     _isAddingPoint = true;
 
     try {
-      // NEW: 1. Validate minimum spacing from last point
+      // 1. Validate minimum spacing from last point
       if (_boundaryPoints.isNotEmpty) {
         final last = _boundaryPoints.last;
         final dist = _haversineDistance(last, point);
@@ -461,8 +445,8 @@ class _FarmMapScreenState extends State<FarmMapScreen>
           return;
         }
 
-        // NEW: 2. Reject GPS jumps from stream
-        if (fromStream && dist > _maxJumpMeters) {
+        // 2. Reject GPS jumps
+        if (dist > _maxJumpMeters) {
           _log.w(
             'FarmMapScreen: Point rejected – GPS jump detected '
             '(${dist.toStringAsFixed(0)} m > $_maxJumpMeters m)',
@@ -470,7 +454,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
           return;
         }
 
-        // NEW: 3. Prevent self-intersecting boundary lines
+        // 3. Prevent self-intersecting boundary lines
         if (_wouldCauseIntersection(last, point)) {
           _log.w(
             'FarmMapScreen: Point rejected – would cross existing boundary',
@@ -499,33 +483,13 @@ class _FarmMapScreenState extends State<FarmMapScreen>
       _log.i(
         'FarmMapScreen: Boundary point #${_boundaryPoints.length} added '
         '(${point.latitude.toStringAsFixed(6)}, '
-        '${point.longitude.toStringAsFixed(6)}) '
-        '${fromStream ? "[auto]" : "[manual]"} | '
+        '${point.longitude.toStringAsFixed(6)}) | '
         'Area: ${_areaHectares.toStringAsFixed(4)} ha',
       );
       _updateMapOverlays();
     } finally {
       _isAddingPoint = false;
     }
-  }
-
-  // NEW: Dedicated manual add that resets auto-capture tracking
-  void _addManualPoint() {
-    if (_currentPosition == null || _isAddingPoint) return;
-
-    final point = LatLng(
-      _currentPosition!.latitude,
-      _currentPosition!.longitude,
-    );
-
-    // If auto-capture is active, reset its tracker so the stream
-    // does not immediately duplicate this point.
-    if (_isAutoCapture) {
-      _lastCapturedPosition = _currentPosition;
-      _accumulatedDistance = 0.0;
-    }
-
-    _addBoundaryPoint(point, fromStream: false);
   }
 
   void _undoLastPoint() {
@@ -626,28 +590,16 @@ class _FarmMapScreenState extends State<FarmMapScreen>
       _checkLocationPermissions();
       return;
     }
-    _log.i('FarmMapScreen: Mapping session started');
-    setState(() {
-      _isMappingActive = true;
-      _lastCapturedPosition = null;
-      _accumulatedDistance = 0.0;
-    });
-
-    if (_currentPosition != null) {
-      _addBoundaryPoint(
-        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-        fromStream: false,
-      );
-      _lastCapturedPosition = _currentPosition;
-    }
+    _log.i('FarmMapScreen: Manual mapping session started');
+    setState(() => _isMappingActive = true);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Row(
           children: [
-            Icon(Icons.gps_fixed, color: Colors.white, size: 16),
+            Icon(Icons.touch_app, color: Colors.white, size: 16),
             SizedBox(width: 8),
-            Text('Walk your farm boundary – GPS is capturing'),
+            Text('Tap ADD POINT to capture each boundary corner'),
           ],
         ),
         backgroundColor: _accent,
@@ -992,8 +944,6 @@ class _FarmMapScreenState extends State<FarmMapScreen>
           _boundaryPoints.clear();
           _areaHectares = 0;
           _perimeterMeters = 0;
-          _lastCapturedPosition = null;
-          _accumulatedDistance = 0;
           _isSaving = false;
         });
         _updateMapOverlays();
@@ -1007,6 +957,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
               ],
             ),
             backgroundColor: _accent,
+            duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: 'VIEW',
               textColor: Colors.white,
@@ -1022,7 +973,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
     } catch (e, st) {
       final errorInfo = _parseError(e, st, context: 'Save Farm');
       _showUserFriendlyError(errorInfo);
-      
+
       if (mounted) {
         setState(() => _isSaving = false);
       }
@@ -1130,7 +1081,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
       onError: (Object e, StackTrace st) {
         final errorInfo = _parseError(e, st, context: 'Farms Stream');
         _showUserFriendlyError(errorInfo);
-        
+
         if (mounted) setState(() => _isLoadingFarms = false);
       },
     );
@@ -1154,14 +1105,17 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   }
 
   void _moveCameraToCurrentLocation() async {
-    if (!_isMapReady) return;
+    // Guard: must be mounted, map ready, and controller alive
+    if (!mounted || !_isMapReady || _mapController == null) return;
     try {
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
         ),
       );
-      _mapController?.animateCamera(
+      // Re-check after async gap – widget may have been disposed
+      if (!mounted || _mapController == null) return;
+      _mapController!.animateCamera(
         CameraUpdate.newCameraPosition(
           CameraPosition(
             target: LatLng(pos.latitude, pos.longitude),
@@ -1174,8 +1128,10 @@ class _FarmMapScreenState extends State<FarmMapScreen>
         '(${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)})',
       );
     } catch (e, st) {
-      final errorInfo = _parseError(e, st, context: 'Move Camera');
-      _showUserFriendlyError(errorInfo);
+      if (mounted) {
+        final errorInfo = _parseError(e, st, context: 'Move Camera');
+        _showUserFriendlyError(errorInfo);
+      }
     }
   }
 
@@ -1656,20 +1612,21 @@ class _FarmMapScreenState extends State<FarmMapScreen>
           _mapController = ctrl;
           setState(() => _isMapReady = true);
           _log.i('FarmMapScreen: GoogleMap controller ready');
-          if (_currentPosition != null) {
-            _moveCameraToCurrentLocation();
-          }
+          // Do NOT call _moveCameraToCurrentLocation() here.
+          // On web the map view is not fully initialized immediately,
+          // and an async animateCamera will crash. Instead we rely on
+          // _onPositionUpdate to auto-center on the first GPS fix.
           _updateMapOverlays();
         } catch (e, st) {
           final errorInfo = _parseError(e, st, context: 'Map Creation');
           _showUserFriendlyError(errorInfo, isFatal: true);
-          
+
           _log.e(
             'CRITICAL MAP ERROR: $e\n'
             'StackTrace: $st\n'
             'This is a fatal error - map will not display',
           );
-          
+
           if (mounted) setState(() => _isMapCrash = true);
         }
       },
@@ -1681,26 +1638,20 @@ class _FarmMapScreenState extends State<FarmMapScreen>
       polygons: _polygons,
       polylines: _polylines,
       markers: _markers,
-      // FIXED: onTap no longer adds points. Only deselects saved farms.
       onTap: (latLng) {
         if (_selectedViewFarm != null) {
           setState(() => _selectedViewFarm = null);
           _updateMapOverlays();
         }
       },
-      // FIXED: onLongPress only works when auto-capture is ON as manual override.
-      // When auto-capture is OFF, the ADD POINT button is the only way.
       onLongPress: (latLng) {
-        if (_isMappingActive && _isAutoCapture) {
+        if (_isMappingActive) {
           _log.i(
             'FarmMapScreen: Manual long-press point at '
             '${latLng.latitude.toStringAsFixed(5)}, '
             '${latLng.longitude.toStringAsFixed(5)}',
           );
-          _addBoundaryPoint(latLng, fromStream: false);
-          // Reset stream tracking so we don't duplicate immediately
-          _lastCapturedPosition = LatLng(latLng.latitude, latLng.longitude) as Position?;
-          _accumulatedDistance = 0.0;
+          _addBoundaryPoint(latLng);
           _updateMapOverlays();
         }
       },
@@ -1856,42 +1807,6 @@ class _FarmMapScreenState extends State<FarmMapScreen>
           ),
           const SizedBox(height: 12),
 
-          if (_isMappingActive) ...[
-            Row(
-              children: [
-                Switch(
-                  value: _isAutoCapture,
-                  onChanged: (val) {
-                    setState(() {
-                      _isAutoCapture = val;
-                      // NEW: Reset tracker when toggling so we don't get a burst
-                      if (val && _currentPosition != null) {
-                        _lastCapturedPosition = _currentPosition;
-                        _accumulatedDistance = 0.0;
-                      }
-                    });
-                    _log.i(
-                      'FarmMapScreen: Auto-capture '
-                      '${val ? "enabled" : "disabled"}',
-                    );
-                  },
-                  activeThumbColor: _accent,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  _isAutoCapture
-                      ? 'Auto-capture every 5 m'
-                      : 'Tap ADD POINT to capture',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-          ],
-
           if (!_isMappingActive) ...[
             SizedBox(
               width: double.infinity,
@@ -1930,9 +1845,13 @@ class _FarmMapScreenState extends State<FarmMapScreen>
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    // FIXED: Use debounced _addManualPoint instead of inline lambda
                     onPressed: _currentPosition != null && !_isAddingPoint
-                        ? _addManualPoint
+                        ? () => _addBoundaryPoint(
+                            LatLng(
+                              _currentPosition!.latitude,
+                              _currentPosition!.longitude,
+                            ),
+                          )
                         : null,
                     icon: const Icon(Icons.add_location, size: 18),
                     label: const Text('ADD POINT',
