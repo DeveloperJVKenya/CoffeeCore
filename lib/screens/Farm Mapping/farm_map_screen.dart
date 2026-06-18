@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:coffeecore/screens/Farm%20Mapping/climate_satellite_service.dart';
+import 'package:coffeecore/screens/Farm%20Mapping/farm_detail_screen.dart';
 import 'package:coffeecore/screens/Farm%20Mapping/farm_mapping_service.dart';
 import 'package:coffeecore/screens/Farm%20Mapping/farm_polygon_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,7 +10,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
-import 'farm_detail_screen.dart';
 
 // ── Error Types for User-Friendly Display ───────────────────
 enum MapErrorType {
