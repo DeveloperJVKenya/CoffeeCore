@@ -1,8 +1,3 @@
-// ============================================================
-// lib/screens/Farm Management/farm_detail_screen.dart
-// CoffeeCore – Farm Detail & Satellite Intelligence Screen
-// ============================================================
-
 import 'dart:async';
 import 'package:coffeecore/screens/Farm%20Mapping/climate_satellite_service.dart';
 import 'package:coffeecore/screens/Farm%20Mapping/farm_mapping_service.dart';
@@ -11,6 +6,167 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
+import 'package:coffeecore/screens/Farm%20Mapping/map_tile_providers.dart';
+import 'package:coffeecore/screens/Farm%20Mapping/eudr_compliance_service.dart';
+
+// ── Fullscreen Map Dialog (with historical forest toggle) ───
+class _FullScreenMapDialog extends StatefulWidget {
+  final FarmPolygon farm;
+  final MapType initialMapType;
+  final ValueChanged<MapType> onMapTypeChanged;
+
+  const _FullScreenMapDialog({
+    required this.farm,
+    required this.initialMapType,
+    required this.onMapTypeChanged,
+  });
+
+  @override
+  State<_FullScreenMapDialog> createState() => _FullScreenMapDialogState();
+}
+
+class _FullScreenMapDialogState extends State<_FullScreenMapDialog> {
+  late MapType mapType;
+  bool showHistoricalForest = false;
+  bool showForestLoss = false;
+  Set<TileOverlay> tileOverlays = {};
+
+  @override
+  void initState() {
+    super.initState();
+    mapType = widget.initialMapType;
+  }
+
+  void updateTiles() {
+    final tiles = <TileOverlay>{};
+    if (showHistoricalForest) {
+      tiles.add(
+        TileOverlay(
+          tileOverlayId: const TileOverlayId('fs_gfw_treecover_2000'),
+          tileProvider: UrlTileProvider(gfwTreeCover2000Url),
+          transparency: 0.35,
+          zIndex: 20,
+        ),
+      );
+    }
+    if (showForestLoss) {
+      tiles.add(
+        TileOverlay(
+          tileOverlayId: const TileOverlayId('fs_gfw_treecover_loss'),
+          tileProvider: UrlTileProvider(gfwTreeCoverLossUrl),
+          transparency: 0.25,
+          zIndex: 21,
+        ),
+      );
+    }
+    setState(() => tileOverlays = tiles);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.brown[700],
+          foregroundColor: Colors.white,
+          title: Text(widget.farm.farmName),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context),
+          ),
+          actions: [
+            IconButton(
+              icon: Icon(
+                Icons.forest,
+                color: showHistoricalForest ? Colors.green[400] : Colors.white70,
+              ),
+              tooltip: 'Toggle Year 2000 Forest Cover',
+              onPressed: () {
+                setState(() {
+                  showHistoricalForest = !showHistoricalForest;
+                  if (showHistoricalForest) showForestLoss = false;
+                });
+                updateTiles();
+              },
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.local_fire_department,
+                color: showForestLoss ? Colors.red[400] : Colors.white70,
+              ),
+              tooltip: 'Toggle Forest Loss Layer',
+              onPressed: () {
+                setState(() {
+                  showForestLoss = !showForestLoss;
+                  if (showForestLoss) showHistoricalForest = false;
+                });
+                updateTiles();
+              },
+            ),
+            IconButton(
+              icon: Icon(
+                mapType == MapType.hybrid
+                    ? Icons.map_outlined
+                    : Icons.satellite_alt,
+                color: Colors.white,
+              ),
+              tooltip: 'Toggle Map Type',
+              onPressed: () {
+                setState(() {
+                  mapType = mapType == MapType.hybrid
+                      ? MapType.normal
+                      : MapType.hybrid;
+                });
+                widget.onMapTypeChanged(mapType);
+              },
+            ),
+          ],
+        ),
+        body: GoogleMap(
+          mapType: mapType,
+          initialCameraPosition: CameraPosition(
+            target: widget.farm.center,
+            zoom: 16.0,
+          ),
+          myLocationEnabled: false,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: true,
+          zoomGesturesEnabled: true,
+          scrollGesturesEnabled: true,
+          tiltGesturesEnabled: true,
+          rotateGesturesEnabled: true,
+          mapToolbarEnabled: true,
+          polygons: widget.farm.coordinates.length >= 3
+              ? {
+                  Polygon(
+                    polygonId: const PolygonId('farm_boundary_fullscreen'),
+                    points: List<LatLng>.from(widget.farm.coordinates),
+                    fillColor: const Color(0xFF6D4C41).withValues(alpha: 0.20),
+                    strokeColor: const Color(0xFF6D4C41),
+                    strokeWidth: 3,
+                    geodesic: true,
+                  ),
+                }
+              : {},
+          markers: {
+            Marker(
+              markerId: const MarkerId('farm_center_fullscreen'),
+              position: widget.farm.center,
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueOrange,
+              ),
+              infoWindow: InfoWindow(
+                title: widget.farm.farmName,
+                snippet: widget.farm.areaLabel,
+              ),
+            ),
+          },
+          tileOverlays: tileOverlays,
+        ),
+      ),
+    );
+  }
+}
 
 class FarmDetailScreen extends StatefulWidget {
   final FarmPolygon farm;
@@ -43,6 +199,12 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
   bool _isRefreshingSatellite = false;
   bool _isRefreshingForecast = false;
   bool _isDeleting = false;
+
+  // ── EUDR Compliance state ───────────────────────────────────
+  final EudrComplianceService _eudrService = EudrComplianceService();
+  EudrComplianceResult? _eudrResult;
+  bool _isCheckingEudr = false;
+  bool _showEudrCard = false;
 
   // REMOVED: Unused error fields — error handling is done via _showUserError() 
   // which shows SnackBars directly without storing state
@@ -208,6 +370,64 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
   // ─────────────────────────────────────────────────────────────
   // FARM ACTIONS
   // ─────────────────────────────────────────────────────────────
+
+  // ─────────────────────────────────────────────────────────────
+  // EUDR COMPLIANCE CHECK
+  // ─────────────────────────────────────────────────────────────
+
+  Future<void> _checkEudrCompliance() async {
+    if (_farm.coordinates.length < 3) {
+      _showUserError(
+        title: 'EUDR Check Unavailable',
+        message: 'Need a complete farm boundary to run the deforestation check.',
+        technicalDetails: 'Farm has fewer than 3 GPS points.',
+      );
+      return;
+    }
+
+    setState(() => _isCheckingEudr = true);
+    _log.i(
+      'FarmDetailScreen: Starting EUDR compliance check for "${_farm.farmName}"',
+    );
+
+    try {
+      // Production: uses Global Forest Watch (GFW) Hansen-UMD API.
+      // For offline UI testing, swap to: _eudrService.simulatedResult(compliant: false)
+      final result = await _eudrService.checkFarmCompliance(
+        coordinates: _farm.coordinates,
+        areaHectares: _farm.areaHectares,
+      );
+
+      // Persist to Firestore
+      if (_farm.farmId != null) {
+        await _mappingService.updateEudrCompliance(_farm.farmId!, result as EudrComplianceData);
+        _log.i(
+          'FarmDetailScreen: EUDR result persisted to Firestore '
+          'for farm ${_farm.farmId}',
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _eudrResult = result;
+          _showEudrCard = true;
+          _isCheckingEudr = false;
+        });
+      }
+    } catch (e, st) {
+      _log.e('FarmDetailScreen: EUDR check error – $e', stackTrace: st);
+      if (mounted) {
+        setState(() => _isCheckingEudr = false);
+        _showUserError(
+          title: 'EUDR Check Failed',
+          message:
+              'Could not retrieve historical forest data. '
+              'Please check your internet connection and try again.',
+          technicalDetails: 'EUDR compliance check error: $e$st',
+        );
+      }
+    }
+  }
 
   Future<void> _showRenameDialog() async {
     final ctrl = TextEditingController(text: _farm.farmName);
@@ -451,79 +671,12 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
   void _showFullScreenMap() {
     showDialog(
       context: context,
-      builder: (ctx) => Dialog.fullscreen(
-        child: Scaffold(
-          appBar: AppBar(
-            backgroundColor: Colors.brown[700],
-            foregroundColor: Colors.white,
-            title: Text(_farm.farmName),
-            leading: IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.pop(ctx),
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(
-                  _mapType == MapType.hybrid
-                      ? Icons.map_outlined
-                      : Icons.satellite_alt,
-                  color: Colors.white,
-                ),
-                tooltip: 'Toggle Map Type',
-                onPressed: () {
-                  setState(() {
-                    _mapType = _mapType == MapType.hybrid
-                        ? MapType.normal
-                        : MapType.hybrid;
-                  });
-                  // Force rebuild of dialog
-                  Navigator.pop(ctx);
-                  _showFullScreenMap();
-                },
-              ),
-            ],
-          ),
-          body: GoogleMap(
-            mapType: _mapType,
-            initialCameraPosition: CameraPosition(
-              target: _farm.center,
-              zoom: 16.0,
-            ),
-            myLocationEnabled: false,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: true,
-            zoomGesturesEnabled: true,
-            scrollGesturesEnabled: true,
-            tiltGesturesEnabled: true,
-            rotateGesturesEnabled: true,
-            mapToolbarEnabled: true,
-            polygons: _farm.coordinates.length >= 3
-                ? {
-                    Polygon(
-                      polygonId: const PolygonId('farm_boundary_fullscreen'),
-                      points: List<LatLng>.from(_farm.coordinates),
-                      fillColor: _primary.withValues(alpha: 0.20),
-                      strokeColor: _primary,
-                      strokeWidth: 3,
-                      geodesic: true,
-                    ),
-                  }
-                : {},
-            markers: {
-              Marker(
-                markerId: const MarkerId('farm_center_fullscreen'),
-                position: _farm.center,
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueOrange,
-                ),
-                infoWindow: InfoWindow(
-                  title: _farm.farmName,
-                  snippet: _farm.areaLabel,
-                ),
-              ),
-            },
-          ),
-        ),
+      builder: (ctx) => _FullScreenMapDialog(
+        farm: _farm,
+        initialMapType: _mapType,
+        onMapTypeChanged: (type) {
+          if (mounted) setState(() => _mapType = type);
+        },
       ),
     );
   }
@@ -558,6 +711,8 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildMapCard(),
+                    const SizedBox(height: 12),
+                    _buildEudrComplianceCard(),
                     const SizedBox(height: 12),
                     _buildFarmStatsCard(),
                     const SizedBox(height: 12),
@@ -668,6 +823,250 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
   // ─────────────────────────────────────────────────────────────
   // SECTION CARDS
   // ─────────────────────────────────────────────────────────────
+
+  // ── EUDR Compliance Card ────────────────────────────────────
+  Widget _buildEudrComplianceCard() {
+    if (!_showEudrCard && _farm.eudrCompliance == null) {
+      return _sectionCard(
+        icon: Icons.forest,
+        title: 'EUDR Deforestation Check',
+        trailing: _isCheckingEudr
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : Switch(
+                value: _showEudrCard,
+                onChanged: (val) {
+                  if (val) _checkEudrCompliance();
+                  setState(() => _showEudrCard = val);
+                },
+                activeThumbColor: Colors.brown[700],
+              ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Toggle on to check if this farm was forested before 2020. '
+              'This is required for EUDR (EU Deforestation Regulation) compliance '
+              'certification before selling to international markets.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.info_outline, size: 14, color: Colors.brown[600]),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Uses Hansen-UMD satellite data (2000 baseline) via Global Forest Watch.',
+                    style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    final result = _eudrResult ??
+        (_farm.eudrCompliance != null
+            ? EudrComplianceResult(
+                isCompliant: _farm.eudrCompliance!.isCompliant,
+                wasForestedBefore2020: _farm.eudrCompliance!.wasForestedBefore2020,
+                treeCoverPercent2000: _farm.eudrCompliance!.treeCoverPercent2000,
+                treeCoverLossAreaHa: _farm.eudrCompliance!.treeCoverLossAreaHa,
+                remainingTreeCoverPercent: _farm.eudrCompliance!.remainingTreeCoverPercent,
+                explanation: _farm.eudrCompliance!.explanation,
+                recommendation: _farm.eudrCompliance!.recommendation,
+                dataSource: _farm.eudrCompliance!.dataSource,
+                checkedAt: _farm.eudrCompliance!.checkedAt,
+              )
+            : null);
+
+    if (result == null) {
+      return _sectionCard(
+        icon: Icons.forest,
+        title: 'EUDR Deforestation Check',
+        child: _emptyDataState('No EUDR data available.', false),
+      );
+    }
+
+    final Color statusColor = result.isCompliant ? Colors.green[700]! : Colors.red[700]!;
+    final IconData statusIcon = result.isCompliant ? Icons.verified : Icons.warning_rounded;
+    final String statusLabel = result.isCompliant ? 'EUDR COMPLIANT' : 'NON-COMPLIANT';
+
+    return _sectionCard(
+      icon: Icons.forest,
+      title: 'EUDR Deforestation Check',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_isCheckingEudr)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2)),
+          IconButton(
+            icon: Icon(Icons.refresh, size: 18, color: Colors.brown[600]),
+            tooltip: 'Re-check compliance',
+            onPressed: _isCheckingEudr ? null : _checkEudrCompliance,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Status badge
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                Icon(statusIcon, color: statusColor, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        statusLabel,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
+                      ),
+                      Text(
+                        result.isCompliant
+                            ? 'Eligible for EU market export'
+                            : 'Deforestation risk – export blocked',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: statusColor.withValues(alpha: 0.85),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Metrics
+          Row(
+            children: [
+              _statBox(
+                label: 'Tree Cover 2000',
+                value: '${result.treeCoverPercent2000.toStringAsFixed(1)}%',
+                icon: Icons.park,
+                color: result.wasForestedBefore2020
+                    ? Colors.green[700]!
+                    : Colors.orange[700]!,
+              ),
+              const SizedBox(width: 10),
+              _statBox(
+                label: 'Loss < 2020',
+                value: '${result.treeCoverLossAreaHa.toStringAsFixed(2)} ha',
+                icon: Icons.remove_circle_outline,
+                color: result.treeCoverLossAreaHa > 0.01
+                    ? Colors.red[700]!
+                    : Colors.grey[600]!,
+              ),
+              const SizedBox(width: 10),
+              _statBox(
+                label: 'Remaining',
+                value: '${result.remainingTreeCoverPercent.toStringAsFixed(1)}%',
+                icon: Icons.nature,
+                color: Colors.teal[700]!,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+
+          // Explanation
+          Text(
+            'Analysis Result',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.brown[800],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            result.explanation,
+            style: TextStyle(fontSize: 12, color: Colors.grey[700], height: 1.4),
+          ),
+          const SizedBox(height: 12),
+
+          // Recommendation box
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: result.isCompliant
+                  ? Colors.green[50]
+                  : Colors.red[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: result.isCompliant
+                    ? Colors.green.shade200
+                    : Colors.red.shade200,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      result.isCompliant ? Icons.check_circle : Icons.warning_amber,
+                      size: 14,
+                      color: statusColor,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Recommendation',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  result.recommendation,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[700], height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              'Source: ${result.dataSource} • Checked ${_timeAgo(result.checkedAt)}',
+              style: TextStyle(fontSize: 9, color: Colors.grey[500]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   // ── 1. Map preview ──────────────────────────────────────────
   Widget _buildMapCard() {

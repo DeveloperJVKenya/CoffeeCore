@@ -2,6 +2,61 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+// ── EUDR Compliance Data ────────────────────────────────────
+class EudrComplianceData {
+  final bool isCompliant;
+  final bool wasForestedBefore2020;
+  final double treeCoverPercent2000;
+  final double treeCoverLossAreaHa;
+  final double remainingTreeCoverPercent;
+  final String explanation;
+  final String recommendation;
+  final String dataSource;
+  final DateTime checkedAt;
+
+  const EudrComplianceData({
+    required this.isCompliant,
+    required this.wasForestedBefore2020,
+    required this.treeCoverPercent2000,
+    required this.treeCoverLossAreaHa,
+    required this.remainingTreeCoverPercent,
+    required this.explanation,
+    required this.recommendation,
+    required this.dataSource,
+    required this.checkedAt,
+  });
+
+  factory EudrComplianceData.fromMap(Map<String, dynamic> map) {
+    return EudrComplianceData(
+      isCompliant: map['isCompliant'] as bool? ?? false,
+      wasForestedBefore2020: map['wasForestedBefore2020'] as bool? ?? false,
+      treeCoverPercent2000: (map['treeCoverPercent2000'] as num? ?? 0).toDouble(),
+      treeCoverLossAreaHa: (map['treeCoverLossAreaHa'] as num? ?? 0).toDouble(),
+      remainingTreeCoverPercent: (map['remainingTreeCoverPercent'] as num? ?? 0).toDouble(),
+      explanation: map['explanation'] as String? ?? '',
+      recommendation: map['recommendation'] as String? ?? '',
+      dataSource: map['dataSource'] as String? ?? '',
+      checkedAt: map['checkedAt'] != null
+          ? (map['checkedAt'] as Timestamp).toDate()
+          : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'isCompliant': isCompliant,
+      'wasForestedBefore2020': wasForestedBefore2020,
+      'treeCoverPercent2000': treeCoverPercent2000,
+      'treeCoverLossAreaHa': treeCoverLossAreaHa,
+      'remainingTreeCoverPercent': remainingTreeCoverPercent,
+      'explanation': explanation,
+      'recommendation': recommendation,
+      'dataSource': dataSource,
+      'checkedAt': Timestamp.fromDate(checkedAt),
+    };
+  }
+}
+
 // ── Main farm polygon record ──────────────────────────────────
 class FarmPolygon {
   final String? farmId;
@@ -16,6 +71,7 @@ class FarmPolygon {
   final ClimateData? climateData;
   final SatelliteData? satelliteData;
   final String? agroMonitoringPolyId;
+  final EudrComplianceData? eudrCompliance;
 
   const FarmPolygon({
     this.farmId,
@@ -30,6 +86,7 @@ class FarmPolygon {
     this.climateData,
     this.satelliteData,
     this.agroMonitoringPolyId,
+    this.eudrCompliance,
   });
 
   // ── Firestore deserialization ───────────────────────────────
@@ -61,6 +118,10 @@ class FarmPolygon {
           : DateTime.now(),
       description: data['description'] as String?,
       agroMonitoringPolyId: data['agroMonitoringPolyId'] as String?,
+      eudrCompliance: data['eudrCompliance'] != null
+          ? EudrComplianceData.fromMap(
+              data['eudrCompliance'] as Map<String, dynamic>)
+          : null,
       climateData: data['climateData'] != null
           ? ClimateData.fromMap(data['climateData'] as Map<String, dynamic>)
           : null,
@@ -87,6 +148,7 @@ class FarmPolygon {
         'description': description,
       if (agroMonitoringPolyId != null)
         'agroMonitoringPolyId': agroMonitoringPolyId,
+      if (eudrCompliance != null) 'eudrCompliance': eudrCompliance!.toMap(),
       if (climateData != null) 'climateData': climateData!.toMap(),
       if (satelliteData != null) 'satelliteData': satelliteData!.toMap(),
     };
@@ -104,6 +166,7 @@ class FarmPolygon {
     ClimateData? climateData,
     SatelliteData? satelliteData,
     String? agroMonitoringPolyId,
+    EudrComplianceData? eudrCompliance,
   }) {
     return FarmPolygon(
       farmId: farmId ?? this.farmId,
@@ -119,6 +182,7 @@ class FarmPolygon {
       satelliteData: satelliteData ?? this.satelliteData,
       agroMonitoringPolyId:
           agroMonitoringPolyId ?? this.agroMonitoringPolyId,
+      eudrCompliance: eudrCompliance ?? this.eudrCompliance,
     );
   }
 

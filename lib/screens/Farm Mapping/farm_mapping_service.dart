@@ -205,6 +205,32 @@ class FarmMappingService {
     }
   }
 
+  // ── UPDATE (partial – EUDR compliance data) ────────────────
+
+  Future<void> updateEudrCompliance(
+      String farmId, EudrComplianceData data) async {
+    try {
+      _log.i(
+        'FarmMappingService.updateEudrCompliance: '
+        'Updating farm $farmId EUDR status → ${data.isCompliant ? "COMPLIANT" : "NON-COMPLIANT"}',
+      );
+      await _firestore.collection(_collection).doc(farmId).update({
+        'eudrCompliance': data.toMap(),
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
+      _log.i(
+        'FarmMappingService.updateEudrCompliance: '
+        'EUDR data saved for farm $farmId (treeCover2000: ${data.treeCoverPercent2000.toStringAsFixed(1)}%)',
+      );
+    } catch (e, st) {
+      _log.e(
+        'FarmMappingService.updateEudrCompliance: Error – $e',
+        stackTrace: st,
+      );
+      rethrow;
+    }
+  }
+
   // ── DELETE ──────────────────────────────────────────────────
 
   Future<void> deleteFarm(String farmId) async {

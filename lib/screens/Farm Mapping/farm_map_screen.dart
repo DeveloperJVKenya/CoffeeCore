@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:coffeecore/screens/Farm%20Mapping/climate_satellite_service.dart';
-import 'package:coffeecore/screens/Farm%20Mapping/farm_detail_screen.dart';
 import 'package:coffeecore/screens/Farm%20Mapping/farm_mapping_service.dart';
 import 'package:coffeecore/screens/Farm%20Mapping/farm_polygon_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,6 +9,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
+import 'farm_detail_screen.dart';
+import 'map_tile_providers.dart';
 
 // ── Error Types for User-Friendly Display ───────────────────
 enum MapErrorType {
@@ -79,6 +80,11 @@ class _FarmMapScreenState extends State<FarmMapScreen>
 
   // ── Auto-center once on first GPS fix after map ready ──────
   bool _hasAutoCentered = false;
+
+  // ── Historical forest overlay (EUDR visual check) ───────────
+  bool _showHistoricalForestLayer = false;
+  bool _showForestLossLayer = false;
+  Set<TileOverlay> _tileOverlays = {};
 
   // ── Map overlays ─────────────────────────────────────────────
   Set<Polygon> _polygons = {};
@@ -646,6 +652,32 @@ class _FarmMapScreenState extends State<FarmMapScreen>
     });
   }
 
+  /// Rebuilds tile overlays based on toggle state
+  void _updateTileOverlays() {
+    final tiles = <TileOverlay>{};
+    if (_showHistoricalForestLayer) {
+      tiles.add(
+        TileOverlay(
+          tileOverlayId: const TileOverlayId('gfw_treecover_2000'),
+          tileProvider: UrlTileProvider(gfwTreeCover2000Url),
+          transparency: 0.35,
+          zIndex: 20,
+        ),
+      );
+    }
+    if (_showForestLossLayer) {
+      tiles.add(
+        TileOverlay(
+          tileOverlayId: const TileOverlayId('gfw_treecover_loss'),
+          tileProvider: UrlTileProvider(gfwTreeCoverLossUrl),
+          transparency: 0.25,
+          zIndex: 21,
+        ),
+      );
+    }
+    _tileOverlays = tiles;
+  }
+
   /// CRITICAL: This method rebuilds all map overlays (polygons, polylines, markers)
   /// Call this after ANY change to boundary points or farm data
   void _updateMapOverlays() {
@@ -772,6 +804,8 @@ class _FarmMapScreenState extends State<FarmMapScreen>
         );
       }
     }
+
+    _updateTileOverlays();
 
     // CRITICAL: Use setState to trigger GoogleMap rebuild with new overlays
     setState(() {
@@ -1638,6 +1672,7 @@ class _FarmMapScreenState extends State<FarmMapScreen>
       polygons: _polygons,
       polylines: _polylines,
       markers: _markers,
+      tileOverlays: _tileOverlays,
       onTap: (latLng) {
         if (_selectedViewFarm != null) {
           setState(() => _selectedViewFarm = null);
@@ -1802,6 +1837,52 @@ class _FarmMapScreenState extends State<FarmMapScreen>
                 label: 'Perimeter',
                 value: _perimeterLabel(_perimeterMeters),
                 color: Colors.brown[600]!,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // ── Historical forest toggle (always visible) ───────────
+          Row(
+            children: [
+              Expanded(
+                child: _buildLayerToggle(
+                  label: 'Year 2000 Forest',
+                  icon: Icons.forest,
+                  active: _showHistoricalForestLayer,
+                  onTap: () {
+                    setState(() {
+                      _showHistoricalForestLayer = !_showHistoricalForestLayer;
+                      if (_showHistoricalForestLayer) _showForestLossLayer = false;
+                    });
+                    _updateTileOverlays();
+                    _log.i(
+                      'FarmMapScreen: Historical forest layer '
+                      '${_showHistoricalForestLayer ? "enabled" : "disabled"}',
+                    );
+                  },
+                  activeColor: Colors.green[700]!,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildLayerToggle(
+                  label: 'Forest Loss',
+                  icon: Icons.local_fire_department,
+                  active: _showForestLossLayer,
+                  onTap: () {
+                    setState(() {
+                      _showForestLossLayer = !_showForestLossLayer;
+                      if (_showForestLossLayer) _showHistoricalForestLayer = false;
+                    });
+                    _updateTileOverlays();
+                    _log.i(
+                      'FarmMapScreen: Forest loss layer '
+                      '${_showForestLossLayer ? "enabled" : "disabled"}',
+                    );
+                  },
+                  activeColor: Colors.red[700]!,
+                ),
               ),
             ],
           ),
@@ -2120,6 +2201,49 @@ class _FarmMapScreenState extends State<FarmMapScreen>
   }
 
   // ── Small reusable widgets ──────────────────────────────────
+  Widget _buildLayerToggle({
+    required String label,
+    required IconData icon,
+    required bool active,
+    required VoidCallback onTap,
+    required Color activeColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        decoration: BoxDecoration(
+          color: active ? activeColor.withValues(alpha: 0.12) : _cardBg,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: active ? activeColor : Colors.grey.shade300,
+            width: active ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: active ? activeColor : Colors.grey[600]),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+                  color: active ? activeColor : Colors.grey[700],
+                ),
+              ),
+            ),
+            if (active)
+              Icon(Icons.check_circle, size: 14, color: activeColor),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatChip({
     required IconData icon,
     required String label,
