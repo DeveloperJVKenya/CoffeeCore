@@ -8,13 +8,19 @@
 .pub-cache/
 .pub/
 /build/
-*.g.dart
-*.freezed.dart
+#*.g.dart
+#*.freezed.dart
 
 # Android
 android/.gradle/
 android/key.properties
 android/local.properties
+
+# Secrets
+secrets.json
+
+# Cloud Functions
+functions/node_modules/
 
 # iOS
 ios/.generated/

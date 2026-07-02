@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --check index.js)",
+      "Bash(npm install *)",
+      "Bash(firebase deploy *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://us-central1-coffeecore-7111a.cloudfunctions.net/agroProxy/polygons?appid=583e2f174f1b753e06e1133cf6125434\")",
+      "Bash(node --check functions/index.js)"
+    ]
+  }
+}

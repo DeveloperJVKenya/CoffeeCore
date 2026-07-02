@@ -18,18 +18,21 @@ class WeatherScreenState extends State<WeatherScreen> {
   bool _isLoading = false;
   final logger = Logger(printer: PrettyPrinter());
   static final Color coffeeBrown = Colors.brown[700]!; // Coffee theme color
+  static const String _weatherBase = 'https://weather.googleapis.com/v1';
 
   Future<Map<String, double>?> _getCoordinates(String location) async {
     final geoUrl = Uri.parse(
-        'https://api.openweathermap.org/geo/1.0/direct?q=$location&limit=1&appid=${Config.weatherApiKey}');
+        'https://maps.googleapis.com/maps/api/geocode/json?address=$location&key=${Config.weatherApiKey}');
     try {
       final response = await http.get(geoUrl);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data is List && data.isNotEmpty && data[0]['lat'] != null && data[0]['lon'] != null) {
-          return {'lat': data[0]['lat'].toDouble(), 'lon': data[0]['lon'].toDouble()};
+        final results = data['results'] as List?;
+        if (data['status'] == 'OK' && results != null && results.isNotEmpty) {
+          final loc = results[0]['geometry']['location'];
+          return {'lat': (loc['lat'] as num).toDouble(), 'lon': (loc['lng'] as num).toDouble()};
         }
-        throw Exception('No valid coordinates found');
+        throw Exception('No valid coordinates found (${data['status']})');
       }
       throw Exception('Geocoding API error: ${response.statusCode}');
     } catch (e) {
@@ -57,13 +60,15 @@ class WeatherScreenState extends State<WeatherScreen> {
     }
 
     final url = Uri.parse(
-        'https://api.openweathermap.org/data/2.5/forecast?lat=${coordinates['lat']}&lon=${coordinates['lon']}&appid=${Config.weatherApiKey}&units=metric');
+        '$_weatherBase/forecast/hours:lookup?key=${Config.weatherApiKey}'
+        '&location.latitude=${coordinates['lat']}&location.longitude=${coordinates['lon']}'
+        '&hours=120&unitsSystem=METRIC');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data['list'] != null && data['list'] is List) {
-          _processDailyForecast(data['list']);
+        if (data['forecastHours'] != null && data['forecastHours'] is List) {
+          _processDailyForecast(data['forecastHours']);
         } else {
           throw Exception('Invalid forecast data');
         }
@@ -83,17 +88,24 @@ class WeatherScreenState extends State<WeatherScreen> {
   void _processDailyForecast(List<dynamic> forecastList) {
     Map<String, List<Map<String, dynamic>>> groupedForecast = {};
     for (var forecast in forecastList) {
-      if (forecast['dt_txt'] == null || forecast['main'] == null) continue;
-      DateTime dateTime = DateTime.parse(forecast['dt_txt']);
+      final displayDateTime = forecast['displayDateTime'];
+      if (displayDateTime == null || forecast['temperature'] == null) continue;
+      DateTime dateTime = DateTime(
+        displayDateTime['year'],
+        displayDateTime['month'],
+        displayDateTime['day'],
+        (displayDateTime['hours'] as num?)?.toInt() ?? 0,
+      );
       String date = dateTime.toLocal().toString().split(' ')[0];
       String formattedTime = '${dateTime.hour.toString().padLeft(2, '0')}:00';
-      double temp = (forecast['main']['temp'] as num?)?.toDouble() ?? 0.0;
-      int humidity = (forecast['main']['humidity'] as num?)?.toInt() ?? 0;
-      int clouds = (forecast['clouds']['all'] as num?)?.toInt() ?? 0;
-      double rainfall = forecast['rain'] != null ? (forecast['rain']['3h'] as num?)?.toDouble() ?? 0.0 : 0.0;
-      String weather = (forecast['weather'] as List?)?.isNotEmpty == true
-          ? forecast['weather'][0]['main'].toString().toLowerCase()
-          : 'unknown';
+      double temp = (forecast['temperature']['degrees'] as num?)?.toDouble() ?? 0.0;
+      int humidity = (forecast['relativeHumidity'] as num?)?.toInt() ?? 0;
+      int clouds = (forecast['cloudCover'] as num?)?.toInt() ?? 0;
+      final qpf = forecast['precipitation']?['qpf'];
+      double rainfall = (qpf?['quantity'] as num?)?.toDouble() ?? 0.0;
+      String weatherType =
+          (forecast['weatherCondition']?['type'] as String?)?.toLowerCase() ?? '';
+      String weather = _simplifyWeatherType(weatherType);
 
       groupedForecast.putIfAbsent(date, () => []).add({
         'time': formattedTime,
@@ -107,6 +119,23 @@ class WeatherScreenState extends State<WeatherScreen> {
     setState(() {
       _dailyForecast = groupedForecast.isNotEmpty ? groupedForecast : null;
     });
+  }
+
+  // Google's weatherCondition.type is a fine-grained enum (e.g. "LIGHT_RAIN",
+  // "SCATTERED_THUNDERSTORMS", "MOSTLY_CLOUDY") — bucket it into the coarse
+  // categories the UI icon/color helpers below understand.
+  String _simplifyWeatherType(String type) {
+    if (type.contains('rain') ||
+        type.contains('shower') ||
+        type.contains('thunder') ||
+        type.contains('hail') ||
+        type.contains('snow')) {
+      return 'rain';
+    }
+    if (type.contains('wind')) return 'wind';
+    if (type.contains('cloud')) return 'clouds';
+    if (type.contains('clear') || type.contains('sun')) return 'clear';
+    return 'unknown';
   }
 
   void _showSnackBar(String message) {

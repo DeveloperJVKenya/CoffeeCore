@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:coffeecore/screens/Farm%20Mapping/eudr_compliance_service.dart';
 
 // ── EUDR Compliance Data ────────────────────────────────────
 class EudrComplianceData {
@@ -25,6 +26,20 @@ class EudrComplianceData {
     required this.dataSource,
     required this.checkedAt,
   });
+
+  factory EudrComplianceData.fromResult(EudrComplianceResult result) {
+    return EudrComplianceData(
+      isCompliant: result.isCompliant,
+      wasForestedBefore2020: result.wasForestedBefore2020,
+      treeCoverPercent2000: result.treeCoverPercent2000,
+      treeCoverLossAreaHa: result.treeCoverLossAreaHa,
+      remainingTreeCoverPercent: result.remainingTreeCoverPercent,
+      explanation: result.explanation,
+      recommendation: result.recommendation,
+      dataSource: result.dataSource,
+      checkedAt: result.checkedAt,
+    );
+  }
 
   factory EudrComplianceData.fromMap(Map<String, dynamic> map) {
     return EudrComplianceData(
@@ -264,8 +279,8 @@ class ClimateData {
     };
   }
 
-  String get iconUrl =>
-      'https://openweathermap.org/img/wn/$weatherIcon@2x.png';
+  // Google Weather API returns an iconBaseUri that needs a file-type suffix.
+  String get iconUrl => weatherIcon.isEmpty ? '' : '$weatherIcon.png';
 }
 
 // ── Satellite / NDVI data snapshot ───────────────────────────

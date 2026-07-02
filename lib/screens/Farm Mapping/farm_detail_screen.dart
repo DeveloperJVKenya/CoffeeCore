@@ -320,14 +320,43 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
   Future<void> _refreshSatellite() async {
     setState(() => _isRefreshingSatellite = true);
     try {
-      if (_farm.agroMonitoringPolyId != null) {
+      var agroPolyId = _farm.agroMonitoringPolyId;
+
+      // Legacy farms saved before an AgroMonitoring key was configured never
+      // got registered. Retry registration now that a real key may exist,
+      // instead of showing simulated data forever.
+      if (agroPolyId == null &&
+          _farm.farmId != null &&
+          _farm.coordinates.length >= 3) {
         _log.i(
-          'FarmDetailScreen: Fetching NDVI for '
-          'agroPolyId=${_farm.agroMonitoringPolyId}',
+          'FarmDetailScreen: No AgroMonitoring polyId for '
+          '"${_farm.farmName}" – attempting retroactive registration',
         );
-        final satellite = await _climateService.fetchLatestNdvi(
-          agroPolyId: _farm.agroMonitoringPolyId!,
+        final coords =
+            _farm.coordinates.map((c) => [c.longitude, c.latitude]).toList();
+        agroPolyId = await _climateService.registerAgroPolygon(
+          farmName: _farm.farmName,
+          coordinates: coords,
         );
+        if (agroPolyId != null) {
+          await _mappingService.setAgroMonitoringPolyId(
+              _farm.farmId!, agroPolyId);
+          if (mounted) {
+            setState(() {
+              _farm = _farm.copyWith(agroMonitoringPolyId: agroPolyId);
+            });
+          }
+          _log.i(
+            'FarmDetailScreen: Registered "${_farm.farmName}" with '
+            'AgroMonitoring → polyId=$agroPolyId',
+          );
+        }
+      }
+
+      if (agroPolyId != null) {
+        _log.i('FarmDetailScreen: Fetching NDVI for agroPolyId=$agroPolyId');
+        final satellite =
+            await _climateService.fetchLatestNdvi(agroPolyId: agroPolyId);
         if (satellite != null) {
           setState(() => _satelliteData = satellite);
           if (_farm.farmId != null) {
@@ -342,13 +371,11 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
         }
       } else {
         _log.w(
-          'FarmDetailScreen: No AgroMonitoring polyId for '
-          '"${_farm.farmName}" – falling back to simulated NDVI',
+          'FarmDetailScreen: AgroMonitoring unavailable for '
+          '"${_farm.farmName}" – showing simulated NDVI',
         );
-        final simulated = await _climateService.fetchLatestNdvi(
-          agroPolyId: 'NOT_REGISTERED',
-        );
-        if (mounted && simulated != null) {
+        final simulated = _climateService.simulatedNdviData();
+        if (mounted) {
           setState(() => _satelliteData = simulated);
         }
       }
@@ -400,7 +427,8 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
 
       // Persist to Firestore
       if (_farm.farmId != null) {
-        await _mappingService.updateEudrCompliance(_farm.farmId!, result as EudrComplianceData);
+        await _mappingService.updateEudrCompliance(
+            _farm.farmId!, EudrComplianceData.fromResult(result));
         _log.i(
           'FarmDetailScreen: EUDR result persisted to Firestore '
           'for farm ${_farm.farmId}',
@@ -1556,7 +1584,7 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
                             ),
                             const SizedBox(height: 6),
                             Image.network(
-                              'https://openweathermap.org/img/wn/$icon@2x.png',
+                              icon.isEmpty ? '' : '$icon.png',
                               width: 40,
                               height: 40,
                               errorBuilder: (_, __, ___) => Icon(

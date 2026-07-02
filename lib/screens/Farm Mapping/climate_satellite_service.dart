@@ -1,18 +1,25 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
+import 'package:coffeecore/config.dart';
 import 'package:coffeecore/screens/Farm%20Mapping/farm_polygon_model.dart';
 
 class ClimateSatelliteService {
   final Logger _log = Logger(printer: PrettyPrinter());
 
-  static const String _weatherApiKey = 'YOUR_OPENWEATHERMAP_API_KEY';
-  static const String _agroApiKey = 'YOUR_AGROMONITORING_API_KEY';
+  static const String _weatherApiKey = Config.weatherApiKey;
+  static const String _agroApiKey = Config.agroApiKey;
 
-  static const String _owmBase =
-      'https://api.openweathermap.org/data/2.5';
-  static const String _agroBase =
-      'https://agromonitoring.com/agromonitoring/v1';
+  static const String _googleWeatherBase = 'https://weather.googleapis.com/v1';
+
+  // AgroMonitoring doesn't send CORS headers, so browser (web) builds route
+  // through a Cloud Functions proxy that fetches server-side instead.
+  // Native builds (Android/iOS/desktop) aren't subject to browser CORS and
+  // call AgroMonitoring directly.
+  static const String _agroBase = kIsWeb
+      ? 'https://us-central1-coffeecore-7111a.cloudfunctions.net/agroProxy'
+      : 'https://api.agromonitoring.com/agro/1.0';
 
   static const Duration _timeout = Duration(seconds: 20);
 
@@ -33,8 +40,10 @@ class ClimateSatelliteService {
         'Requesting weather for lat=$lat, lng=$lng',
       );
       final uri = Uri.parse(
-        '$_owmBase/weather?lat=$lat&lon=$lng'
-        '&appid=$_weatherApiKey&units=metric',
+        '$_googleWeatherBase/currentConditions:lookup'
+        '?key=$_weatherApiKey'
+        '&location.latitude=$lat&location.longitude=$lng'
+        '&unitsSystem=METRIC',
       );
       final res = await http.get(uri).timeout(_timeout);
 
@@ -47,22 +56,26 @@ class ClimateSatelliteService {
       }
 
       final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final main = data['main'] as Map<String, dynamic>;
-      final wind = data['wind'] as Map<String, dynamic>;
-      final weatherList = data['weather'] as List<dynamic>;
-      final weather = weatherList.first as Map<String, dynamic>;
-      final rainData = data['rain'] as Map<String, dynamic>?;
-      final rainfallMm =
-          (rainData?['1h'] as num? ?? 0).toDouble();
+      final weatherCondition =
+          data['weatherCondition'] as Map<String, dynamic>? ?? {};
+      final description =
+          weatherCondition['description'] as Map<String, dynamic>?;
+      final temperature = data['temperature'] as Map<String, dynamic>?;
+      final wind = data['wind'] as Map<String, dynamic>?;
+      final windSpeed = wind?['speed'] as Map<String, dynamic>?;
+      final precipitation =
+          data['precipitation'] as Map<String, dynamic>?;
+      final qpf = precipitation?['qpf'] as Map<String, dynamic>?;
 
       final climate = ClimateData(
-        temperatureCelsius: (main['temp'] as num).toDouble(),
-        humidity: (main['humidity'] as num).toDouble(),
-        rainfallMm: rainfallMm,
-        windSpeedMs: (wind['speed'] as num).toDouble(),
-        weatherDescription:
-            (weather['description'] as String).capitalize(),
-        weatherIcon: weather['icon'] as String,
+        temperatureCelsius: (temperature?['degrees'] as num? ?? 0).toDouble(),
+        humidity: (data['relativeHumidity'] as num? ?? 0).toDouble(),
+        rainfallMm: (qpf?['quantity'] as num? ?? 0).toDouble(),
+        // Google returns wind speed in km/h under METRIC units; convert to m/s.
+        windSpeedMs: (windSpeed?['value'] as num? ?? 0).toDouble() / 3.6,
+        weatherDescription: (description?['text'] as String? ?? 'Unknown')
+            .capitalize(),
+        weatherIcon: weatherCondition['iconBaseUri'] as String? ?? '',
         fetchedAt: DateTime.now(),
       );
       _log.i(
@@ -97,8 +110,10 @@ class ClimateSatelliteService {
         'Requesting 5-day forecast for lat=$lat, lng=$lng',
       );
       final uri = Uri.parse(
-        '$_owmBase/forecast?lat=$lat&lon=$lng'
-        '&appid=$_weatherApiKey&units=metric&cnt=40',
+        '$_googleWeatherBase/forecast/days:lookup'
+        '?key=$_weatherApiKey'
+        '&location.latitude=$lat&location.longitude=$lng'
+        '&days=5&unitsSystem=METRIC',
       );
       final res = await http.get(uri).timeout(_timeout);
 
@@ -111,38 +126,41 @@ class ClimateSatelliteService {
       }
 
       final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final rawList = data['list'] as List<dynamic>;
+      final rawDays = data['forecastDays'] as List<dynamic>? ?? [];
 
-      final Map<String, Map<String, dynamic>> dayMap = {};
-      for (final item in rawList) {
+      final days = <Map<String, dynamic>>[];
+      for (final item in rawDays) {
         final entry = item as Map<String, dynamic>;
-        final dt =
-            DateTime.fromMillisecondsSinceEpoch((entry['dt'] as int) * 1000);
-        final dayKey =
-            '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
-        if (!dayMap.containsKey(dayKey) || dt.hour == 12) {
-          final mainData = entry['main'] as Map<String, dynamic>;
-          final weatherList = entry['weather'] as List<dynamic>;
-          final weatherEntry = weatherList.first as Map<String, dynamic>;
-          dayMap[dayKey] = {
-            'date': dt,
-            'temp': (mainData['temp'] as num).toDouble(),
-            'humidity': (mainData['humidity'] as num).toDouble(),
-            'description':
-                (weatherEntry['description'] as String).capitalize(),
-            'icon': weatherEntry['icon'] as String,
-          };
-        }
+        final displayDate = entry['displayDate'] as Map<String, dynamic>?;
+        if (displayDate == null) continue;
+        final dt = DateTime(
+          displayDate['year'] as int,
+          displayDate['month'] as int,
+          displayDate['day'] as int,
+        );
+        final daytime =
+            entry['daytimeForecast'] as Map<String, dynamic>? ?? {};
+        final weatherCondition =
+            daytime['weatherCondition'] as Map<String, dynamic>? ?? {};
+        final description =
+            weatherCondition['description'] as Map<String, dynamic>?;
+        final maxTemp = entry['maxTemperature'] as Map<String, dynamic>?;
+
+        days.add({
+          'date': dt,
+          'temp': (maxTemp?['degrees'] as num? ?? 0).toDouble(),
+          'humidity': (daytime['relativeHumidity'] as num? ?? 0).toDouble(),
+          'description':
+              (description?['text'] as String? ?? 'Unknown').capitalize(),
+          'icon': weatherCondition['iconBaseUri'] as String? ?? '',
+        });
       }
 
-      final sorted = dayMap.values.toList()
-        ..sort((a, b) =>
-            (a['date'] as DateTime).compareTo(b['date'] as DateTime));
       _log.i(
         'ClimateSatelliteService.fetchFiveDayForecast: '
-        '${sorted.length} daily forecasts parsed',
+        '${days.length} daily forecasts parsed',
       );
-      return sorted.take(5).toList();
+      return days.take(5).toList();
     } catch (e, st) {
       _log.e(
         'ClimateSatelliteService.fetchFiveDayForecast: Error – $e',
@@ -250,8 +268,8 @@ class ClimateSatelliteService {
       final uri = Uri.parse(
         '$_agroBase/ndvi/history?polyid=$agroPolyId'
         '&appid=$_agroApiKey'
-        '&period_start=$startUnix'
-        '&period_end=$endUnix',
+        '&start=$startUnix'
+        '&end=$endUnix',
       );
       final res = await http.get(uri).timeout(_timeout);
 
@@ -315,7 +333,12 @@ class ClimateSatelliteService {
   double _estimateSoilMoisture(double ndvi) =>
       ((ndvi * 85.0).clamp(0.0, 100.0));
 
-  SatelliteData _simulatedNdviData() {
+  SatelliteData _simulatedNdviData() => simulatedNdviData();
+
+  /// Public so callers can show placeholder NDVI data without making a
+  /// network request (e.g. a farm that has no registered AgroMonitoring
+  /// polygon yet).
+  SatelliteData simulatedNdviData() {
     const ndvi = 0.52;
     return SatelliteData(
       ndviScore: ndvi,

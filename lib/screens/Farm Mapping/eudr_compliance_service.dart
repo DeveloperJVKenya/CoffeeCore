@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:logger/logger.dart';
+import 'package:coffeecore/config.dart';
 
 // ── EUDR Compliance Result ──────────────────────────────────
 class EudrComplianceResult {
@@ -31,15 +33,31 @@ class EudrComplianceResult {
 class EudrComplianceService {
   final Logger _log = Logger(printer: PrettyPrinter());
 
-  static const String _gfwBase = 'https://data-api.globalforestwatch.org';
+  // GFW's Data API doesn't send CORS headers, so browser (web) builds route
+  // through a Cloud Functions proxy that fetches server-side instead.
+  // Native builds (Android/iOS/desktop) aren't subject to browser CORS and
+  // call GFW directly.
+  static const String _gfwBase = kIsWeb
+      ? 'https://us-central1-coffeecore-7111a.cloudfunctions.net/gfwProxy'
+      : 'https://data-api.globalforestwatch.org';
+  static const String _gfwApiKey = Config.gfwApiKey;
   static const double _forestThresholdPercent = 30.0;
   static const Duration _timeout = Duration(seconds: 25);
+
+  bool _isPlaceholderKey(String key) => key.startsWith('YOUR_') || key.isEmpty;
 
   /// Runs the full compliance check for a farm polygon.
   Future<EudrComplianceResult> checkFarmCompliance({
     required List<LatLng> coordinates,
     required double areaHectares,
   }) async {
+    if (_isPlaceholderKey(_gfwApiKey)) {
+      _log.w(
+        'EudrComplianceService.checkFarmCompliance: '
+        'Global Forest Watch API key not configured – returning simulated result',
+      );
+      return simulatedResult(compliant: false);
+    }
     try {
       _log.i(
         'EUDR: Starting compliance check for polygon '
@@ -161,7 +179,10 @@ class EudrComplianceService {
     final res = await http
         .post(
           Uri.parse('$_gfwBase/geostore'),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': _gfwApiKey,
+          },
           body: body,
         )
         .timeout(_timeout);
@@ -179,7 +200,9 @@ class EudrComplianceService {
     final uri = Uri.parse(
       '$_gfwBase/umd/tree-cover-loss?geostore=$geostoreId&thresh=30',
     );
-    final res = await http.get(uri).timeout(_timeout);
+    final res = await http
+        .get(uri, headers: {'x-api-key': _gfwApiKey})
+        .timeout(_timeout);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw Exception(

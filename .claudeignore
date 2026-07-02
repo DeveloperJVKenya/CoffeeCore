@@ -1,0 +1,25 @@
+# Flutter/Dart Build and Cache Directories
+.dart_tool/
+.fvm/
+build/
+ios/Flutter/
+android/.gradle/
+
+# Web/Node dependencies (if any exist)
+node_modules/
+
+# OS and IDE files
+.DS_Store
+.idea/
+.vscode/
+
+# Large lockfiles and auto-generated data
+*.lock
+pubspec.lock
+*.g.dart
+*.freezed.dart
+
+# Sensitive files and keys
+.env
+*.pem
+*.secret
