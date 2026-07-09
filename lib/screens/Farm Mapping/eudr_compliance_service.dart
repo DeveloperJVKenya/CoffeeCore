@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:logger/logger.dart';
 import 'package:coffeecore/config.dart';
+import 'package:coffeecore/screens/Farm%20Mapping/service_exceptions.dart';
 
 // ── EUDR Compliance Result ──────────────────────────────────
 class EudrComplianceResult {
@@ -54,9 +55,18 @@ class EudrComplianceService {
     if (_isPlaceholderKey(_gfwApiKey)) {
       _log.w(
         'EudrComplianceService.checkFarmCompliance: '
-        'Global Forest Watch API key not configured – returning simulated result',
+        'Global Forest Watch API key not configured',
       );
-      return simulatedResult(compliant: false);
+      throw const ServiceUnavailableException(
+        'EUDR deforestation checks are not configured for this app yet.',
+      );
+    }
+    if (areaHectares <= 0.0) {
+      throw const ServiceUnavailableException(
+        "This farm's mapped area is too small or wasn't recorded correctly "
+        'to run a reliable EUDR analysis. Please re-draw the farm boundary '
+        'on the map and try again.',
+      );
     }
     try {
       _log.i(
@@ -67,40 +77,24 @@ class EudrComplianceService {
       // 1. Register polygon with GFW geostore
       final geostoreId = await _createGeostore(coordinates);
       if (geostoreId == null) {
-        throw Exception('Failed to register polygon with GFW geostore');
+        throw const ServiceUnavailableException(
+          'Could not register this farm boundary with Global Forest Watch. Please try again shortly.',
+        );
       }
       _log.i('EUDR: GFW geostore created: $geostoreId');
 
-      // 2. Query Hansen UMD tree-cover-loss analysis
-      final analysis = await _queryTreeCoverLoss(geostoreId);
+      // 2. Query Hansen UMD baseline forest extent (year-2000 tree cover)
+      //    and cumulative tree-cover loss before the EUDR 2020 cutoff, both
+      //    via the Data API's SQL query interface (the old REST analysis
+      //    endpoints under /umd/tree-cover-loss no longer exist and 404).
+      final forestAreaHa = await _queryForestAreaHa(geostoreId);
+      final lossBefore2020 = await _queryLossBeforeYear(geostoreId, 2020);
 
-      // 3. Parse response (defensive – GFW API v2 structure)
       final treeCover2000 =
-          (analysis['treeCover'] as num? ??
-           analysis['tree_cover_2000'] as num? ??
-           analysis['treeCover2000'] as num? ?? 0).toDouble();
-
-      // Loss may come as an array by year or as a total scalar
-      final lossList = (analysis['loss'] as List<dynamic>?) ??
-                       (analysis['lossByYear'] as List<dynamic>?) ?? [];
-
-      double lossBefore2020 = 0.0;
-      if (lossList.isNotEmpty && lossList.first is Map) {
-        for (final item in lossList) {
-          final year = (item['year'] as num? ?? 0).toInt();
-          if (year < 2020) {
-            lossBefore2020 += (item['area'] as num? ?? item['loss'] as num? ?? 0).toDouble();
-          }
-        }
-      } else if (analysis['loss'] is num) {
-        // Fallback: total loss scalar (less ideal)
-        lossBefore2020 = (analysis['loss'] as num).toDouble();
-      }
+          (forestAreaHa / areaHectares * 100).clamp(0.0, 100.0);
 
       // 4. Compliance interpretation
-      final lossPercent = areaHectares > 0
-          ? (lossBefore2020 / areaHectares * 100).clamp(0, 100)
-          : 0.0;
+      final lossPercent = (lossBefore2020 / areaHectares * 100).clamp(0, 100);
       final remainingCover = (treeCover2000 - lossPercent).clamp(0.0, 100.0);
       final wasForested = treeCover2000 >= _forestThresholdPercent;
       final isCompliant = !wasForested;
@@ -147,12 +141,20 @@ class EudrComplianceService {
         remainingTreeCoverPercent: remainingCover,
         explanation: explanation,
         recommendation: recommendation,
-        dataSource: 'Global Forest Watch (GFW) – Hansen-UMD Global Forest Change',
+        dataSource:
+            'Global Forest Watch (GFW) – Hansen-UMD Global Forest Change',
         checkedAt: DateTime.now(),
       );
+    } on ServiceUnavailableException {
+      rethrow;
     } catch (e, st) {
       _log.e('EUDR compliance check failed: $e', stackTrace: st);
-      rethrow;
+      throw ServiceUnavailableException(
+        isNetworkError(e)
+            ? 'Could not reach Global Forest Watch — check your internet connection.'
+            : 'Something went wrong running the EUDR deforestation check.',
+        isNetworkError: isNetworkError(e),
+      );
     }
   }
 
@@ -189,29 +191,71 @@ class EudrComplianceService {
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       _log.w('GFW geostore creation failed: ${res.statusCode} ${res.body}');
-      return null;
+      throw ServiceUnavailableException(
+        extractApiMessage(res.body) ??
+            'Could not register this farm boundary with Global Forest Watch (HTTP ${res.statusCode}).',
+      );
     }
 
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     return data['data']?['id'] as String?;
   }
 
-  Future<Map<String, dynamic>> _queryTreeCoverLoss(String geostoreId) async {
-    final uri = Uri.parse(
-      '$_gfwBase/umd/tree-cover-loss?geostore=$geostoreId&thresh=30',
+  /// Baseline forested area (ha) within the geostore at >=30% canopy density
+  /// in the year-2000 UMD baseline.
+  Future<double> _queryForestAreaHa(String geostoreId) async {
+    final rows = await _runSqlQuery(
+      dataset: 'umd_tree_cover_density_2000',
+      sql: 'SELECT SUM(area__ha) as forest_area FROM results '
+          'WHERE umd_tree_cover_density_2000__threshold >= 30',
+      geostoreId: geostoreId,
     );
+    if (rows.isEmpty) return 0.0;
+    return (rows.first['forest_area'] as num? ?? 0).toDouble();
+  }
+
+  /// Cumulative Hansen/UMD tree-cover loss (ha) within the geostore, on
+  /// land that was >=30% canopy density in 2000, lost strictly before
+  /// [beforeYear].
+  Future<double> _queryLossBeforeYear(String geostoreId, int beforeYear) async {
+    final rows = await _runSqlQuery(
+      dataset: 'umd_tree_cover_loss',
+      sql: 'SELECT SUM(area__ha) as loss_area FROM results '
+          'WHERE umd_tree_cover_density_2000__threshold >= 30 '
+          'AND umd_tree_cover_loss__year < $beforeYear',
+      geostoreId: geostoreId,
+    );
+    if (rows.isEmpty) return 0.0;
+    return (rows.first['loss_area'] as num? ?? 0).toDouble();
+  }
+
+  /// Runs a read-only SQL query against a GFW Data API dataset, scoped to
+  /// a previously-created geostore (see /geostore in [_createGeostore]).
+  Future<List<Map<String, dynamic>>> _runSqlQuery({
+    required String dataset,
+    required String sql,
+    required String geostoreId,
+  }) async {
+    final uri = Uri.parse('$_gfwBase/dataset/$dataset/latest/query/json')
+        .replace(queryParameters: {
+      'sql': sql,
+      'geostore_id': geostoreId,
+      'geostore_origin': 'rw',
+    });
     final res = await http
-        .get(uri, headers: {'x-api-key': _gfwApiKey})
-        .timeout(_timeout);
+        .get(uri, headers: {'x-api-key': _gfwApiKey}).timeout(_timeout);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw Exception(
-        'GFW tree-cover-loss query failed: ${res.statusCode} ${res.body}',
+      _log.w('GFW $dataset query failed: ${res.statusCode} ${res.body}');
+      throw ServiceUnavailableException(
+        extractApiMessage(res.body) ??
+            'Global Forest Watch returned an error (HTTP ${res.statusCode}).',
       );
     }
 
     final data = jsonDecode(res.body) as Map<String, dynamic>;
-    return data['data']?['attributes'] as Map<String, dynamic>? ?? {};
+    final rows = data['data'] as List<dynamic>?;
+    return rows?.cast<Map<String, dynamic>>() ?? [];
   }
 
   // ── Simulated result for UI testing (no API key needed) ─────

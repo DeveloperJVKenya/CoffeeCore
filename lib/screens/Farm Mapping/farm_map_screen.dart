@@ -1031,14 +1031,12 @@ class _FarmMapScreenState extends State<FarmMapScreen>
         farmName: farmName,
         coordinates: coords,
       );
-      if (polyId != null) {
-        await _mappingService.setAgroMonitoringPolyId(farmId, polyId);
-        _log.i(
-          'FarmMapScreen._registerAgroPolygonAsync: '
-          'Registered farm $farmId → AgroMonitoring polyId=$polyId',
-        );
-        _fetchAndAttachNdviData(farmId: farmId, agroPolyId: polyId);
-      }
+      await _mappingService.setAgroMonitoringPolyId(farmId, polyId);
+      _log.i(
+        'FarmMapScreen._registerAgroPolygonAsync: '
+        'Registered farm $farmId → AgroMonitoring polyId=$polyId',
+      );
+      _fetchAndAttachNdviData(farmId: farmId, agroPolyId: polyId);
     } catch (e, st) {
       _log.e(
         'FarmMapScreen._registerAgroPolygonAsync: Error – $e',
@@ -1055,13 +1053,11 @@ class _FarmMapScreenState extends State<FarmMapScreen>
     try {
       final climate =
           await _climateService.fetchCurrentClimate(lat: lat, lng: lng);
-      if (climate != null) {
-        await _mappingService.updateClimateData(farmId, climate);
-        _log.i(
-          'FarmMapScreen._fetchAndAttachClimateData: '
-          'Climate data attached to farm $farmId',
-        );
-      }
+      await _mappingService.updateClimateData(farmId, climate);
+      _log.i(
+        'FarmMapScreen._fetchAndAttachClimateData: '
+        'Climate data attached to farm $farmId',
+      );
     } catch (e, st) {
       _log.e(
         'FarmMapScreen._fetchAndAttachClimateData: Error – $e',
@@ -1078,13 +1074,11 @@ class _FarmMapScreenState extends State<FarmMapScreen>
       final satellite = await _climateService.fetchLatestNdvi(
         agroPolyId: agroPolyId,
       );
-      if (satellite != null) {
-        await _mappingService.updateSatelliteData(farmId, satellite);
-        _log.i(
-          'FarmMapScreen._fetchAndAttachNdviData: '
-          'Satellite data attached to farm $farmId',
-        );
-      }
+      await _mappingService.updateSatelliteData(farmId, satellite);
+      _log.i(
+        'FarmMapScreen._fetchAndAttachNdviData: '
+        'Satellite data attached to farm $farmId',
+      );
     } catch (e, st) {
       _log.e(
         'FarmMapScreen._fetchAndAttachNdviData: Error – $e',

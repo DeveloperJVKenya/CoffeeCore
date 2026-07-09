@@ -99,14 +99,16 @@ class _HomePageState extends State<HomePage> {
           .doc(_userId)
           .get();
       if (!userSnapshot.exists) {
-        logger.w('User document not found in Users collection for UID: $_userId');
+        logger
+            .w('User document not found in Users collection for UID: $_userId');
         if (mounted) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const LoginScreen()),
           );
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User account not found. Please log in again.')),
+            const SnackBar(
+                content: Text('User account not found. Please log in again.')),
           );
         }
         return;
@@ -143,7 +145,8 @@ class _HomePageState extends State<HomePage> {
         String coopId = coopDoc.id;
         String formattedCoopName = coopId.replaceAll('_', ' ');
         try {
-          logger.i('Checking Market Manager role for coop: $coopId, UID: $_userId');
+          logger.i(
+              'Checking Market Manager role for coop: $coopId, UID: $_userId');
           DocumentSnapshot managerSnapshot = await FirebaseFirestore.instance
               .collection('${coopId}_marketmanagers')
               .doc(_userId)
@@ -157,7 +160,8 @@ class _HomePageState extends State<HomePage> {
           }
 
           if (!isCoopRegistered) {
-            logger.i('Checking cooperative registration for coop: $coopId, UID: $_userId');
+            logger.i(
+                'Checking cooperative registration for coop: $coopId, UID: $_userId');
             DocumentSnapshot userDoc = await FirebaseFirestore.instance
                 .collection('${coopId}_users')
                 .doc(_userId)
@@ -197,19 +201,20 @@ class _HomePageState extends State<HomePage> {
           _isCoopRegistered = isCoopRegistered;
           _cooperativeName = isCoopAdmin
               ? coopAdminCoop
-              : (isMarketManager || isCoopRegistered
-                  ? cooperativeName
-                  : null);
+              : (isMarketManager || isCoopRegistered ? cooperativeName : null);
           _userCooperatives = userCooperatives;
           logger.i(
               'Fetched data - UserId: $_userId, UserData: $_userData, IsAdmin: $_isMainAdmin, IsCoopAdmin: $_isCoopAdmin, IsMarketManager: $_isMarketManager, IsCoopRegistered: $_isCoopRegistered, Cooperative: $_cooperativeName, UserCooperatives: $_userCooperatives');
         });
       }
     } catch (e) {
-      logger.e('Error fetching user data (attempt ${retryCount + 1}/$maxRetries): $e');
-      if (retryCount < maxRetries && e.toString().contains('Unexpected state')) {
+      logger.e(
+          'Error fetching user data (attempt ${retryCount + 1}/$maxRetries): $e');
+      if (retryCount < maxRetries &&
+          e.toString().contains('Unexpected state')) {
         await Future.delayed(const Duration(seconds: 2));
-        return _fetchUserData(retryCount: retryCount + 1, maxRetries: maxRetries);
+        return _fetchUserData(
+            retryCount: retryCount + 1, maxRetries: maxRetries);
       }
       if (mounted) {
         String errorMsg = 'Error fetching user data. Please try again.';
@@ -226,7 +231,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _listenToAuthState() {
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
+    _authSubscription =
+        FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user != null) {
         logger.i('Auth state changed - User logged in: ${user.uid}');
         if (mounted) {
@@ -260,10 +266,10 @@ class _HomePageState extends State<HomePage> {
           AppUser appUser = AppUser.fromFirestore(userSnapshot, null);
           setState(() {
             _userData = appUser.toMap();
-            _profileImageBytes = appUser.profileImage != null &&
-                    appUser.profileImage!.isNotEmpty
-                ? base64Decode(appUser.profileImage!)
-                : null;
+            _profileImageBytes =
+                appUser.profileImage != null && appUser.profileImage!.isNotEmpty
+                    ? base64Decode(appUser.profileImage!)
+                    : null;
           });
         }
       }, onError: (e) {
@@ -294,10 +300,10 @@ class _HomePageState extends State<HomePage> {
         if (mounted) {
           setState(() {
             _isCoopAdmin = snapshot.exists;
-            _cooperativeName = snapshot.exists &&
-                    snapshot.data()?['cooperative'] != null
-                ? snapshot['cooperative'].replaceAll('_', ' ')
-                : _cooperativeName;
+            _cooperativeName =
+                snapshot.exists && snapshot.data()?['cooperative'] != null
+                    ? snapshot['cooperative'].replaceAll('_', ' ')
+                    : _cooperativeName;
             if (snapshot.exists &&
                 snapshot.data()?['cooperative'] != null &&
                 !_userCooperatives.contains(snapshot['cooperative'])) {
@@ -319,8 +325,9 @@ class _HomePageState extends State<HomePage> {
             .listen((snapshot) {
           if (mounted) {
             bool isMarketManager = snapshot.exists;
-            String? coopName =
-                isMarketManager ? coopId.replaceAll('_', ' ') : _cooperativeName;
+            String? coopName = isMarketManager
+                ? coopId.replaceAll('_', ' ')
+                : _cooperativeName;
             setState(() {
               _isMarketManager = isMarketManager;
               if (isMarketManager) {
@@ -338,10 +345,8 @@ class _HomePageState extends State<HomePage> {
     }
 
     _firestoreSubscriptions.add(
-      FirebaseFirestore.instance
-          .collection('cooperatives')
-          .snapshots()
-          .listen((coopSnapshot) async {
+      FirebaseFirestore.instance.collection('cooperatives').snapshots().listen(
+          (coopSnapshot) async {
         List<String> newCooperatives = [];
         bool foundCoopRegistered = false;
         String? tempCoopName;
@@ -384,7 +389,8 @@ class _HomePageState extends State<HomePage> {
   Future<void> _handleLogout() async {
     logger.i('Starting logout process for user: $_userId');
     try {
-      logger.i('Canceling ${_firestoreSubscriptions.length} Firestore subscriptions');
+      logger.i(
+          'Canceling ${_firestoreSubscriptions.length} Firestore subscriptions');
       for (var subscription in _firestoreSubscriptions) {
         subscription.cancel();
       }
@@ -444,10 +450,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-    PreferredSizeWidget _buildAppBar(BuildContext context) {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final appBarHeight = screenHeight * 0.08; // Responsive height
-    
+
     return PreferredSize(
       preferredSize: Size.fromHeight(appBarHeight),
       child: AppBar(
@@ -476,22 +482,26 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.brown[700],
         leading: Builder(
           builder: (context) => IconButton(
-            icon: Icon(Icons.menu, color: Colors.white, size: screenHeight * 0.035),
+            icon: Icon(Icons.menu,
+                color: Colors.white, size: screenHeight * 0.035),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.notifications, color: Colors.white, size: screenHeight * 0.035),
+            icon: Icon(Icons.notifications,
+                color: Colors.white, size: screenHeight * 0.035),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const NotificationsSettingsScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const NotificationsSettingsScreen()),
               );
             },
           ),
           IconButton(
-            icon: Icon(Icons.search, color: Colors.white, size: screenHeight * 0.035),
+            icon: Icon(Icons.search,
+                color: Colors.white, size: screenHeight * 0.035),
             onPressed: () {},
           ),
         ],
@@ -502,7 +512,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildBody(BuildContext context) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
     final appBarHeight = MediaQuery.of(context).size.height * 0.08;
-    
+
     return SafeArea(
       top: false,
       child: Column(
@@ -517,7 +527,8 @@ class _HomePageState extends State<HomePage> {
             child: _buildClickableSections(),
           ),
           SizedBox(
-            height: MediaQuery.of(context).size.height * 0.08, // Fixed height for buttons
+            height: MediaQuery.of(context).size.height *
+                0.08, // Fixed height for buttons
             child: _buildRoleBasedButtons(),
           ),
           const SizedBox(height: 8), // Small buffer before bottom nav
@@ -543,12 +554,18 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(width: 8),
                 _buildMarketManagerButton(),
               ],
-              if (_isCoopRegistered && !_isMainAdmin && !_isCoopAdmin && !_isMarketManager) ...[
+              if (_isCoopRegistered &&
+                  !_isMainAdmin &&
+                  !_isCoopAdmin &&
+                  !_isMarketManager) ...[
                 _buildMenuButton(context),
                 const SizedBox(width: 8),
                 _buildProduceButton(),
               ],
-              if (!_isMainAdmin && !_isCoopAdmin && !_isMarketManager && !_isCoopRegistered)
+              if (!_isMainAdmin &&
+                  !_isCoopAdmin &&
+                  !_isMarketManager &&
+                  !_isCoopRegistered)
                 _buildMenuButton(context),
             ],
           ),
@@ -562,11 +579,14 @@ class _HomePageState extends State<HomePage> {
       onPressed: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const AdminManagementScreen()),
+          MaterialPageRoute(
+              builder: (context) => const AdminManagementScreen()),
         );
       },
-      icon: const Icon(Icons.admin_panel_settings, color: Colors.white, size: 18),
-      label: const Text('Admin Management', style: TextStyle(color: Colors.white, fontSize: 13)),
+      icon:
+          const Icon(Icons.admin_panel_settings, color: Colors.white, size: 18),
+      label: const Text('Admin Management',
+          style: TextStyle(color: Colors.white, fontSize: 13)),
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         backgroundColor: Colors.brown[700],
@@ -581,11 +601,13 @@ class _HomePageState extends State<HomePage> {
       onPressed: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const CoopAdminManagementScreen()),
+          MaterialPageRoute(
+              builder: (context) => const CoopAdminManagementScreen()),
         );
       },
       icon: const Icon(Icons.group, color: Colors.white, size: 18),
-      label: const Text('Co-op Admin Management', style: TextStyle(color: Colors.white, fontSize: 13)),
+      label: const Text('Co-op Admin Management',
+          style: TextStyle(color: Colors.white, fontSize: 13)),
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         backgroundColor: Colors.brown[700],
@@ -604,7 +626,8 @@ class _HomePageState extends State<HomePage> {
         );
       },
       icon: const Icon(Icons.storefront_sharp, color: Colors.white, size: 18),
-      label: const Text('Market Operations', style: TextStyle(color: Colors.white, fontSize: 13)),
+      label: const Text('Market Operations',
+          style: TextStyle(color: Colors.white, fontSize: 13)),
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         backgroundColor: Colors.brown[700],
@@ -621,7 +644,8 @@ class _HomePageState extends State<HomePage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ProduceScreen(cooperativeName: _cooperativeName!),
+              builder: (context) =>
+                  ProduceScreen(cooperativeName: _cooperativeName!),
             ),
           );
         } else {
@@ -631,7 +655,8 @@ class _HomePageState extends State<HomePage> {
         }
       },
       icon: const Icon(Icons.landscape, color: Colors.white, size: 18),
-      label: const Text('Produce', style: TextStyle(color: Colors.white, fontSize: 13)),
+      label: const Text('Produce',
+          style: TextStyle(color: Colors.white, fontSize: 13)),
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         backgroundColor: Colors.brown[700],
@@ -648,7 +673,8 @@ class _HomePageState extends State<HomePage> {
           Scaffold.of(context).openDrawer();
         },
         icon: const Icon(Icons.menu, color: Colors.white, size: 18),
-        label: const Text('Menu', style: TextStyle(color: Colors.white, fontSize: 13)),
+        label: const Text('Menu',
+            style: TextStyle(color: Colors.white, fontSize: 13)),
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           backgroundColor: Colors.brown[700],
@@ -660,118 +686,137 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildCarousel() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: CarouselSlider(
-        options: CarouselOptions(
-          autoPlay: true,
-          enlargeCenterPage: true,
-          aspectRatio: 16 / 9,
-          autoPlayCurve: Curves.fastOutSlowIn,
-          enableInfiniteScroll: true,
-          autoPlayAnimationDuration: const Duration(milliseconds: 800),
-          viewportFraction: 0.85,
-          height: double.infinity,
-        ),
-        items: _carouselImages.map((image) {
-          int index = _carouselImages.indexOf(image);
-          List<String> labels = [
-            'Get Weather Forecasts',
-            'Record Coffee Field Data',
-            'Manage Pests & Diseases',
-            'Manage Coffee Farming',
-            'Coffee Farming Manuals',
-            'Get Coffee Farming Tips',
-            'Explore Coffee Soil Insights',
-          ];
-
-          void onCarouselTap() {
-            switch (index) {
-              case 0:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const WeatherScreen()),
-                );
-                break;
-              case 1:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CoffeeManagementScreen()),
-                );
-                break;
-              case 2:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PestDiseaseHomePage()),
-                );
-                break;
-              case 3:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CoffeeManagementScreen()),
-                );
-                break;
-              case 4:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ManualsScreen()),
-                );
-                break;
-              case 5:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LearnCoffeeFarming()),
-                );
-                break;
-              case 6:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CoffeeSoilHomePage()),
-                );
-                break;
-            }
-          }
-
-          return GestureDetector(
-            onTap: onCarouselTap,
-            child: Stack(
-              children: [
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    image: DecorationImage(
-                      image: AssetImage(image),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 8,
-                  left: 8,
-                  right: 8,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Text(
-                      labels[index],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // carousel_slider computes its internal box height from this value;
+        // an unbounded/NaN constraint (as can happen for one frame during a
+        // push/pop route transition) must never reach it directly.
+        final double carouselHeight =
+            constraints.maxHeight.isFinite && constraints.maxHeight > 0
+                ? constraints.maxHeight
+                : 220.0;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: CarouselSlider(
+            options: CarouselOptions(
+              autoPlay: true,
+              enlargeCenterPage: true,
+              aspectRatio: 16 / 9,
+              autoPlayCurve: Curves.fastOutSlowIn,
+              enableInfiniteScroll: true,
+              autoPlayAnimationDuration: const Duration(milliseconds: 800),
+              viewportFraction: 0.85,
+              height: carouselHeight,
             ),
-          );
-        }).toList(),
-      ),
+            items: _carouselImages.map((image) {
+              int index = _carouselImages.indexOf(image);
+              List<String> labels = [
+                'Get Weather Forecasts',
+                'Record Coffee Field Data',
+                'Manage Pests & Diseases',
+                'Manage Coffee Farming',
+                'Coffee Farming Manuals',
+                'Get Coffee Farming Tips',
+                'Explore Coffee Soil Insights',
+              ];
+
+              void onCarouselTap() {
+                switch (index) {
+                  case 0:
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const WeatherScreen()),
+                    );
+                    break;
+                  case 1:
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const CoffeeManagementScreen()),
+                    );
+                    break;
+                  case 2:
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const PestDiseaseHomePage()),
+                    );
+                    break;
+                  case 3:
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const CoffeeManagementScreen()),
+                    );
+                    break;
+                  case 4:
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const ManualsScreen()),
+                    );
+                    break;
+                  case 5:
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const LearnCoffeeFarming()),
+                    );
+                    break;
+                  case 6:
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const CoffeeSoilHomePage()),
+                    );
+                    break;
+                }
+              }
+
+              return GestureDetector(
+                onTap: onCarouselTap,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        image: DecorationImage(
+                          image: AssetImage(image),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      right: 8,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        child: Text(
+                          labels[index],
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 
@@ -789,13 +834,15 @@ class _HomePageState extends State<HomePage> {
           _buildClickableCard('Coffee Farming Tips', Icons.lightbulb, () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const LearnCoffeeFarming()),
+              MaterialPageRoute(
+                  builder: (context) => const LearnCoffeeFarming()),
             );
           }),
           _buildClickableCard('Coffee Prices', Icons.shopping_cart, () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const CoffeePricesWidget()),
+              MaterialPageRoute(
+                  builder: (context) => const CoffeePricesWidget()),
             );
           }),
         ],
@@ -842,7 +889,8 @@ class _HomePageState extends State<HomePage> {
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
         BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Manuals'),
-        BottomNavigationBarItem(icon: Icon(Icons.supervisor_account), label: 'F-Management'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.supervisor_account), label: 'F-Management'),
         BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Tips'),
       ],
       currentIndex: _selectedIndex,
@@ -868,13 +916,15 @@ class _HomePageState extends State<HomePage> {
           case 2:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const CoffeeManagementScreen()),
+              MaterialPageRoute(
+                  builder: (context) => const CoffeeManagementScreen()),
             );
             break;
           case 3:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const LearnCoffeeFarming()),
+              MaterialPageRoute(
+                  builder: (context) => const LearnCoffeeFarming()),
             );
             break;
         }
@@ -908,8 +958,10 @@ class _HomePageState extends State<HomePage> {
                       fit: BoxFit.cover,
                       width: 60,
                       height: 60,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Icon(Icons.person, size: 40, color: Colors.brown[700]),
+                      errorBuilder: (context, error, stackTrace) => Icon(
+                          Icons.person,
+                          size: 40,
+                          color: Colors.brown[700]),
                     ),
                   )
                 : Icon(Icons.person, size: 40, color: Colors.brown[700]),
@@ -922,16 +974,13 @@ class _HomePageState extends State<HomePage> {
         setState(() {});
       }),
       _buildDrawerItem(Icons.cloud, 'Weather', () {
-        Navigator.push(
-            context,
+        Navigator.push(context,
             MaterialPageRoute(builder: (context) => const WeatherScreen()));
       }),
       _buildDrawerItem(Icons.map, 'Farm Mapping', () {
         logger.i('Navigating to FarmMapScreen');
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => const FarmMapScreen()));
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => const FarmMapScreen()));
       }),
       /*_buildDrawerItem(Icons.satellite_alt, 'Coffee Satellite Advisor', () {
         logger.i('Navigating to Coffee Satellite Advisor');
@@ -958,13 +1007,15 @@ class _HomePageState extends State<HomePage> {
       _buildDrawerItem(Icons.pest_control, 'Pests & Diseases', () {
         Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const PestDiseaseHomePage()));
+            MaterialPageRoute(
+                builder: (context) => const PestDiseaseHomePage()));
       }),
     ];
 
     if (_isMainAdmin || _isCoopAdmin || _isMarketManager) {
       items.add(_buildDrawerItem(Icons.landscape, 'Produce', () {
-        logger.i('Navigating to ProduceScreen with cooperative: $_cooperativeName');
+        logger.i(
+            'Navigating to ProduceScreen with cooperative: $_cooperativeName');
         String? coopName = _cooperativeName ??
             (_userCooperatives.isNotEmpty
                 ? _userCooperatives.first.replaceAll('_', ' ')
@@ -992,14 +1043,12 @@ class _HomePageState extends State<HomePage> {
                 builder: (context) => const CoffeeManagementScreen()));
       }),
       _buildDrawerItem(Icons.book, 'Coffee Manuals', () {
-        Navigator.push(
-            context,
+        Navigator.push(context,
             MaterialPageRoute(builder: (context) => const ManualsScreen()));
       }),
       _buildDrawerItem(Icons.settings, 'Settings', () {
         Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => SettingsScreen()));
+            context, MaterialPageRoute(builder: (context) => SettingsScreen()));
       }),
       _buildDrawerItem(Icons.logout, 'Logout', _handleLogout),
     ]);
@@ -1008,7 +1057,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildDrawer() {
-    logger.i('Building drawer - isMainAdmin: $_isMainAdmin, isCoopAdmin: $_isCoopAdmin, isMarketManager: $_isMarketManager, cooperativeName: $_cooperativeName');
+    logger.i(
+        'Building drawer - isMainAdmin: $_isMainAdmin, isCoopAdmin: $_isCoopAdmin, isMarketManager: $_isMarketManager, cooperativeName: $_cooperativeName');
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -1026,7 +1076,8 @@ class _HomePageState extends State<HomePage> {
         try {
           onTap();
         } catch (e, stackTrace) {
-          logger.e('Error navigating from drawer item $title: $e\nStack trace: $stackTrace');
+          logger.e(
+              'Error navigating from drawer item $title: $e\nStack trace: $stackTrace');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error navigating to $title: $e')),
           );

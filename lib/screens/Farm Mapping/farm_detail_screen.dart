@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 import 'package:coffeecore/screens/Farm%20Mapping/map_tile_providers.dart';
 import 'package:coffeecore/screens/Farm%20Mapping/eudr_compliance_service.dart';
+import 'package:coffeecore/screens/Farm%20Mapping/service_exceptions.dart';
 
 // ── Fullscreen Map Dialog (with historical forest toggle) ───
 class _FullScreenMapDialog extends StatefulWidget {
@@ -200,14 +201,20 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
   bool _isRefreshingForecast = false;
   bool _isDeleting = false;
 
+  // Reasons a fetch didn't produce real data — shown inline in each card
+  // instead of ever substituting guessed/simulated numbers for real ones.
+  String? _climateError;
+  bool _climateErrorIsNetwork = false;
+  String? _satelliteError;
+  bool _satelliteErrorIsNetwork = false;
+
   // ── EUDR Compliance state ───────────────────────────────────
   final EudrComplianceService _eudrService = EudrComplianceService();
   EudrComplianceResult? _eudrResult;
   bool _isCheckingEudr = false;
   bool _showEudrCard = false;
-
-  // REMOVED: Unused error fields — error handling is done via _showUserError() 
-  // which shows SnackBars directly without storing state
+  String? _eudrError;
+  bool _eudrErrorIsNetwork = false;
 
   // ── Theme ────────────────────────────────────────────────────
   static const Color _primary = Color(0xFF6D4C41);
@@ -267,15 +274,24 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
         lat: center.latitude,
         lng: center.longitude,
       );
-      if (climate != null) {
-        setState(() => _climateData = climate);
-        if (_farm.farmId != null) {
-          await _mappingService.updateClimateData(_farm.farmId!, climate);
-          _log.i(
-            'FarmDetailScreen: Climate data saved to Firestore '
-            'for farm ${_farm.farmId}',
-          );
-        }
+      setState(() {
+        _climateData = climate;
+        _climateError = null;
+      });
+      if (_farm.farmId != null) {
+        await _mappingService.updateClimateData(_farm.farmId!, climate);
+        _log.i(
+          'FarmDetailScreen: Climate data saved to Firestore '
+          'for farm ${_farm.farmId}',
+        );
+      }
+    } on ServiceUnavailableException catch (e) {
+      _log.w('FarmDetailScreen: Climate unavailable – ${e.userMessage}');
+      if (mounted) {
+        setState(() {
+          _climateError = e.userMessage;
+          _climateErrorIsNetwork = e.isNetworkError;
+        });
       }
     } catch (e, st) {
       _log.e('FarmDetailScreen: Climate refresh error – $e', stackTrace: st);
@@ -305,6 +321,13 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
       _log.i(
         'FarmDetailScreen: Received ${forecast.length} forecast day(s)',
       );
+    } on ServiceUnavailableException catch (e) {
+      _log.w('FarmDetailScreen: Forecast unavailable – ${e.userMessage}');
+      _showUserError(
+        title: 'Forecast Unavailable',
+        message: e.userMessage,
+        technicalDetails: 'Forecast refresh error: ${e.userMessage}',
+      );
     } catch (e, st) {
       _log.e('FarmDetailScreen: Forecast refresh error – $e', stackTrace: st);
       _showUserError(
@@ -325,9 +348,12 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
       // Legacy farms saved before an AgroMonitoring key was configured never
       // got registered. Retry registration now that a real key may exist,
       // instead of showing simulated data forever.
-      if (agroPolyId == null &&
-          _farm.farmId != null &&
-          _farm.coordinates.length >= 3) {
+      if (agroPolyId == null && _farm.farmId != null) {
+        if (_farm.coordinates.length < 3) {
+          throw const ServiceUnavailableException(
+            'This farm needs at least 3 boundary points before satellite monitoring can be enabled.',
+          );
+        }
         _log.i(
           'FarmDetailScreen: No AgroMonitoring polyId for '
           '"${_farm.farmName}" – attempting retroactive registration',
@@ -338,46 +364,47 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
           farmName: _farm.farmName,
           coordinates: coords,
         );
-        if (agroPolyId != null) {
-          await _mappingService.setAgroMonitoringPolyId(
-              _farm.farmId!, agroPolyId);
-          if (mounted) {
-            setState(() {
-              _farm = _farm.copyWith(agroMonitoringPolyId: agroPolyId);
-            });
-          }
-          _log.i(
-            'FarmDetailScreen: Registered "${_farm.farmName}" with '
-            'AgroMonitoring → polyId=$agroPolyId',
-          );
+        await _mappingService.setAgroMonitoringPolyId(
+            _farm.farmId!, agroPolyId);
+        if (mounted) {
+          setState(() {
+            _farm = _farm.copyWith(agroMonitoringPolyId: agroPolyId);
+          });
         }
+        _log.i(
+          'FarmDetailScreen: Registered "${_farm.farmName}" with '
+          'AgroMonitoring → polyId=$agroPolyId',
+        );
       }
 
-      if (agroPolyId != null) {
-        _log.i('FarmDetailScreen: Fetching NDVI for agroPolyId=$agroPolyId');
-        final satellite =
-            await _climateService.fetchLatestNdvi(agroPolyId: agroPolyId);
-        if (satellite != null) {
-          setState(() => _satelliteData = satellite);
-          if (_farm.farmId != null) {
-            await _mappingService.updateSatelliteData(
-                _farm.farmId!, satellite);
-            _log.i(
-              'FarmDetailScreen: Satellite data saved to Firestore '
-              '(NDVI=${satellite.ndviScore.toStringAsFixed(3)}, '
-              'Health=${satellite.vegetationHealth})',
-            );
-          }
-        }
-      } else {
-        _log.w(
-          'FarmDetailScreen: AgroMonitoring unavailable for '
-          '"${_farm.farmName}" – showing simulated NDVI',
+      if (agroPolyId == null) {
+        throw const ServiceUnavailableException(
+          'Satellite monitoring could not be enabled for this farm.',
         );
-        final simulated = _climateService.simulatedNdviData();
-        if (mounted) {
-          setState(() => _satelliteData = simulated);
-        }
+      }
+
+      _log.i('FarmDetailScreen: Fetching NDVI for agroPolyId=$agroPolyId');
+      final satellite =
+          await _climateService.fetchLatestNdvi(agroPolyId: agroPolyId);
+      setState(() {
+        _satelliteData = satellite;
+        _satelliteError = null;
+      });
+      if (_farm.farmId != null) {
+        await _mappingService.updateSatelliteData(_farm.farmId!, satellite);
+        _log.i(
+          'FarmDetailScreen: Satellite data saved to Firestore '
+          '(NDVI=${satellite.ndviScore.toStringAsFixed(3)}, '
+          'Health=${satellite.vegetationHealth})',
+        );
+      }
+    } on ServiceUnavailableException catch (e) {
+      _log.w('FarmDetailScreen: Satellite unavailable – ${e.userMessage}');
+      if (mounted) {
+        setState(() {
+          _satelliteError = e.userMessage;
+          _satelliteErrorIsNetwork = e.isNetworkError;
+        });
       }
     } catch (e, st) {
       _log.e(
@@ -418,8 +445,7 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
     );
 
     try {
-      // Production: uses Global Forest Watch (GFW) Hansen-UMD API.
-      // For offline UI testing, swap to: _eudrService.simulatedResult(compliant: false)
+      // Uses Global Forest Watch (GFW) Hansen-UMD API.
       final result = await _eudrService.checkFarmCompliance(
         coordinates: _farm.coordinates,
         areaHectares: _farm.areaHectares,
@@ -438,8 +464,19 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
       if (mounted) {
         setState(() {
           _eudrResult = result;
+          _eudrError = null;
           _showEudrCard = true;
           _isCheckingEudr = false;
+        });
+      }
+    } on ServiceUnavailableException catch (e) {
+      _log.w('FarmDetailScreen: EUDR unavailable – ${e.userMessage}');
+      if (mounted) {
+        setState(() {
+          _isCheckingEudr = false;
+          _eudrError = e.userMessage;
+          _eudrErrorIsNetwork = e.isNetworkError;
+          _showEudrCard = true;
         });
       }
     } catch (e, st) {
@@ -853,8 +890,18 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
   // ─────────────────────────────────────────────────────────────
 
   // ── EUDR Compliance Card ────────────────────────────────────
+
+  // Farms checked before simulated fallbacks were removed may still have a
+  // fabricated result persisted in Firestore. Never treat that as real data.
+  bool _isSimulatedEudrData(EudrComplianceData? data) =>
+      data != null && data.dataSource.toUpperCase().contains('SIMULATED');
+
   Widget _buildEudrComplianceCard() {
-    if (!_showEudrCard && _farm.eudrCompliance == null) {
+    final persistedEudr = _isSimulatedEudrData(_farm.eudrCompliance)
+        ? null
+        : _farm.eudrCompliance;
+
+    if (!_showEudrCard && persistedEudr == null) {
       return _sectionCard(
         icon: Icons.forest,
         title: 'EUDR Deforestation Check',
@@ -899,17 +946,17 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
     }
 
     final result = _eudrResult ??
-        (_farm.eudrCompliance != null
+        (persistedEudr != null
             ? EudrComplianceResult(
-                isCompliant: _farm.eudrCompliance!.isCompliant,
-                wasForestedBefore2020: _farm.eudrCompliance!.wasForestedBefore2020,
-                treeCoverPercent2000: _farm.eudrCompliance!.treeCoverPercent2000,
-                treeCoverLossAreaHa: _farm.eudrCompliance!.treeCoverLossAreaHa,
-                remainingTreeCoverPercent: _farm.eudrCompliance!.remainingTreeCoverPercent,
-                explanation: _farm.eudrCompliance!.explanation,
-                recommendation: _farm.eudrCompliance!.recommendation,
-                dataSource: _farm.eudrCompliance!.dataSource,
-                checkedAt: _farm.eudrCompliance!.checkedAt,
+                isCompliant: persistedEudr.isCompliant,
+                wasForestedBefore2020: persistedEudr.wasForestedBefore2020,
+                treeCoverPercent2000: persistedEudr.treeCoverPercent2000,
+                treeCoverLossAreaHa: persistedEudr.treeCoverLossAreaHa,
+                remainingTreeCoverPercent: persistedEudr.remainingTreeCoverPercent,
+                explanation: persistedEudr.explanation,
+                recommendation: persistedEudr.recommendation,
+                dataSource: persistedEudr.dataSource,
+                checkedAt: persistedEudr.checkedAt,
               )
             : null);
 
@@ -917,7 +964,21 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
       return _sectionCard(
         icon: Icons.forest,
         title: 'EUDR Deforestation Check',
-        child: _emptyDataState('No EUDR data available.', false),
+        trailing: _isCheckingEudr
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : IconButton(
+                icon: Icon(Icons.refresh, size: 18, color: Colors.brown[600]),
+                tooltip: 'Retry EUDR check',
+                onPressed: _checkEudrCompliance,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+        child: _eudrError != null
+            ? _unavailableState(_eudrError!, isNetwork: _eudrErrorIsNetwork)
+            : _emptyDataState('No EUDR data available.', false),
       );
     }
 
@@ -1252,12 +1313,15 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
               constraints: const BoxConstraints(),
             ),
       child: _climateData == null
-          ? _emptyDataState(
-              _isRefreshingClimate
-                  ? 'Fetching weather data…'
-                  : 'No climate data available.\nConfigure your OpenWeatherMap API key.',
-              _isRefreshingClimate,
-            )
+          ? (_climateError != null && !_isRefreshingClimate
+              ? _unavailableState(_climateError!,
+                  isNetwork: _climateErrorIsNetwork)
+              : _emptyDataState(
+                  _isRefreshingClimate
+                      ? 'Fetching weather data…'
+                      : 'No climate data available.',
+                  _isRefreshingClimate,
+                ))
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1366,12 +1430,15 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
               constraints: const BoxConstraints(),
             ),
       child: _satelliteData == null
-          ? _emptyDataState(
-              _isRefreshingSatellite
-                  ? 'Fetching satellite data…'
-                  : 'No satellite data yet.\nConfigure AgroMonitoring API key.',
-              _isRefreshingSatellite,
-            )
+          ? (_satelliteError != null && !_isRefreshingSatellite
+              ? _unavailableState(_satelliteError!,
+                  isNetwork: _satelliteErrorIsNetwork)
+              : _emptyDataState(
+                  _isRefreshingSatellite
+                      ? 'Fetching satellite data…'
+                      : 'No satellite data yet.',
+                  _isRefreshingSatellite,
+                ))
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1901,6 +1968,37 @@ class _FarmDetailScreenState extends State<FarmDetailScreen> {
               message,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Distinct from _emptyDataState: this is shown when a real fetch attempt
+  // failed for a specific, known reason (business-rule rejection, network
+  // failure, missing config) — never used to dress up fabricated data as
+  // if it were real.
+  Widget _unavailableState(String reason, {bool isNetwork = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              isNetwork ? Icons.wifi_off_rounded : Icons.info_outline,
+              size: 32,
+              color: Colors.orange[400],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              reason,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

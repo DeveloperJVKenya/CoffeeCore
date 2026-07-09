@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 import 'package:coffeecore/config.dart';
 import 'package:coffeecore/screens/Farm%20Mapping/farm_polygon_model.dart';
+import 'package:coffeecore/screens/Farm%20Mapping/service_exceptions.dart';
 
 class ClimateSatelliteService {
   final Logger _log = Logger(printer: PrettyPrinter());
@@ -24,15 +25,22 @@ class ClimateSatelliteService {
   static const Duration _timeout = Duration(seconds: 20);
 
   // ── CLIMATE DATA ────────────────────────────────────────────
+  //
+  // All fetch methods below throw ServiceUnavailableException on any
+  // failure instead of returning null/fabricated data. Callers must not
+  // substitute guessed values on error — show the exception's userMessage
+  // instead, so the UI never presents invented numbers as if real.
 
-  Future<ClimateData?> fetchCurrentClimate(
+  Future<ClimateData> fetchCurrentClimate(
       {required double lat, required double lng}) async {
     if (_isPlaceholderKey(_weatherApiKey)) {
       _log.w(
         'ClimateSatelliteService.fetchCurrentClimate: '
-        'OpenWeatherMap API key not configured – skipping',
+        'Weather API key not configured – skipping',
       );
-      return null;
+      throw const ServiceUnavailableException(
+        'Weather service is not configured for this app yet.',
+      );
     }
     try {
       _log.i(
@@ -52,7 +60,10 @@ class ClimateSatelliteService {
           'ClimateSatelliteService.fetchCurrentClimate: '
           'HTTP ${res.statusCode} – ${res.body}',
         );
-        return null;
+        throw ServiceUnavailableException(
+          extractApiMessage(res.body) ??
+              'Weather provider returned an error (HTTP ${res.statusCode}).',
+        );
       }
 
       final data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -84,12 +95,19 @@ class ClimateSatelliteService {
         '${climate.weatherDescription}',
       );
       return climate;
+    } on ServiceUnavailableException {
+      rethrow;
     } catch (e, st) {
       _log.e(
         'ClimateSatelliteService.fetchCurrentClimate: Error – $e',
         stackTrace: st,
       );
-      return null;
+      throw ServiceUnavailableException(
+        isNetworkError(e)
+            ? 'Could not reach the weather service — check your internet connection.'
+            : 'Something went wrong fetching weather data.',
+        isNetworkError: isNetworkError(e),
+      );
     }
   }
 
@@ -102,7 +120,9 @@ class ClimateSatelliteService {
         'ClimateSatelliteService.fetchFiveDayForecast: '
         'API key not configured – skipping',
       );
-      return [];
+      throw const ServiceUnavailableException(
+        'Weather service is not configured for this app yet.',
+      );
     }
     try {
       _log.i(
@@ -120,9 +140,12 @@ class ClimateSatelliteService {
       if (res.statusCode != 200) {
         _log.w(
           'ClimateSatelliteService.fetchFiveDayForecast: '
-          'HTTP ${res.statusCode}',
+          'HTTP ${res.statusCode} – ${res.body}',
         );
-        return [];
+        throw ServiceUnavailableException(
+          extractApiMessage(res.body) ??
+              'Forecast provider returned an error (HTTP ${res.statusCode}).',
+        );
       }
 
       final data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -161,18 +184,25 @@ class ClimateSatelliteService {
         '${days.length} daily forecasts parsed',
       );
       return days.take(5).toList();
+    } on ServiceUnavailableException {
+      rethrow;
     } catch (e, st) {
       _log.e(
         'ClimateSatelliteService.fetchFiveDayForecast: Error – $e',
         stackTrace: st,
       );
-      return [];
+      throw ServiceUnavailableException(
+        isNetworkError(e)
+            ? 'Could not reach the forecast service — check your internet connection.'
+            : 'Something went wrong fetching the forecast.',
+        isNetworkError: isNetworkError(e),
+      );
     }
   }
 
   // ── AGRONOMIC SATELLITE – REGISTER POLYGON ──────────────────
 
-  Future<String?> registerAgroPolygon({
+  Future<String> registerAgroPolygon({
     required String farmName,
     required List<List<double>> coordinates,
   }) async {
@@ -181,7 +211,9 @@ class ClimateSatelliteService {
         'ClimateSatelliteService.registerAgroPolygon: '
         'AgroMonitoring API key not configured – skipping',
       );
-      return null;
+      throw const ServiceUnavailableException(
+        'Satellite monitoring is not configured for this app yet.',
+      );
     }
     try {
       _log.i(
@@ -230,27 +262,38 @@ class ClimateSatelliteService {
           'ClimateSatelliteService.registerAgroPolygon: '
           'HTTP ${res.statusCode} – ${res.body}',
         );
-        return null;
+        throw ServiceUnavailableException(
+          extractApiMessage(res.body) ??
+              'Satellite provider rejected this farm boundary (HTTP ${res.statusCode}).',
+        );
       }
+    } on ServiceUnavailableException {
+      rethrow;
     } catch (e, st) {
       _log.e(
         'ClimateSatelliteService.registerAgroPolygon: Error – $e',
         stackTrace: st,
       );
-      return null;
+      throw ServiceUnavailableException(
+        isNetworkError(e)
+            ? 'Could not reach the satellite monitoring service — check your internet connection.'
+            : 'Something went wrong registering this farm for satellite monitoring.',
+        isNetworkError: isNetworkError(e),
+      );
     }
   }
 
   // ── NDVI / SATELLITE DATA ───────────────────────────────────
 
-  Future<SatelliteData?> fetchLatestNdvi(
-      {required String agroPolyId}) async {
+  Future<SatelliteData> fetchLatestNdvi({required String agroPolyId}) async {
     if (_isPlaceholderKey(_agroApiKey)) {
       _log.w(
         'ClimateSatelliteService.fetchLatestNdvi: '
-        'AgroMonitoring API key not configured – returning simulated data',
+        'AgroMonitoring API key not configured – skipping',
       );
-      return _simulatedNdviData();
+      throw const ServiceUnavailableException(
+        'Satellite monitoring is not configured for this app yet.',
+      );
     }
     try {
       final now = DateTime.now();
@@ -278,7 +321,10 @@ class ClimateSatelliteService {
           'ClimateSatelliteService.fetchLatestNdvi: '
           'HTTP ${res.statusCode} – ${res.body}',
         );
-        return null;
+        throw ServiceUnavailableException(
+          extractApiMessage(res.body) ??
+              'Satellite provider returned an error (HTTP ${res.statusCode}).',
+        );
       }
 
       final list = jsonDecode(res.body) as List<dynamic>;
@@ -287,7 +333,9 @@ class ClimateSatelliteService {
           'ClimateSatelliteService.fetchLatestNdvi: '
           'No NDVI history available for polyId=$agroPolyId',
         );
-        return null;
+        throw const ServiceUnavailableException(
+          'No satellite imagery is available yet for this farm boundary. Try again in a few days.',
+        );
       }
 
       final latest = list.last as Map<String, dynamic>;
@@ -309,12 +357,19 @@ class ClimateSatelliteService {
         'SoilMoisture=${satellite.soilMoistureIndex.toStringAsFixed(1)}%',
       );
       return satellite;
+    } on ServiceUnavailableException {
+      rethrow;
     } catch (e, st) {
       _log.e(
         'ClimateSatelliteService.fetchLatestNdvi: Error – $e',
         stackTrace: st,
       );
-      return null;
+      throw ServiceUnavailableException(
+        isNetworkError(e)
+            ? 'Could not reach the satellite monitoring service — check your internet connection.'
+            : 'Something went wrong fetching satellite data.',
+        isNetworkError: isNetworkError(e),
+      );
     }
   }
 
@@ -332,22 +387,6 @@ class ClimateSatelliteService {
 
   double _estimateSoilMoisture(double ndvi) =>
       ((ndvi * 85.0).clamp(0.0, 100.0));
-
-  SatelliteData _simulatedNdviData() => simulatedNdviData();
-
-  /// Public so callers can show placeholder NDVI data without making a
-  /// network request (e.g. a farm that has no registered AgroMonitoring
-  /// polygon yet).
-  SatelliteData simulatedNdviData() {
-    const ndvi = 0.52;
-    return SatelliteData(
-      ndviScore: ndvi,
-      vegetationHealth: _ndviToHealth(ndvi),
-      soilMoistureIndex: _estimateSoilMoisture(ndvi),
-      fetchedAt: DateTime.now(),
-      dataSource: 'Simulated (configure AgroMonitoring key for live data)',
-    );
-  }
 }
 
 extension _StringCapitalize on String {
