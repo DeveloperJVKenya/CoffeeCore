@@ -38,7 +38,8 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
         'cooperatives',
       ];
 
-      final coopSnapshot = await FirebaseFirestore.instance.collection('cooperatives').get();
+      final coopSnapshot =
+          await FirebaseFirestore.instance.collection('cooperatives').get();
       for (var doc in coopSnapshot.docs) {
         final coopName = doc.id.replaceAll(' ', '_');
         collections.addAll([
@@ -58,7 +59,8 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
 
   Future<void> _assignRole(String uid, String collection) async {
     try {
-      final userDoc = await FirebaseFirestore.instance.collection('Users').doc(uid).get();
+      final userDoc =
+          await FirebaseFirestore.instance.collection('Users').doc(uid).get();
       if (!userDoc.exists) throw 'User not found';
 
       final userData = userDoc.data() as Map<String, dynamic>;
@@ -72,15 +74,21 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
         'isDisabled': userData['isDisabled'] ?? false,
       };
 
-      await FirebaseFirestore.instance.collection(collection).doc(uid).set(roleData);
-      await _logActivity('Assigned $collection role to $uid (User: ${userData['fullName']})');
+      await FirebaseFirestore.instance
+          .collection(collection)
+          .doc(uid)
+          .set(roleData);
+      await _logActivity(
+          'Assigned $collection role to $uid (User: ${userData['fullName']})');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('${collection.replaceAll('s', '')} role assigned successfully!')));
+            content: Text(
+                '${collection.replaceAll('s', '')} role assigned successfully!')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error assigning role: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error assigning role: $e')));
       }
     }
   }
@@ -107,7 +115,8 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Dashboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Admin Dashboard',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.brown[700],
         foregroundColor: Colors.white,
       ),
@@ -137,32 +146,42 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Collection Statistics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Collection Statistics',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             if (_allCollections.isEmpty)
               const CircularProgressIndicator()
             else
-              ..._allCollections.map((collection) => StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance.collection(collection).snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const CircularProgressIndicator();
-                      }
-                      final count = snapshot.data?.docs.length ?? 0;
-                      return ListTile(
-                        title: Text(collection, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        trailing: Text('$count', style: const TextStyle(fontSize: 16, color: Colors.brown)),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => collection == 'Users'
-                                ? const ManageUsersScreen()
-                                : CollectionManagementScreen(collectionName: collection),
-                          ),
-                        ),
-                      );
-                    },
-                  )),
+              ..._allCollections
+                  .map((collection) => StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection(collection)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const CircularProgressIndicator();
+                          }
+                          final count = snapshot.data?.docs.length ?? 0;
+                          return ListTile(
+                            title: Text(collection,
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
+                            trailing: Text('$count',
+                                style: const TextStyle(
+                                    fontSize: 16, color: Colors.brown)),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => collection == 'Users'
+                                    ? const ManageUsersScreen()
+                                    : CollectionManagementScreen(
+                                        collectionName: collection),
+                              ),
+                            ),
+                          );
+                        },
+                      )),
           ],
         ),
       ),
@@ -176,9 +195,15 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
       physics: const NeverScrollableScrollPhysics(),
       childAspectRatio: 1.5,
       children: [
-        _buildOptionCard('Assign User Role', Icons.person_add, () => _showRoleSelectionDialog()),
-        _buildOptionCard('Filter Users', Icons.filter_list,
-            () => Navigator.push(context, MaterialPageRoute(builder: (context) => const FilterUsersScreen()))),
+        _buildOptionCard('Assign User Role', Icons.person_add,
+            () => _showRoleSelectionDialog()),
+        _buildOptionCard(
+            'Filter Users',
+            Icons.filter_list,
+            () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const FilterUsersScreen()))),
       ],
     );
   }
@@ -197,7 +222,10 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
             children: [
               Icon(icon, size: 40, color: Colors.brown[700]),
               const SizedBox(height: 8),
-              Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
             ],
           ),
         ),
@@ -209,7 +237,8 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Assign User Role', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Assign User Role',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -221,7 +250,8 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.brown[700],
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Assign Admin Role'),
             ),
@@ -234,7 +264,8 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.brown[700],
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
               child: const Text('Assign Co-op Admin Role'),
             ),
@@ -254,8 +285,8 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title:
-            Text('Assign ${collection.replaceAll('s', '')} Role', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Assign ${collection.replaceAll('s', '')} Role',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         content: Row(
           children: [
             Expanded(
@@ -264,7 +295,8 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                 decoration: InputDecoration(
                   labelText: 'Enter User UID',
                   hintText: 'e.g., abc123xyz789',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
@@ -283,7 +315,8 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
           TextButton(
             onPressed: () {
               if (_uidController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a UID')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a UID')));
                 return;
               }
               _assignRole(_uidController.text, collection);
@@ -301,7 +334,8 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select User', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Select User',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: double.maxFinite,
           height: 300,

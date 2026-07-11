@@ -19,7 +19,7 @@ class GeminiPestAiService {
 
   // ── In-memory caches ───────────────────────────────────────────────────────
   static final Map<String, Map<String, dynamic>> _managementCache = {};
-  static final Map<String, List<String>>         _stageListCache  = {};
+  static final Map<String, List<String>> _stageListCache = {};
 
   // ══════════════════════════════════════════════════════════════════════════
   // PUBLIC — Generate enriched management details (Paths A & B)
@@ -45,7 +45,7 @@ class GeminiPestAiService {
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
-          temperature:     0.3,
+          temperature: 0.3,
           // ✅ FIX: Increased from 1200 → 2048.
           //    Root cause of the truncation bug:
           //    A full 6-section JSON response for one pest needs ~1300–1600
@@ -74,14 +74,20 @@ class GeminiPestAiService {
         return null;
       }
 
-      final parsed = _parseJsonResponse(rawText, context: 'management("$pestName")');
+      final parsed =
+          _parseJsonResponse(rawText, context: 'management("$pestName")');
       if (parsed == null) return null;
 
       // ── Validate expected keys are present ────────────────────────────
       final missingKeys = <String>[];
-      for (final key in ['description', 'symptoms', 'chemical_controls',
-                          'biological_controls', 'possible_causes',
-                          'preventive_measures']) {
+      for (final key in [
+        'description',
+        'symptoms',
+        'chemical_controls',
+        'biological_controls',
+        'possible_causes',
+        'preventive_measures'
+      ]) {
         if (!parsed.containsKey(key)) missingKeys.add(key);
       }
       if (missingKeys.isNotEmpty) {
@@ -93,7 +99,6 @@ class GeminiPestAiService {
       debugPrint('[GeminiPestAI] ✅ Management details cached for "$pestName" '
           '(${parsed.keys.length} top-level keys: ${parsed.keys.toList()})');
       return parsed;
-
     } on FirebaseException catch (e) {
       debugPrint('[GeminiPestAI] ❌ Firebase error: code=${e.code} '
           'message="${e.message}". '
@@ -120,22 +125,24 @@ class GeminiPestAiService {
       return _stageListCache[stage];
     }
 
-    debugPrint('[GeminiPestAI] 🤖 Calling Gemini API — pest list for stage "$stage"');
+    debugPrint(
+        '[GeminiPestAI] 🤖 Calling Gemini API — pest list for stage "$stage"');
 
     try {
       // ✅ FirebaseAI.googleAI()
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
-          temperature:     0.2,
-          maxOutputTokens: 512,   // Short list — 400 is fine, but 512 adds headroom
+          temperature: 0.2,
+          maxOutputTokens:
+              512, // Short list — 400 is fine, but 512 adds headroom
         ),
       );
 
       debugPrint('[GeminiPestAI] 📤 Sending stage-list prompt for "$stage"…');
 
-      final response = await model.generateContent(
-          [Content.text(_buildStageListPrompt(stage))]);
+      final response = await model
+          .generateContent([Content.text(_buildStageListPrompt(stage))]);
       final rawText = response.text ?? '';
 
       debugPrint('[GeminiPestAI] 📥 Stage-list response: '
@@ -147,7 +154,8 @@ class GeminiPestAiService {
         return null;
       }
 
-      final parsed = _parseJsonResponse(rawText, context: 'stageList("$stage")');
+      final parsed =
+          _parseJsonResponse(rawText, context: 'stageList("$stage")');
       if (parsed == null) return null;
 
       final pests = List<String>.from(parsed['pests'] ?? []);
@@ -161,7 +169,6 @@ class GeminiPestAiService {
       debugPrint('[GeminiPestAI] ✅ ${pests.length} pests listed for "$stage": '
           '${pests.take(3).join(", ")}${pests.length > 3 ? "…" : ""}');
       return pests;
-
     } on FirebaseException catch (e) {
       debugPrint('[GeminiPestAI] ❌ Firebase error in listPestsForStage: '
           'code=${e.code} message="${e.message}"');
@@ -303,14 +310,15 @@ Rules:
           }
           // Unescape inner escaped quotes that Gemini added when wrapping
           cleaned = cleaned.replaceAll(r'\"', '"').trim();
-          debugPrint('[GeminiPestAI] 🔧 After outer-quote strip, first 80 chars: '
+          debugPrint(
+              '[GeminiPestAI] 🔧 After outer-quote strip, first 80 chars: '
               '"${cleaned.substring(0, cleaned.length.clamp(0, 80)).replaceAll('\n', '↵')}"');
         }
       }
 
       // ── Step 3: Find the outermost JSON object ───────────────────────────
       final firstBrace = cleaned.indexOf('{');
-      final lastBrace  = cleaned.lastIndexOf('}');
+      final lastBrace = cleaned.lastIndexOf('}');
 
       if (firstBrace == -1) {
         debugPrint('[GeminiPestAI] ❌ No opening "{" found in response for '
@@ -343,7 +351,6 @@ Rules:
       debugPrint('[GeminiPestAI] ✅ JSON parsed successfully for $context '
           '(${result.keys.length} keys).');
       return result;
-
     } catch (e) {
       debugPrint('[GeminiPestAI] ❌ JSON parse FAILED for $context: $e\n'
           '   Raw text (first 400 chars): '

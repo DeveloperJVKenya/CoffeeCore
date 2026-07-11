@@ -4,11 +4,11 @@ import 'package:coffeecore/screens/pests/coffee_pest_management_page.dart';
 import 'package:flutter/material.dart';
 
 // ─── Colour tokens ────────────────────────────────────────────────
-const Color _espresso    = Color(0xFF4A2C17); // deepest brown – primary
+const Color _espresso = Color(0xFF4A2C17); // deepest brown – primary
 const Color _coffeeBrown = Color(0xFF7B4B2A); // mid brown – brand
-const Color _cream       = Color(0xFFF5EFE6); // warm off-white – background
-const Color _leafGreen   = Color(0xFF5B8A4A); // plant / disease accent
-const Color _sapphire    = Color(0xFF2C6E9B); // symptom-checker accent
+const Color _cream = Color(0xFFF5EFE6); // warm off-white – background
+const Color _leafGreen = Color(0xFF5B8A4A); // plant / disease accent
+const Color _sapphire = Color(0xFF2C6E9B); // symptom-checker accent
 
 class PestDiseaseHomePage extends StatelessWidget {
   const PestDiseaseHomePage({super.key});
@@ -33,19 +33,30 @@ class PestDiseaseHomePage extends StatelessWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final w          = constraints.maxWidth;
-            final isDesktop  = w > 900;
-            final isTablet   = w > 600 && w <= 900;
-            final isMobile   = w <= 600;
-            final hPad       = isDesktop ? 60.0 : isTablet ? 32.0 : 20.0;
-            final vPad       = isDesktop ? 40.0 : isMobile ? 16.0 : 28.0;
+            final w = constraints.maxWidth;
+            final isDesktop = w > 900;
+            final isTablet = w > 600 && w <= 900;
+            final isMobile = w <= 600;
+            final hPad = isDesktop
+                ? 60.0
+                : isTablet
+                    ? 32.0
+                    : 20.0;
+            final vPad = isDesktop
+                ? 40.0
+                : isMobile
+                    ? 16.0
+                    : 28.0;
 
             return SingleChildScrollView(
               padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _HeroHeader(isDesktop: isDesktop, isTablet: isTablet, isMobile: isMobile),
+                  _HeroHeader(
+                      isDesktop: isDesktop,
+                      isTablet: isTablet,
+                      isMobile: isMobile),
                   SizedBox(height: isMobile ? 20 : 32),
                   _ActionCardsSection(
                     context: context,
@@ -83,7 +94,11 @@ class _HeroHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isDesktop ? 32 : isTablet ? 24 : 14),
+      padding: EdgeInsets.all(isDesktop
+          ? 32
+          : isTablet
+              ? 24
+              : 14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -121,7 +136,11 @@ class _HeroHeader extends StatelessWidget {
                   'Farm Health Centre',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: isDesktop ? 22 : isMobile ? 15 : 18,
+                    fontSize: isDesktop
+                        ? 22
+                        : isMobile
+                            ? 15
+                            : 18,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 0.3,
                   ),
@@ -131,7 +150,11 @@ class _HeroHeader extends StatelessWidget {
                   'Monitor, manage and protect your coffee crop',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.82),
-                    fontSize: isDesktop ? 14 : isMobile ? 11.5 : 12.5,
+                    fontSize: isDesktop
+                        ? 14
+                        : isMobile
+                            ? 11.5
+                            : 12.5,
                     height: 1.4,
                   ),
                 ),
@@ -197,7 +220,8 @@ class _ActionCardsSection extends StatelessWidget {
         accentColor: _leafGreen,
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const CoffeeDiseaseManagementPage()),
+          MaterialPageRoute(
+              builder: (_) => const CoffeeDiseaseManagementPage()),
         ),
       ),
       _ActionData(
@@ -388,7 +412,8 @@ class _ActionCard extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
                     color: data.accentColor,
                     borderRadius: BorderRadius.circular(30),

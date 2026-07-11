@@ -37,7 +37,8 @@ class AppUser {
     };
   }
 
-  factory AppUser.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot, SnapshotOptions? options) {
+  factory AppUser.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot,
+      SnapshotOptions? options) {
     final data = snapshot.data();
     return AppUser(
       id: snapshot.id,

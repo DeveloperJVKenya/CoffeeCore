@@ -9,20 +9,24 @@ class CoffeeDiseaseManagementPage extends StatefulWidget {
   final String? diseaseName;
   final String? coffeeStage;
 
-  const CoffeeDiseaseManagementPage({this.diseaseName, this.coffeeStage, super.key});
+  const CoffeeDiseaseManagementPage(
+      {this.diseaseName, this.coffeeStage, super.key});
 
   @override
-  State<CoffeeDiseaseManagementPage> createState() => _CoffeeDiseaseManagementPageState();
+  State<CoffeeDiseaseManagementPage> createState() =>
+      _CoffeeDiseaseManagementPageState();
 }
 
-class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPage> {
+class _CoffeeDiseaseManagementPageState
+    extends State<CoffeeDiseaseManagementPage> {
   static final Color coffeeBrown = Colors.brown[700]!;
   static final Color backgroundColor = Colors.brown[50]!;
   String? _selectedStage;
   String? _selectedDisease;
   CoffeeDiseaseData? _diseaseData;
   bool _showDiseaseDetails = false;
-  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _hintsKey = GlobalKey();
 
@@ -54,13 +58,22 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
 
   final Map<String, Map<String, dynamic>> _diseaseDetails = {
     'Coffee Leaf Rust': {
-      'description': 'A fungal disease that primarily affects the leaves of coffee plants.',
+      'description':
+          'A fungal disease that primarily affects the leaves of coffee plants.',
       'symptoms': 'Orange-yellow spots on the underside of leaves, leaf drop.',
       'chemicalControls': ['Copper-based', 'Trifloxystrobin', 'Tebuconazole'],
       'mechanicalControls': ['Pruning of infected leaves'],
       'biologicalControls': ['Resistant varieties (e.g., SL28)'],
-      'possibleCauses': ['High humidity', 'Warm temperatures (20-28°C)', 'Dense foliage'],
-      'preventiveMeasures': ['Improve air circulation', 'Apply mulch', 'Use resistant varieties'],
+      'possibleCauses': [
+        'High humidity',
+        'Warm temperatures (20-28°C)',
+        'Dense foliage'
+      ],
+      'preventiveMeasures': [
+        'Improve air circulation',
+        'Apply mulch',
+        'Use resistant varieties'
+      ],
       'lifecycleImages': [
         'assets/diseases/coffee_leaf_rust1.png',
         'assets/diseases/coffee_leaf_rust2.png',
@@ -69,13 +82,18 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
       ],
     },
     'Coffee Wilt Disease': {
-      'description': 'A soil-borne fungal infection that causes rapid wilting and death of coffee plants.',
+      'description':
+          'A soil-borne fungal infection that causes rapid wilting and death of coffee plants.',
       'symptoms': 'Sudden wilting, yellowing of leaves, and rotting of roots.',
       'chemicalControls': ['Thiophanate methyl', 'Carbendazim'],
       'mechanicalControls': ['Removal of infected plants'],
       'biologicalControls': ['Soil sterilization'],
       'possibleCauses': ['Wet soil', 'Poor drainage', 'Contaminated tools'],
-      'preventiveMeasures': ['Improve drainage', 'Sanitize tools', 'Avoid overwatering'],
+      'preventiveMeasures': [
+        'Improve drainage',
+        'Sanitize tools',
+        'Avoid overwatering'
+      ],
       'lifecycleImages': [
         'assets/diseases/coffee_wilt_disease1.png',
         'assets/diseases/coffee_wilt_disease2.png',
@@ -84,13 +102,22 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
       ],
     },
     'Coffee Berry Disease': {
-      'description': 'A fungal disease that causes dark lesions on coffee berries.',
+      'description':
+          'A fungal disease that causes dark lesions on coffee berries.',
       'symptoms': 'Black lesions on coffee cherries, premature fruit drop.',
       'chemicalControls': ['Azoxystrobin', 'Tebuconazole', 'Difenoconazole'],
       'mechanicalControls': ['Pruning and sanitation'],
       'biologicalControls': [],
-      'possibleCauses': ['High rainfall', 'Warm temperatures', 'Poor sanitation'],
-      'preventiveMeasures': ['Regular pruning', 'Remove fallen berries', 'Improve air flow'],
+      'possibleCauses': [
+        'High rainfall',
+        'Warm temperatures',
+        'Poor sanitation'
+      ],
+      'preventiveMeasures': [
+        'Regular pruning',
+        'Remove fallen berries',
+        'Improve air flow'
+      ],
       'lifecycleImages': [
         'assets/diseases/coffee_berry_disease1.png',
         'assets/diseases/coffee_berry_disease2.png',
@@ -106,12 +133,21 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
     },
     'Cercospora Leaf Spot': {
       'description': 'A fungal disease that affects coffee leaves.',
-      'symptoms': 'Dark brown to black lesions with yellow halos on the leaves.',
+      'symptoms':
+          'Dark brown to black lesions with yellow halos on the leaves.',
       'chemicalControls': ['Chlorothalonil', 'Mancozeb', 'Copper-based'],
       'mechanicalControls': ['Pruning of infected leaves'],
       'biologicalControls': [],
-      'possibleCauses': ['High humidity', 'Overcrowded plants', 'Nutrient deficiency'],
-      'preventiveMeasures': ['Balance fertilization', 'Prune regularly', 'Avoid overhead watering'],
+      'possibleCauses': [
+        'High humidity',
+        'Overcrowded plants',
+        'Nutrient deficiency'
+      ],
+      'preventiveMeasures': [
+        'Balance fertilization',
+        'Prune regularly',
+        'Avoid overhead watering'
+      ],
       'lifecycleImages': [
         'assets/diseases/cercospora_leaf_spot1.png',
         'assets/diseases/cercospora_leaf_spot2.png',
@@ -128,12 +164,21 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
     },
     'Brown Eye Spot': {
       'description': 'A form of Cercospora disease affecting coffee plants.',
-      'symptoms': 'Round brown lesions surrounded by yellow halos, premature leaf drop.',
+      'symptoms':
+          'Round brown lesions surrounded by yellow halos, premature leaf drop.',
       'chemicalControls': ['Mancozeb', 'Chlorothalonil', 'Copper-based'],
       'mechanicalControls': ['Removal of infected leaves'],
       'biologicalControls': [],
-      'possibleCauses': ['Wet conditions', 'Poor air circulation', 'Nutrient imbalance'],
-      'preventiveMeasures': ['Improve ventilation', 'Monitor soil nutrients', 'Remove debris'],
+      'possibleCauses': [
+        'Wet conditions',
+        'Poor air circulation',
+        'Nutrient imbalance'
+      ],
+      'preventiveMeasures': [
+        'Improve ventilation',
+        'Monitor soil nutrients',
+        'Remove debris'
+      ],
       'lifecycleImages': [
         'assets/diseases/brown_eye_spot1.png',
         'assets/diseases/brown_eye_spot2.png',
@@ -142,13 +187,18 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
       ],
     },
     'Anthracnose': {
-      'description': 'A fungal disease that affects coffee fruits, causing lesions and decay.',
+      'description':
+          'A fungal disease that affects coffee fruits, causing lesions and decay.',
       'symptoms': 'Sunken, dark lesions on fruit and branches.',
       'chemicalControls': ['Azoxystrobin', 'Tebuconazole', 'Difenoconazole'],
       'mechanicalControls': ['Removal of affected fruit'],
       'biologicalControls': [],
       'possibleCauses': ['High rainfall', 'Warm weather', 'Injured fruit'],
-      'preventiveMeasures': ['Harvest carefully', 'Sanitize tools', 'Prune affected areas'],
+      'preventiveMeasures': [
+        'Harvest carefully',
+        'Sanitize tools',
+        'Prune affected areas'
+      ],
       'lifecycleImages': [
         'assets/diseases/anthracnose1.png',
         'assets/diseases/anthracnose2.png',
@@ -161,13 +211,19 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
       ],
     },
     'Phytophthora Root Rot': {
-      'description': 'A waterborne pathogen that attacks the roots of coffee plants, causing rot.',
-      'symptoms': 'Yellowing of leaves, stunted growth, root decay, and poor plant vigor.',
+      'description':
+          'A waterborne pathogen that attacks the roots of coffee plants, causing rot.',
+      'symptoms':
+          'Yellowing of leaves, stunted growth, root decay, and poor plant vigor.',
       'chemicalControls': ['Metalaxyl', 'Phosphonates'],
       'mechanicalControls': ['Proper drainage to avoid waterlogging'],
       'biologicalControls': [],
       'possibleCauses': ['Excessive water', 'Poor drainage', 'High rainfall'],
-      'preventiveMeasures': ['Improve soil drainage', 'Avoid planting in low areas', 'Mulch roots'],
+      'preventiveMeasures': [
+        'Improve soil drainage',
+        'Avoid planting in low areas',
+        'Mulch roots'
+      ],
       'lifecycleImages': [
         'assets/diseases/phytophthora_root_rot1.png',
         'assets/diseases/phytophthora_root_rot2.png',
@@ -180,12 +236,21 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
     },
     'Bacterial Blight': {
       'description': 'A bacterial infection that affects the coffee plant.',
-      'symptoms': 'Water-soaked lesions on leaves and stems, leading to wilting.',
+      'symptoms':
+          'Water-soaked lesions on leaves and stems, leading to wilting.',
       'chemicalControls': ['Copper-based bactericides'],
       'mechanicalControls': ['Removal of infected plant parts'],
       'biologicalControls': [],
-      'possibleCauses': ['Wet conditions', 'Wounds from pruning', 'Contaminated tools'],
-      'preventiveMeasures': ['Sanitize equipment', 'Avoid overhead irrigation', 'Prune in dry weather'],
+      'possibleCauses': [
+        'Wet conditions',
+        'Wounds from pruning',
+        'Contaminated tools'
+      ],
+      'preventiveMeasures': [
+        'Sanitize equipment',
+        'Avoid overhead irrigation',
+        'Prune in dry weather'
+      ],
       'lifecycleImages': [
         'assets/diseases/bacterial_blight1.png',
         'assets/diseases/bacterial_blight2.png',
@@ -197,13 +262,23 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
       ],
     },
     'Coffee Sooty Mold': {
-      'description': 'A fungal disease caused by mold growing on honeydew from sap-sucking insects.',
-      'symptoms': 'Black sooty growth on leaves and branches, reduced photosynthesis.',
+      'description':
+          'A fungal disease caused by mold growing on honeydew from sap-sucking insects.',
+      'symptoms':
+          'Black sooty growth on leaves and branches, reduced photosynthesis.',
       'chemicalControls': ['Insecticides (for sap-sucking pests)'],
       'mechanicalControls': ['Cleaning affected parts'],
       'biologicalControls': [],
-      'possibleCauses': ['Presence of pests (e.g., mealybugs)', 'High humidity', 'Poor ventilation'],
-      'preventiveMeasures': ['Control pest populations', 'Improve air circulation', 'Clean leaves'],
+      'possibleCauses': [
+        'Presence of pests (e.g., mealybugs)',
+        'High humidity',
+        'Poor ventilation'
+      ],
+      'preventiveMeasures': [
+        'Control pest populations',
+        'Improve air circulation',
+        'Clean leaves'
+      ],
       'lifecycleImages': [
         'assets/diseases/coffee_sooty_mold1.png',
         'assets/diseases/coffee_sooty_mold2.png',
@@ -215,13 +290,19 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
       ],
     },
     'Fusarium Root Rot': {
-      'description': 'A soil-borne fungal disease that attacks the roots and lower stems of coffee plants.',
-      'symptoms': 'Wilting, yellowing, and dieback of plants, with roots showing signs of rotting.',
+      'description':
+          'A soil-borne fungal disease that attacks the roots and lower stems of coffee plants.',
+      'symptoms':
+          'Wilting, yellowing, and dieback of plants, with roots showing signs of rotting.',
       'chemicalControls': ['Thiophanate methyl', 'Carbendazim'],
       'mechanicalControls': ['Proper drainage', 'Removal of infected plants'],
       'biologicalControls': [],
       'possibleCauses': ['Wet soil', 'Poor drainage', 'Contaminated soil'],
-      'preventiveMeasures': ['Enhance drainage', 'Rotate crops', 'Remove infected plants'],
+      'preventiveMeasures': [
+        'Enhance drainage',
+        'Rotate crops',
+        'Remove infected plants'
+      ],
       'lifecycleImages': [
         'assets/diseases/fusarium_root_rot1.png',
         'assets/diseases/fusarium_root_rot2.png',
@@ -253,27 +334,35 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
   }
 
   Future<void> _initializeNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidSettings);
     await _notificationsPlugin.initialize(settings: initSettings);
     await _notificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
   }
 
   void _updateDiseaseDetails() {
-    if (_selectedDisease != null && _diseaseDetails.containsKey(_selectedDisease!)) {
+    if (_selectedDisease != null &&
+        _diseaseDetails.containsKey(_selectedDisease!)) {
       setState(() {
         _diseaseData = CoffeeDiseaseData(
           name: _selectedDisease!,
           description: _diseaseDetails[_selectedDisease!]!['description'],
           symptoms: _diseaseDetails[_selectedDisease!]!['symptoms'],
-          chemicalControls: List<String>.from(_diseaseDetails[_selectedDisease!]!['chemicalControls']),
-          mechanicalControls: List<String>.from(_diseaseDetails[_selectedDisease!]!['mechanicalControls']),
-          biologicalControls: List<String>.from(_diseaseDetails[_selectedDisease!]!['biologicalControls']),
-          possibleCauses: List<String>.from(_diseaseDetails[_selectedDisease!]!['possibleCauses']),
-          preventiveMeasures: List<String>.from(_diseaseDetails[_selectedDisease!]!['preventiveMeasures']),
-          //lifecycleImages: List<String>.from(_diseaseDetails[_selectedDisease!]!['lifecycleImages']), 
+          chemicalControls: List<String>.from(
+              _diseaseDetails[_selectedDisease!]!['chemicalControls']),
+          mechanicalControls: List<String>.from(
+              _diseaseDetails[_selectedDisease!]!['mechanicalControls']),
+          biologicalControls: List<String>.from(
+              _diseaseDetails[_selectedDisease!]!['biologicalControls']),
+          possibleCauses: List<String>.from(
+              _diseaseDetails[_selectedDisease!]!['possibleCauses']),
+          preventiveMeasures: List<String>.from(
+              _diseaseDetails[_selectedDisease!]!['preventiveMeasures']),
+          //lifecycleImages: List<String>.from(_diseaseDetails[_selectedDisease!]!['lifecycleImages']),
         );
       });
     }
@@ -281,8 +370,10 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
 
   void _scrollToHints() {
     if (_showDiseaseDetails && _hintsKey.currentContext != null) {
-      final RenderBox box = _hintsKey.currentContext!.findRenderObject() as RenderBox;
-      final position = box.localToGlobal(Offset.zero).dy + _scrollController.offset - 100;
+      final RenderBox box =
+          _hintsKey.currentContext!.findRenderObject() as RenderBox;
+      final position =
+          box.localToGlobal(Offset.zero).dy + _scrollController.offset - 100;
       _scrollController.animateTo(
         position,
         duration: const Duration(milliseconds: 300),
@@ -297,7 +388,8 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Coffee Disease Management', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Coffee Disease Management',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: coffeeBrown,
         foregroundColor: Colors.white,
       ),
@@ -319,7 +411,12 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
                   });
                 }),
                 const SizedBox(height: 16),
-                _buildDropdown('Select Disease', _selectedStage != null ? _stageDiseases[_selectedStage]! : [], _selectedDisease, (val) {
+                _buildDropdown(
+                    'Select Disease',
+                    _selectedStage != null
+                        ? _stageDiseases[_selectedStage]!
+                        : [],
+                    _selectedDisease, (val) {
                   setState(() {
                     _selectedDisease = val;
                     _updateDiseaseDetails();
@@ -338,15 +435,19 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
                     setState(() {
                       _showDiseaseDetails = !_showDiseaseDetails;
                       if (_showDiseaseDetails) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToHints());
+                        WidgetsBinding.instance
+                            .addPostFrameCallback((_) => _scrollToHints());
                       }
                     });
                   } else {
-                    scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Please select a disease first')));
+                    scaffoldMessenger.showSnackBar(const SnackBar(
+                        content: Text('Please select a disease first')));
                   }
                 },
                 child: Text(
-                  _showDiseaseDetails ? 'Hide Disease Management Details' : 'View Disease Management Details',
+                  _showDiseaseDetails
+                      ? 'Hide Disease Management Details'
+                      : 'View Disease Management Details',
                   style: TextStyle(
                     color: coffeeBrown,
                     fontSize: 16,
@@ -360,14 +461,18 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const CoffeeUserDiseaseHistoryPage()),
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            const CoffeeUserDiseaseHistoryPage()),
                   );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: coffeeBrown,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 child: const Text('View My Disease History'),
               ),
@@ -376,13 +481,32 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
                 Column(
                   key: _hintsKey,
                   children: [
-                    _buildHintCard('Description', _diseaseData!.description, Icons.info),
-                    _buildHintCard('Symptoms', _diseaseData!.symptoms, Icons.warning),
-                    _buildHintCard('Chemical Controls', _diseaseData!.chemicalControls.join('\n'), Icons.science),
-                    _buildHintCard('Mechanical Controls', _diseaseData!.mechanicalControls.isEmpty ? 'None' : _diseaseData!.mechanicalControls.join('\n'), Icons.build),
-                    _buildHintCard('Biological Controls', _diseaseData!.biologicalControls.isEmpty ? 'None' : _diseaseData!.biologicalControls.join('\n'), Icons.eco),
-                    _buildHintCard('Possible Causes', _diseaseData!.possibleCauses.join('\n'), Icons.search),
-                    _buildHintCard('Preventive Measures', _diseaseData!.preventiveMeasures.join('\n'), Icons.shield),
+                    _buildHintCard(
+                        'Description', _diseaseData!.description, Icons.info),
+                    _buildHintCard(
+                        'Symptoms', _diseaseData!.symptoms, Icons.warning),
+                    _buildHintCard(
+                        'Chemical Controls',
+                        _diseaseData!.chemicalControls.join('\n'),
+                        Icons.science),
+                    _buildHintCard(
+                        'Mechanical Controls',
+                        _diseaseData!.mechanicalControls.isEmpty
+                            ? 'None'
+                            : _diseaseData!.mechanicalControls.join('\n'),
+                        Icons.build),
+                    _buildHintCard(
+                        'Biological Controls',
+                        _diseaseData!.biologicalControls.isEmpty
+                            ? 'None'
+                            : _diseaseData!.biologicalControls.join('\n'),
+                        Icons.eco),
+                    _buildHintCard('Possible Causes',
+                        _diseaseData!.possibleCauses.join('\n'), Icons.search),
+                    _buildHintCard(
+                        'Preventive Measures',
+                        _diseaseData!.preventiveMeasures.join('\n'),
+                        Icons.shield),
                     const SizedBox(height: 16),
                     Center(
                       child: ElevatedButton(
@@ -390,7 +514,8 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => CoffeeDiseaseInterventionPage(
+                              builder: (context) =>
+                                  CoffeeDiseaseInterventionPage(
                                 diseaseData: _diseaseData!,
                                 cropStage: _selectedStage ?? '',
                                 notificationsPlugin: _notificationsPlugin,
@@ -401,8 +526,10 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
                         style: ElevatedButton.styleFrom(
                           backgroundColor: coffeeBrown,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         child: const Text('Manage Disease'),
                       ),
@@ -417,7 +544,8 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
     );
   }
 
-  Widget _buildDropdown(String label, List<String> items, String? value, ValueChanged<String?> onChanged) {
+  Widget _buildDropdown(String label, List<String> items, String? value,
+      ValueChanged<String?> onChanged) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -425,7 +553,9 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
         padding: const EdgeInsets.all(12.0),
         child: DropdownButtonFormField<String>(
           initialValue: value,
-          items: items.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
+          items: items
+              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+              .toList(),
           onChanged: onChanged,
           decoration: InputDecoration(
             labelText: label,
@@ -488,7 +618,11 @@ class _CoffeeDiseaseManagementPageState extends State<CoffeeDiseaseManagementPag
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: coffeeBrown)),
+                  Text(title,
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: coffeeBrown)),
                   const SizedBox(height: 8),
                   Text(content, style: const TextStyle(fontSize: 14)),
                 ],

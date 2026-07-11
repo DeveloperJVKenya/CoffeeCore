@@ -112,9 +112,7 @@ class CoffeeSoilData {
       userId: userId ?? this.userId,
       timestamp: timestamp ?? this.timestamp,
       isDeleted: isDeleted ?? this.isDeleted,
-      soilType: soilType == _sentinel
-          ? this.soilType
-          : soilType as String?,
+      soilType: soilType == _sentinel ? this.soilType : soilType as String?,
       stage: stage ?? this.stage,
       plantDensity: plantDensity ?? this.plantDensity,
       saveWithRecommendations:
@@ -122,15 +120,11 @@ class CoffeeSoilData {
       notificationTriggered:
           notificationTriggered ?? this.notificationTriggered,
       ph: ph == _sentinel ? this.ph : ph as double?,
-      nitrogen:
-          nitrogen == _sentinel ? this.nitrogen : nitrogen as double?,
-      phosphorus: phosphorus == _sentinel
-          ? this.phosphorus
-          : phosphorus as double?,
-      potassium:
-          potassium == _sentinel ? this.potassium : potassium as double?,
-      magnesium:
-          magnesium == _sentinel ? this.magnesium : magnesium as double?,
+      nitrogen: nitrogen == _sentinel ? this.nitrogen : nitrogen as double?,
+      phosphorus:
+          phosphorus == _sentinel ? this.phosphorus : phosphorus as double?,
+      potassium: potassium == _sentinel ? this.potassium : potassium as double?,
+      magnesium: magnesium == _sentinel ? this.magnesium : magnesium as double?,
       calcium: calcium == _sentinel ? this.calcium : calcium as double?,
       zinc: zinc == _sentinel ? this.zinc : zinc as double?,
       boron: boron == _sentinel ? this.boron : boron as double?,
@@ -165,10 +159,8 @@ class CoffeeSoilData {
       soilType: map['soilType'] as String?,
       stage: map['stage'] as String? ?? 'Establishment/Seedling',
       plantDensity: (map['plantDensity'] as num?)?.toInt() ?? 0,
-      saveWithRecommendations:
-          map['saveWithRecommendations'] as bool? ?? false,
-      notificationTriggered:
-          map['notificationTriggered'] as bool? ?? false,
+      saveWithRecommendations: map['saveWithRecommendations'] as bool? ?? false,
+      notificationTriggered: map['notificationTriggered'] as bool? ?? false,
       ph: (map['ph'] as num?)?.toDouble(),
       nitrogen: (map['nitrogen'] as num?)?.toDouble(),
       phosphorus: (map['phosphorus'] as num?)?.toDouble(),
@@ -180,11 +172,9 @@ class CoffeeSoilData {
       interventionMethod: map['interventionMethod'] as String?,
       interventionQuantity: map['interventionQuantity'] as String?,
       interventionUnit: map['interventionUnit'] as String?,
-      interventionFollowUpDate:
-          map['interventionFollowUpDate'] as Timestamp?,
+      interventionFollowUpDate: map['interventionFollowUpDate'] as Timestamp?,
       recommendations: map['recommendations'] != null
-          ? Map<String, dynamic>.from(
-              map['recommendations'] as Map)
+          ? Map<String, dynamic>.from(map['recommendations'] as Map)
           : null,
     );
   }

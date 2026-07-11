@@ -79,7 +79,9 @@ class _CoffeeSoilHomePageState extends State<CoffeeSoilHomePage> {
     if (_isNavigating) return;
     setState(() => _isNavigating = true);
     final startTime = DateTime.now();
-    developer.log('Navigating to ${pageBuilder() != null ? pageBuilder().runtimeType.toString() : "null"}', name: 'CoffeeSoilHomePage');
+    developer.log(
+        'Navigating to ${pageBuilder() != null ? pageBuilder().runtimeType.toString() : "null"}',
+        name: 'CoffeeSoilHomePage');
 
     final page = pageBuilder();
     if (page != null) {
@@ -87,7 +89,8 @@ class _CoffeeSoilHomePageState extends State<CoffeeSoilHomePage> {
         context,
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) => page,
-          transitionDuration: const Duration(milliseconds: 200), // Faster transition
+          transitionDuration:
+              const Duration(milliseconds: 200), // Faster transition
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(
               opacity: animation,
@@ -98,7 +101,8 @@ class _CoffeeSoilHomePageState extends State<CoffeeSoilHomePage> {
       ).then((_) {
         setState(() => _isNavigating = false);
         final duration = DateTime.now().difference(startTime).inMilliseconds;
-        developer.log('Navigation completed in $duration ms', name: 'CoffeeSoilHomePage');
+        developer.log('Navigation completed in $duration ms',
+            name: 'CoffeeSoilHomePage');
       });
     } else {
       setState(() => _isNavigating = false);

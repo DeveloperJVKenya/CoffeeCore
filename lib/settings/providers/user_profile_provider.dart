@@ -11,7 +11,8 @@ class UserProfile with ChangeNotifier {
   String? get about => _about;
   List<Map<String, dynamic>> get reminders => _reminders;
 
-  void updateProfile({String? displayName, String? profileImagePath, String? about}) {
+  void updateProfile(
+      {String? displayName, String? profileImagePath, String? about}) {
     if (displayName != null) _displayName = displayName;
     if (profileImagePath != null) _profileImagePath = profileImagePath;
     if (about != null) _about = about;

@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
-  static final Color coffeeBrown = Colors.brown[700]!; // Consistent with CoffeeCore theme
+  static final Color coffeeBrown =
+      Colors.brown[700]!; // Consistent with CoffeeCore theme
 
   @override
   Widget build(BuildContext context) {
@@ -29,16 +30,19 @@ class PrivacyPolicyScreen extends StatelessWidget {
               Text(
                 'Privacy Policy',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: coffeeBrown,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: coffeeBrown,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 16),
 
               // Last Updated
               Text(
                 'Last Updated: October 11, 2025', // Updated to current date
-                style: TextStyle(fontSize: 14, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic),
               ),
               const SizedBox(height: 24),
 
@@ -199,13 +203,14 @@ class PrivacyPolicyScreen extends StatelessWidget {
   // Helper method for section titles
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0), // Fixed typo: should be 'bottom'
+      padding:
+          const EdgeInsets.only(bottom: 8.0), // Fixed typo: should be 'bottom'
       child: Text(
         title,
         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-          color: coffeeBrown,
-          fontWeight: FontWeight.bold,
-        ),
+              color: coffeeBrown,
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
@@ -217,8 +222,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
       child: Text(
         text,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: coffeeBrown,
-        ),
+              color: coffeeBrown,
+            ),
       ),
     );
   }

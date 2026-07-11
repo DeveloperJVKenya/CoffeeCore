@@ -49,13 +49,13 @@ class _AiScanResult {
 
   factory _AiScanResult.fromJson(Map<String, dynamic> json) {
     return _AiScanResult(
-      confident:         json['confident'] == true,
-      identifiedPest:    json['identified_pest'] as String?,
-      growthStage:       json['growth_stage'] as String?,
+      confident: json['confident'] == true,
+      identifiedPest: json['identified_pest'] as String?,
+      growthStage: json['growth_stage'] as String?,
       confidencePercent: (json['confidence_percent'] as num?)?.toDouble(),
-      reasoning:         json['reasoning'] as String?,
-      candidates:        List<String>.from(json['candidates'] ?? []),
-      management:        json['management'] as Map<String, dynamic>?,
+      reasoning: json['reasoning'] as String?,
+      candidates: List<String>.from(json['candidates'] ?? []),
+      management: json['management'] as Map<String, dynamic>?,
     );
   }
 }
@@ -75,36 +75,39 @@ class PestScanPage extends StatefulWidget {
 class _PestScanPageState extends State<PestScanPage>
     with TickerProviderStateMixin {
   // ── Theme ──────────────────────────────────────────────────────────────────
-  static const Color _darkBrown     = Color(0xFF3E2723);
-  static const Color _midBrown      = Color(0xFF6D4C41);
-  static const Color _lightBrown    = Color(0xFFA1887F);
-  static const Color _cream         = Color(0xFFFFF8F2);
-  static const Color _amber         = Color(0xFFFFCC80);
-  static const Color _successGreen  = Color(0xFF388E3C);
+  static const Color _darkBrown = Color(0xFF3E2723);
+  static const Color _midBrown = Color(0xFF6D4C41);
+  static const Color _lightBrown = Color(0xFFA1887F);
+  static const Color _cream = Color(0xFFFFF8F2);
+  static const Color _amber = Color(0xFFFFCC80);
+  static const Color _successGreen = Color(0xFF388E3C);
   static const Color _warningOrange = Color(0xFFE65100);
 
   // ── State ──────────────────────────────────────────────────────────────────
-  _ScanState _scanState             = _ScanState.idle;
+  _ScanState _scanState = _ScanState.idle;
+
   /// Raw XFile from the picker — valid on all platforms.
-  XFile?     _pickedXFile;
+  XFile? _pickedXFile;
+
   /// Decoded bytes — used for Gemini analysis and Image.memory on web.
   Uint8List? _pickedImageBytes;
+
   /// Native File reference — only populated on non-web platforms.
-  File?      _pickedImageFile;
+  File? _pickedImageFile;
 
   _AiScanResult? _scanResult;
-  String?    _errorMessage;
-  String?    _selectedClarification;
-  String?    _selectedStageForScan;
+  String? _errorMessage;
+  String? _selectedClarification;
+  String? _selectedStageForScan;
 
   final ImagePicker _picker = ImagePicker();
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _pulseController;
-  late Animation<double>   _pulseAnimation;
+  late Animation<double> _pulseAnimation;
   late AnimationController _resultController;
-  late Animation<double>   _resultFade;
-  late Animation<Offset>   _resultSlide;
+  late Animation<double> _resultFade;
+  late Animation<Offset> _resultSlide;
 
   @override
   void initState() {
@@ -117,9 +120,11 @@ class _PestScanPageState extends State<PestScanPage>
 
     _resultController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 500));
-    _resultFade  = CurvedAnimation(parent: _resultController, curve: Curves.easeOut);
+    _resultFade =
+        CurvedAnimation(parent: _resultController, curve: Curves.easeOut);
     _resultSlide = Tween<Offset>(begin: const Offset(0, 0.12), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _resultController, curve: Curves.easeOut));
+        .animate(
+            CurvedAnimation(parent: _resultController, curve: Curves.easeOut));
   }
 
   @override
@@ -139,19 +144,19 @@ class _PestScanPageState extends State<PestScanPage>
   Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? picked = await _picker.pickImage(
-        source: source, maxWidth: 1280, maxHeight: 1280, imageQuality: 88);
+          source: source, maxWidth: 1280, maxHeight: 1280, imageQuality: 88);
       if (picked == null) return;
 
       // Read bytes universally — works on web (blob) and mobile (file) alike.
       final bytes = await picked.readAsBytes();
 
       setState(() {
-        _pickedXFile           = picked;
-        _pickedImageBytes      = bytes;
-        _pickedImageFile       = kIsWeb ? null : File(picked.path);
-        _scanState             = _ScanState.imagePicked;
-        _scanResult            = null;
-        _errorMessage          = null;
+        _pickedXFile = picked;
+        _pickedImageBytes = bytes;
+        _pickedImageFile = kIsWeb ? null : File(picked.path);
+        _scanState = _ScanState.imagePicked;
+        _scanResult = null;
+        _errorMessage = null;
         _selectedClarification = null;
       });
       _resultController.reset();
@@ -171,7 +176,7 @@ class _PestScanPageState extends State<PestScanPage>
     try {
       // Bytes already loaded during pick — works on both web and mobile.
       final imageBytes = _pickedImageBytes!;
-      final mimeType   = (_pickedXFile?.mimeType) ??
+      final mimeType = (_pickedXFile?.mimeType) ??
           ((_pickedXFile?.path.toLowerCase().endsWith('.png') ?? false)
               ? 'image/png'
               : 'image/jpeg');
@@ -179,7 +184,7 @@ class _PestScanPageState extends State<PestScanPage>
       final model = FirebaseAI.googleAI().generativeModel(
         model: 'gemini-2.5-flash',
         generationConfig: GenerationConfig(
-          temperature:     0.3,
+          temperature: 0.3,
           maxOutputTokens: 1500,
         ),
       );
@@ -245,9 +250,11 @@ If image is unclear:
 
       _parseAndHandleResponse(response.text ?? '');
     } on FirebaseException catch (e) {
-      _setError('CoffeeCore AI error: ${e.message ?? e.code}. Check your connection and try again.');
+      _setError(
+          'CoffeeCore AI error: ${e.message ?? e.code}. Check your connection and try again.');
     } catch (e) {
-      _setError('Analysis failed: ${e.toString()}. Please retake the photo and try again.');
+      _setError(
+          'Analysis failed: ${e.toString()}. Please retake the photo and try again.');
     }
   }
 
@@ -257,15 +264,16 @@ If image is unclear:
       if (cleaned.startsWith('```')) {
         cleaned = cleaned
             .replaceAll(RegExp(r'^```(?:json)?\s*', multiLine: false), '')
-            .replaceAll(RegExp(r'\s*```$',           multiLine: false), '')
+            .replaceAll(RegExp(r'\s*```$', multiLine: false), '')
             .trim();
       }
-      final json   = jsonDecode(cleaned) as Map<String, dynamic>;
+      final json = jsonDecode(cleaned) as Map<String, dynamic>;
       final result = _AiScanResult.fromJson(json);
 
       setState(() {
         _scanResult = result;
-        _scanState  = result.confident ? _ScanState.identified : _ScanState.inconclusive;
+        _scanState =
+            result.confident ? _ScanState.identified : _ScanState.inconclusive;
       });
       _resultController.forward(from: 0);
 
@@ -275,7 +283,8 @@ If image is unclear:
         });
       }
     } catch (_) {
-      _setError('Could not interpret the AI response. Please try again with a clearer photo.');
+      _setError(
+          'Could not interpret the AI response. Please try again with a clearer photo.');
     }
   }
 
@@ -286,22 +295,25 @@ If image is unclear:
   Future<void> _reAnalyseWithClarification(String chosenPest) async {
     setState(() {
       _selectedClarification = chosenPest;
-      _scanState             = _ScanState.analysing;
+      _scanState = _ScanState.analysing;
     });
 
     try {
       final imageBytes = _pickedImageBytes!;
-      final mimeType   = (_pickedXFile?.mimeType) ??
+      final mimeType = (_pickedXFile?.mimeType) ??
           ((_pickedXFile?.path.toLowerCase().endsWith('.png') ?? false)
-              ? 'image/png' : 'image/jpeg');
+              ? 'image/png'
+              : 'image/jpeg');
 
       final model = FirebaseAI.googleAI().generativeModel(
         model: 'gemini-2.5-flash',
-        generationConfig: GenerationConfig(temperature: 0.3, maxOutputTokens: 1200),
+        generationConfig:
+            GenerationConfig(temperature: 0.3, maxOutputTokens: 1200),
       );
 
       final stageHint = _selectedStageForScan != null
-          ? 'Growth stage context: $_selectedStageForScan.' : '';
+          ? 'Growth stage context: $_selectedStageForScan.'
+          : '';
 
       final prompt = '''
 You are an expert agricultural AI for coffee pest management.
@@ -348,16 +360,16 @@ Return ONLY valid JSON (no markdown):
         pageBuilder: (_, animation, __) => FadeTransition(
           opacity: animation,
           child: PestResultsPage(
-            selectedStage:       result.growthStage ?? 'Unknown',
-            selectedPest:        result.identifiedPest,
-            detectionMode:       PestDetectionMode.aiScan,
+            selectedStage: result.growthStage ?? 'Unknown',
+            selectedPest: result.identifiedPest,
+            detectionMode: PestDetectionMode.aiScan,
             // On web: pass bytes only (Image.file is not supported on web).
             // On mobile: pass File (bytes also passed for consistency).
-            scannedImageFile:    kIsWeb ? null : _pickedImageFile,
-            scannedImageBytes:   _pickedImageBytes,
-            aiManagementData:    result.management,
-            aiReasoning:         result.reasoning,
-            aiConfidence:        result.confidencePercent,
+            scannedImageFile: kIsWeb ? null : _pickedImageFile,
+            scannedImageBytes: _pickedImageBytes,
+            aiManagementData: result.management,
+            aiReasoning: result.reasoning,
+            aiConfidence: result.confidencePercent,
             notificationsPlugin: widget.notificationsPlugin,
           ),
         ),
@@ -369,17 +381,20 @@ Return ONLY valid JSON (no markdown):
   void _setError(String msg) {
     if (!mounted) return;
     debugPrint('[PestScan] Error: $msg');
-    setState(() { _scanState = _ScanState.error; _errorMessage = msg; });
+    setState(() {
+      _scanState = _ScanState.error;
+      _errorMessage = msg;
+    });
   }
 
   void _resetScan() {
     setState(() {
-      _scanState             = _ScanState.idle;
-      _pickedXFile           = null;
-      _pickedImageBytes      = null;
-      _pickedImageFile       = null;
-      _scanResult            = null;
-      _errorMessage          = null;
+      _scanState = _ScanState.idle;
+      _pickedXFile = null;
+      _pickedImageBytes = null;
+      _pickedImageFile = null;
+      _scanResult = null;
+      _errorMessage = null;
       _selectedClarification = null;
     });
     _resultController.reset();
@@ -476,7 +491,7 @@ Return ONLY valid JSON (no markdown):
   }
 
   Widget _buildImageArea() {
-    final bool hasImage    = _pickedXFile != null;
+    final bool hasImage = _pickedXFile != null;
     final bool isAnalysing = _scanState == _ScanState.analysing;
 
     return GestureDetector(
@@ -491,7 +506,8 @@ Return ONLY valid JSON (no markdown):
               color: hasImage ? _darkBrown : const Color(0xFFD7C5BC),
               width: hasImage ? 2 : 1.2),
           boxShadow: const [
-            BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))
+            BoxShadow(
+                color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))
           ],
         ),
         clipBehavior: Clip.hardEdge,
@@ -515,7 +531,8 @@ Return ONLY valid JSON (no markdown):
                     ScaleTransition(
                       scale: _pulseAnimation,
                       child: Container(
-                        width: 68, height: 68,
+                        width: 68,
+                        height: 68,
                         decoration: BoxDecoration(
                           color: _amber.withValues(alpha: .15),
                           shape: BoxShape.circle,
@@ -549,10 +566,13 @@ Return ONLY valid JSON (no markdown):
 
             if (_scanState == _ScanState.identified && _scanResult != null)
               Positioned(
-                bottom: 0, left: 0, right: 0,
+                bottom: 0,
+                left: 0,
+                right: 0,
                 child: Container(
                   color: _successGreen.withValues(alpha: .85),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   child: Row(children: [
                     const Icon(Icons.check_circle_rounded,
                         color: Colors.white, size: 20),
@@ -610,10 +630,12 @@ Return ONLY valid JSON (no markdown):
         decoration: InputDecoration(
           labelText: 'Growth Stage Hint (optional)',
           labelStyle: GoogleFonts.poppins(fontSize: 13, color: _midBrown),
-          helperText: 'Providing the stage helps the AI give a more accurate result',
+          helperText:
+              'Providing the stage helps the AI give a more accurate result',
           helperStyle: GoogleFonts.poppins(fontSize: 11, color: _lightBrown),
           border: InputBorder.none,
-          prefixIcon: const Icon(Icons.eco_rounded, color: _darkBrown, size: 20),
+          prefixIcon:
+              const Icon(Icons.eco_rounded, color: _darkBrown, size: 20),
           contentPadding: EdgeInsets.zero,
         ),
         hint: Text('Not sure — skip this',
@@ -628,8 +650,8 @@ Return ONLY valid JSON (no markdown):
             child: Text('Not sure — skip this',
                 style: GoogleFonts.poppins(fontSize: 13, color: _lightBrown)),
           ),
-          ...kCoffeeStages.map((s) => DropdownMenuItem<String>(
-                value: s, child: Text(s))),
+          ...kCoffeeStages
+              .map((s) => DropdownMenuItem<String>(value: s, child: Text(s))),
         ],
         onChanged: (val) => setState(() => _selectedStageForScan = val),
       ),
@@ -639,18 +661,24 @@ Return ONLY valid JSON (no markdown):
   Widget _buildSourceButtons() {
     final bool busy = _scanState == _ScanState.analysing;
     return Row(children: [
-      Expanded(child: _buildSourceButton(
-          icon: Icons.camera_alt_rounded, label: 'Camera',
-          onTap: busy ? null : () => _pickImage(ImageSource.camera))),
+      Expanded(
+          child: _buildSourceButton(
+              icon: Icons.camera_alt_rounded,
+              label: 'Camera',
+              onTap: busy ? null : () => _pickImage(ImageSource.camera))),
       const SizedBox(width: 12),
-      Expanded(child: _buildSourceButton(
-          icon: Icons.photo_library_rounded, label: 'Gallery',
-          onTap: busy ? null : () => _pickImage(ImageSource.gallery))),
+      Expanded(
+          child: _buildSourceButton(
+              icon: Icons.photo_library_rounded,
+              label: 'Gallery',
+              onTap: busy ? null : () => _pickImage(ImageSource.gallery))),
     ]);
   }
 
   Widget _buildSourceButton(
-      {required IconData icon, required String label, required VoidCallback? onTap}) {
+      {required IconData icon,
+      required String label,
+      required VoidCallback? onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedOpacity(
@@ -663,7 +691,8 @@ Return ONLY valid JSON (no markdown):
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFFD7C5BC)),
             boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))
+              BoxShadow(
+                  color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))
             ],
           ),
           child: Column(children: [
@@ -671,7 +700,9 @@ Return ONLY valid JSON (no markdown):
             const SizedBox(height: 6),
             Text(label,
                 style: GoogleFonts.poppins(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: _darkBrown)),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _darkBrown)),
           ]),
         ),
       ),
@@ -715,13 +746,15 @@ Return ONLY valid JSON (no markdown):
           decoration: BoxDecoration(
               color: _darkBrown.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(12)),
-          child: const Icon(Icons.touch_app_rounded, color: _darkBrown, size: 22),
+          child:
+              const Icon(Icons.touch_app_rounded, color: _darkBrown, size: 22),
         ),
         const SizedBox(width: 14),
         Expanded(
           child: Text(
             'Select an image above using Camera or Gallery to begin AI analysis.',
-            style: GoogleFonts.poppins(fontSize: 13, color: _midBrown, height: 1.4),
+            style: GoogleFonts.poppins(
+                fontSize: 13, color: _midBrown, height: 1.4),
           ),
         ),
       ]),
@@ -737,7 +770,8 @@ Return ONLY valid JSON (no markdown):
           backgroundColor: _darkBrown,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           elevation: 5,
           shadowColor: _darkBrown.withValues(alpha: .4),
         ),
@@ -782,10 +816,13 @@ Return ONLY valid JSON (no markdown):
                 children: [
                   Text('More Information Needed',
                       style: GoogleFonts.poppins(
-                          fontSize: 15, fontWeight: FontWeight.w700, color: _darkBrown)),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: _darkBrown)),
                   Text(
                     'Confidence: ${result.confidencePercent?.toStringAsFixed(0) ?? "—"}%',
-                    style: GoogleFonts.poppins(fontSize: 12, color: _warningOrange),
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: _warningOrange),
                   ),
                 ],
               ),
@@ -808,7 +845,9 @@ Return ONLY valid JSON (no markdown):
             const SizedBox(height: 18),
             Text('Which of these best matches what you see?',
                 style: GoogleFonts.poppins(
-                    fontSize: 13, fontWeight: FontWeight.w600, color: _darkBrown)),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _darkBrown)),
             const SizedBox(height: 10),
             ...result.candidates.map(_buildCandidateTile),
           ],
@@ -819,7 +858,8 @@ Return ONLY valid JSON (no markdown):
               child: ElevatedButton.icon(
                 onPressed: _resetScan,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _darkBrown, foregroundColor: Colors.white,
+                  backgroundColor: _darkBrown,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -850,9 +890,12 @@ Return ONLY valid JSON (no markdown):
           border: Border.all(
               color: isSelected ? _darkBrown : const Color(0xFFD7C5BC)),
           boxShadow: isSelected
-              ? [BoxShadow(
-                  color: _darkBrown.withValues(alpha: .25),
-                  blurRadius: 8, offset: const Offset(0, 3))]
+              ? [
+                  BoxShadow(
+                      color: _darkBrown.withValues(alpha: .25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3))
+                ]
               : [],
         ),
         child: Row(children: [
@@ -927,7 +970,8 @@ Return ONLY valid JSON (no markdown):
       ),
       padding: const EdgeInsets.all(18),
       child: Column(children: [
-        const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 36),
+        const Icon(Icons.error_outline_rounded,
+            color: Colors.redAccent, size: 36),
         const SizedBox(height: 10),
         Text(_errorMessage ?? 'An unexpected error occurred.',
             style: GoogleFonts.poppins(
@@ -937,13 +981,16 @@ Return ONLY valid JSON (no markdown):
         ElevatedButton.icon(
           onPressed: _pickedImageBytes != null ? _analyseImage : _resetScan,
           style: ElevatedButton.styleFrom(
-            backgroundColor: _darkBrown, foregroundColor: Colors.white,
+            backgroundColor: _darkBrown,
+            foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           icon: const Icon(Icons.refresh_rounded, size: 18),
           label: Text(_pickedImageBytes != null ? 'Try Again' : 'Start Over',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
+              style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600, fontSize: 13)),
         ),
       ]),
     );
@@ -963,7 +1010,8 @@ Return ONLY valid JSON (no markdown):
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                   color: Colors.brown.shade200,
                   borderRadius: BorderRadius.circular(2)),
@@ -971,16 +1019,28 @@ Return ONLY valid JSON (no markdown):
             const SizedBox(height: 20),
             Text('Select Image Source',
                 style: GoogleFonts.poppins(
-                    fontSize: 16, fontWeight: FontWeight.w700, color: _darkBrown)),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: _darkBrown)),
             const SizedBox(height: 20),
             Row(children: [
-              Expanded(child: _buildSheetOption(
-                  icon: Icons.camera_alt_rounded, label: 'Camera',
-                  onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); })),
+              Expanded(
+                  child: _buildSheetOption(
+                      icon: Icons.camera_alt_rounded,
+                      label: 'Camera',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _pickImage(ImageSource.camera);
+                      })),
               const SizedBox(width: 16),
-              Expanded(child: _buildSheetOption(
-                  icon: Icons.photo_library_rounded, label: 'Gallery',
-                  onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); })),
+              Expanded(
+                  child: _buildSheetOption(
+                      icon: Icons.photo_library_rounded,
+                      label: 'Gallery',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _pickImage(ImageSource.gallery);
+                      })),
             ]),
           ],
         ),
@@ -989,7 +1049,9 @@ Return ONLY valid JSON (no markdown):
   }
 
   Widget _buildSheetOption(
-      {required IconData icon, required String label, required VoidCallback onTap}) {
+      {required IconData icon,
+      required String label,
+      required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1004,7 +1066,9 @@ Return ONLY valid JSON (no markdown):
           const SizedBox(height: 8),
           Text(label,
               style: GoogleFonts.poppins(
-                  fontSize: 14, fontWeight: FontWeight.w600, color: _darkBrown)),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: _darkBrown)),
         ]),
       ),
     );

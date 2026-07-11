@@ -55,29 +55,29 @@ class DiseaseDiagnosisRecord {
   ) {
     final d = doc.data()!;
     return DiseaseDiagnosisRecord(
-      id:             doc.id,
-      diseaseName:    d['diseaseName']    as String? ?? 'Unknown Disease',
-      stage:          d['stage']          as String? ?? '',
-      detectionMode:  d['detectionMode']  as String? ?? '',
+      id: doc.id,
+      diseaseName: d['diseaseName'] as String? ?? 'Unknown Disease',
+      stage: d['stage'] as String? ?? '',
+      detectionMode: d['detectionMode'] as String? ?? '',
       managementData: (d['managementData'] as Map<String, dynamic>?) ?? {},
-      imageUrls:      List<String>.from(d['imageUrls'] ?? []),
-      aiConfidence:   (d['aiConfidence'] as num?)?.toDouble(),
-      aiReasoning:    d['aiReasoning']   as String?,
+      imageUrls: List<String>.from(d['imageUrls'] ?? []),
+      aiConfidence: (d['aiConfidence'] as num?)?.toDouble(),
+      aiReasoning: d['aiReasoning'] as String?,
       savedAt: (d['savedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
   Map<String, dynamic> toMap() => {
-    'diseaseName'    : diseaseName,
-    'stage'          : stage,
-    'detectionMode'  : detectionMode,
-    'managementData' : managementData,
-    'imageUrls'      : imageUrls,
-    'aiConfidence'   : aiConfidence,
-    'aiReasoning'    : aiReasoning,
-    'savedAt'        : FieldValue.serverTimestamp(),
-    'appVersion'     : '1.0.0',
-  };
+        'diseaseName': diseaseName,
+        'stage': stage,
+        'detectionMode': detectionMode,
+        'managementData': managementData,
+        'imageUrls': imageUrls,
+        'aiConfidence': aiConfidence,
+        'aiReasoning': aiReasoning,
+        'savedAt': FieldValue.serverTimestamp(),
+        'appVersion': '1.0.0',
+      };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,11 +87,11 @@ class DiseaseDiagnosisRecord {
 class DiseaseFirestoreService {
   DiseaseFirestoreService._(); // prevent instantiation
 
-  static final FirebaseFirestore _db   = FirebaseFirestore.instance;
-  static final FirebaseAuth      _auth = FirebaseAuth.instance;
+  static final FirebaseFirestore _db = FirebaseFirestore.instance;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  static const int    _maxHistoryRecords = 100;
-  static const String _rootCollection    = 'disease_diagnoses';
+  static const int _maxHistoryRecords = 100;
+  static const String _rootCollection = 'disease_diagnoses';
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -109,27 +109,27 @@ class DiseaseFirestoreService {
   // ══════════════════════════════════════════════════════════════════════════
 
   static Future<String> saveDiagnosis({
-    required String               diseaseName,
-    required String               stage,
-    required String               detectionMode,
+    required String diseaseName,
+    required String stage,
+    required String detectionMode,
     required Map<String, dynamic> managementData,
-    required List<String>         imageUrls,
-    double?                       aiConfidence,
-    String?                       aiReasoning,
+    required List<String> imageUrls,
+    double? aiConfidence,
+    String? aiReasoning,
   }) async {
     debugPrint('[DiseaseFirestore] 💾 Saving diagnosis for '
         '"$diseaseName" | stage="$stage" | mode="$detectionMode"');
 
     final record = DiseaseDiagnosisRecord(
-      id:             '',
-      diseaseName:    diseaseName,
-      stage:          stage,
-      detectionMode:  detectionMode,
+      id: '',
+      diseaseName: diseaseName,
+      stage: stage,
+      detectionMode: detectionMode,
       managementData: managementData,
-      imageUrls:      imageUrls.take(10).toList(),
-      aiConfidence:   aiConfidence,
-      aiReasoning:    aiReasoning,
-      savedAt:        DateTime.now(),
+      imageUrls: imageUrls.take(10).toList(),
+      aiConfidence: aiConfidence,
+      aiReasoning: aiReasoning,
+      savedAt: DateTime.now(),
     );
 
     await _enforceRecordLimit();
@@ -166,9 +166,9 @@ class DiseaseFirestoreService {
 
       debugPrint('[DiseaseFirestore] ✅ Loaded ${records.length} records.');
       return records;
-
     } on _AuthException {
-      debugPrint('[DiseaseFirestore] ⚠️ Not signed in — returning empty history.');
+      debugPrint(
+          '[DiseaseFirestore] ⚠️ Not signed in — returning empty history.');
       return [];
     } on FirebaseException catch (e) {
       debugPrint('[DiseaseFirestore] ❌ Firestore load error: '
@@ -226,7 +226,8 @@ class DiseaseFirestoreService {
   // ══════════════════════════════════════════════════════════════════════════
 
   static Stream<List<DiseaseDiagnosisRecord>> historyStream({int limit = 30}) {
-    debugPrint('[DiseaseFirestore] 🔴 Opening real-time history stream (limit=$limit)');
+    debugPrint(
+        '[DiseaseFirestore] 🔴 Opening real-time history stream (limit=$limit)');
     try {
       return _diagnosesRef
           .orderBy('savedAt', descending: true)
@@ -248,7 +249,8 @@ class DiseaseFirestoreService {
   // ══════════════════════════════════════════════════════════════════════════
 
   static Future<void> clearAllHistory() async {
-    debugPrint('[DiseaseFirestore] 🗑 Clearing ALL history for user "$_userId"');
+    debugPrint(
+        '[DiseaseFirestore] 🗑 Clearing ALL history for user "$_userId"');
     try {
       const batchSize = 400;
       int totalDeleted = 0;
@@ -261,10 +263,12 @@ class DiseaseFirestoreService {
         }
         await batch.commit();
         totalDeleted += snapshot.docs.length;
-        debugPrint('[DiseaseFirestore] 🗑 Batch deleted ${snapshot.docs.length} '
+        debugPrint(
+            '[DiseaseFirestore] 🗑 Batch deleted ${snapshot.docs.length} '
             'records (total: $totalDeleted).');
       }
-      debugPrint('[DiseaseFirestore] ✅ All history cleared. Total: $totalDeleted.');
+      debugPrint(
+          '[DiseaseFirestore] ✅ All history cleared. Total: $totalDeleted.');
     } on _AuthException {
       debugPrint('[DiseaseFirestore] ❌ clearAllHistory — user not signed in.');
       rethrow;
@@ -282,7 +286,7 @@ class DiseaseFirestoreService {
   static Future<int> diagnosisCount() async {
     try {
       final result = await _diagnosesRef.count().get();
-      final count  = result.count ?? 0;
+      final count = result.count ?? 0;
       debugPrint('[DiseaseFirestore] 🔢 Diagnosis count: $count');
       return count;
     } on _AuthException {
@@ -302,7 +306,8 @@ class DiseaseFirestoreService {
     try {
       final count = await diagnosisCount();
       if (count < _maxHistoryRecords) {
-        debugPrint('[DiseaseFirestore] 📊 Record count $count / $_maxHistoryRecords '
+        debugPrint(
+            '[DiseaseFirestore] 📊 Record count $count / $_maxHistoryRecords '
             '— within limit.');
         return;
       }
@@ -318,9 +323,11 @@ class DiseaseFirestoreService {
         debugPrint('[DiseaseFirestore] 🗑 Oldest record "$oldestId" deleted.');
       }
     } on _AuthException {
-      debugPrint('[DiseaseFirestore] ⚠️ _enforceRecordLimit — user not signed in.');
+      debugPrint(
+          '[DiseaseFirestore] ⚠️ _enforceRecordLimit — user not signed in.');
     } catch (e) {
-      debugPrint('[DiseaseFirestore] ⚠️ Record limit check failed (non-critical): $e');
+      debugPrint(
+          '[DiseaseFirestore] ⚠️ Record limit check failed (non-critical): $e');
     }
   }
 }
@@ -332,7 +339,6 @@ class DiseaseFirestoreService {
 class _AuthException implements Exception {
   const _AuthException();
   @override
-  String toString() =>
-      'DiseaseFirestoreService: No authenticated user. '
+  String toString() => 'DiseaseFirestoreService: No authenticated user. '
       'Ensure Firebase Auth is initialised and a user is signed in.';
 }

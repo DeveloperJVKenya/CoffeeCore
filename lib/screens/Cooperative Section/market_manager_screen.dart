@@ -13,7 +13,8 @@ class MarketManagerScreen extends StatefulWidget {
   State<MarketManagerScreen> createState() => _MarketManagerScreenState();
 }
 
-class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTickerProviderStateMixin {
+class _MarketManagerScreenState extends State<MarketManagerScreen>
+    with SingleTickerProviderStateMixin {
   static final Color coffeeBrown = Colors.brown[700]!;
   final Logger logger = Logger(printer: PrettyPrinter());
   String? _cooperativeName;
@@ -23,7 +24,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
 
   final List<Map<String, String>> _userDetails = [];
   String? _selectedUserId;
-  final TextEditingController _produceAmountController = TextEditingController();
+  final TextEditingController _produceAmountController =
+      TextEditingController();
 
   @override
   void initState() {
@@ -52,7 +54,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
     }
 
     try {
-      QuerySnapshot coopSnapshot = await FirebaseFirestore.instance.collection('cooperatives').get();
+      QuerySnapshot coopSnapshot =
+          await FirebaseFirestore.instance.collection('cooperatives').get();
       logger.i('Fetched cooperatives: ${coopSnapshot.docs.length} found');
       for (var coopDoc in coopSnapshot.docs) {
         String coopId = coopDoc.id;
@@ -60,7 +63,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
             .collection('${coopId}_marketmanagers')
             .doc(userId)
             .get();
-        logger.i('Checking market manager document for user $userId in ${coopId}_marketmanagers');
+        logger.i(
+            'Checking market manager document for user $userId in ${coopId}_marketmanagers');
         if (managerDoc.exists) {
           setState(() {
             _cooperativeName = coopId.replaceAll('_', ' ');
@@ -70,9 +74,11 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
         }
       }
       setState(() {
-        _feedbackMessage = 'Not registered as a Market Manager in any cooperative';
+        _feedbackMessage =
+            'Not registered as a Market Manager in any cooperative';
       });
-      logger.w('User $userId not found in any {coopId}_marketmanagers collection');
+      logger.w(
+          'User $userId not found in any {coopId}_marketmanagers collection');
     } catch (e, stackTrace) {
       logger.e('Error fetching cooperative: $e\nStack trace: $stackTrace');
       setState(() {
@@ -84,7 +90,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
   Future<void> _fetchUsers(String coopId) async {
     try {
       logger.i('Fetching users from collection: ${coopId}_users');
-      QuerySnapshot userSnapshot = await FirebaseFirestore.instance.collection('${coopId}_users').get();
+      QuerySnapshot userSnapshot =
+          await FirebaseFirestore.instance.collection('${coopId}_users').get();
       logger.i('Fetched users: ${userSnapshot.docs.length} found');
 
       _userDetails.clear();
@@ -111,11 +118,14 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
   }
 
   Future<void> _addProduceSubmission() async {
-    if (_selectedUserId == null || _produceAmountController.text.isEmpty || _cooperativeName == null) {
+    if (_selectedUserId == null ||
+        _produceAmountController.text.isEmpty ||
+        _cooperativeName == null) {
       setState(() {
         _feedbackMessage = 'Please select a user and enter a valid amount';
       });
-      logger.w('Invalid input: userId=$_selectedUserId, amount=${_produceAmountController.text}, cooperativeName=$_cooperativeName');
+      logger.w(
+          'Invalid input: userId=$_selectedUserId, amount=${_produceAmountController.text}, cooperativeName=$_cooperativeName');
       return;
     }
 
@@ -130,8 +140,12 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
 
     String formattedCoopId = _cooperativeName!.replaceAll(' ', '_');
     String dateString = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    String? farmerName = _userDetails.firstWhere((user) => user['id'] == _selectedUserId, orElse: () => {'fullName': 'Unknown'})['fullName'];
-    String? contact = _userDetails.firstWhere((user) => user['id'] == _selectedUserId, orElse: () => {'phoneNumber': 'N/A'})['phoneNumber'];
+    String? farmerName = _userDetails.firstWhere(
+        (user) => user['id'] == _selectedUserId,
+        orElse: () => {'fullName': 'Unknown'})['fullName'];
+    String? contact = _userDetails.firstWhere(
+        (user) => user['id'] == _selectedUserId,
+        orElse: () => {'phoneNumber': 'N/A'})['phoneNumber'];
 
     try {
       final produceData = FarmerProduce(
@@ -150,23 +164,28 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
           .collection('submissions')
           .doc(produceData.submissionId)
           .set(produceData.toMap());
-      logger.i('Successfully set produce data for user $_selectedUserId at ${formattedCoopId}_FarmerProduce/$_selectedUserId/submissions/${produceData.submissionId}');
+      logger.i(
+          'Successfully set produce data for user $_selectedUserId at ${formattedCoopId}_FarmerProduce/$_selectedUserId/submissions/${produceData.submissionId}');
 
-      await _logActivity('Added produce $amount kg for user $_selectedUserId in cooperative $_cooperativeName');
+      await _logActivity(
+          'Added produce $amount kg for user $_selectedUserId in cooperative $_cooperativeName');
       setState(() {
-        _feedbackMessage = 'Produce submission of $amount kg added successfully';
+        _feedbackMessage =
+            'Produce submission of $amount kg added successfully';
         _produceAmountController.clear();
         _selectedUserId = null;
       });
     } catch (e, stackTrace) {
-      logger.e('Error adding produce submission: $e\nStack trace: $stackTrace\nPath: ${formattedCoopId}_FarmerProduce/$_selectedUserId/submissions');
+      logger.e(
+          'Error adding produce submission: $e\nStack trace: $stackTrace\nPath: ${formattedCoopId}_FarmerProduce/$_selectedUserId/submissions');
       setState(() {
         _feedbackMessage = 'Error adding produce submission: $e';
       });
     }
   }
 
-  Future<void> _editProduceSubmission(String userId, String submissionId, double currentAmount) async {
+  Future<void> _editProduceSubmission(
+      String userId, String submissionId, double currentAmount) async {
     String formattedCoopId = _cooperativeName!.replaceAll(' ', '_');
     _produceAmountController.text = currentAmount.toString();
     final result = await showDialog<String>(
@@ -195,14 +214,18 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
                 );
                 return;
               }
-              double? newAmount = double.tryParse(_produceAmountController.text);
+              double? newAmount =
+                  double.tryParse(_produceAmountController.text);
               if (newAmount == null || newAmount <= 0) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid amount greater than zero')),
+                  const SnackBar(
+                      content: Text(
+                          'Please enter a valid amount greater than zero')),
                 );
                 return;
               }
-              Navigator.pop(dialogContext, _produceAmountController.text.trim());
+              Navigator.pop(
+                  dialogContext, _produceAmountController.text.trim());
             },
             child: const Text('Save'),
           ),
@@ -222,13 +245,16 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
           'totalAmount': newAmount,
           'timestamp': Timestamp.now(),
         });
-        logger.i('Successfully updated produce data for user $userId at ${formattedCoopId}_FarmerProduce/$userId/submissions/$submissionId');
-        await _logActivity('Updated produce to $newAmount kg for user $userId in cooperative $_cooperativeName');
+        logger.i(
+            'Successfully updated produce data for user $userId at ${formattedCoopId}_FarmerProduce/$userId/submissions/$submissionId');
+        await _logActivity(
+            'Updated produce to $newAmount kg for user $userId in cooperative $_cooperativeName');
         setState(() {
           _feedbackMessage = 'Produce amount updated to $newAmount kg';
         });
       } catch (e, stackTrace) {
-        logger.e('Error updating produce submission: $e\nStack trace: $stackTrace\nPath: ${formattedCoopId}_FarmerProduce/$userId/submissions/$submissionId');
+        logger.e(
+            'Error updating produce submission: $e\nStack trace: $stackTrace\nPath: ${formattedCoopId}_FarmerProduce/$userId/submissions/$submissionId');
         setState(() {
           _feedbackMessage = 'Error updating produce submission: $e';
         });
@@ -267,7 +293,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
   Widget build(BuildContext context) {
     if (_feedbackMessage != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_feedbackMessage!)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_feedbackMessage!)));
         setState(() => _feedbackMessage = null);
       });
     }
@@ -300,7 +327,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => PriceListScreen(cooperativeName: _cooperativeName!),
+                            builder: (_) => PriceListScreen(
+                                cooperativeName: _cooperativeName!),
                           ),
                         );
                       },
@@ -327,7 +355,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => SubmissionListScreen(cooperativeName: _cooperativeName!),
+                            builder: (_) => SubmissionListScreen(
+                                cooperativeName: _cooperativeName!),
                           ),
                         );
                       },
@@ -446,7 +475,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          logger.e('Error loading produce data: ${snapshot.error}\nStack trace: ${StackTrace.current}\nPath: ${formattedCoopId}_FarmerProduce/$_selectedUserId/submissions');
+          logger.e(
+              'Error loading produce data: ${snapshot.error}\nStack trace: ${StackTrace.current}\nPath: ${formattedCoopId}_FarmerProduce/$_selectedUserId/submissions');
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -458,16 +488,28 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
           );
         }
 
-        final produceData = snapshot.data!.docs.map((doc) => FarmerProduce.fromDocument(doc)).toList();
+        final produceData = snapshot.data!.docs
+            .map((doc) => FarmerProduce.fromDocument(doc))
+            .toList();
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
             columns: const [
-              DataColumn(label: Text('Farmer Name', style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Contact', style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Amount (kg)', style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(
+                  label: Text('Farmer Name',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(
+                  label: Text('Contact',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(
+                  label: Text('Date',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(
+                  label: Text('Amount (kg)',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(
+                  label: Text('Actions',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
             ],
             rows: produceData.map((data) {
               return DataRow(cells: [
@@ -479,7 +521,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
                   IconButton(
                     icon: const Icon(Icons.edit, color: Colors.blue),
                     onPressed: () {
-                      _editProduceSubmission(data.id, data.submissionId, data.totalAmount);
+                      _editProduceSubmission(
+                          data.id, data.submissionId, data.totalAmount);
                     },
                   ),
                 ),
@@ -518,7 +561,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
                               ),
                               Text(
                                 user['phoneNumber']!,
-                                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                                style: TextStyle(
+                                    color: Colors.grey[600], fontSize: 14),
                               ),
                             ],
                           ),
@@ -550,7 +594,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: 'Amount (kg)',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ],
@@ -601,7 +646,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
                 controller: varietyController,
                 decoration: InputDecoration(
                   labelText: 'Variety Name',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -610,7 +656,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Price (Ksh/kg)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ],
@@ -624,7 +671,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
           TextButton(
             style: TextButton.styleFrom(foregroundColor: coffeeBrown),
             onPressed: () {
-              if (varietyController.text.trim().isEmpty || priceController.text.trim().isEmpty) {
+              if (varietyController.text.trim().isEmpty ||
+                  priceController.text.trim().isEmpty) {
                 Navigator.pop(dialogContext, 'Fill all fields');
                 return;
               }
@@ -641,7 +689,9 @@ class _MarketManagerScreenState extends State<MarketManagerScreen> with SingleTi
       ),
     );
 
-    if (result != null && result != 'Fill all fields' && result != 'Invalid price') {
+    if (result != null &&
+        result != 'Fill all fields' &&
+        result != 'Invalid price') {
       try {
         String newVariety = result;
         double price = double.parse(priceController.text);
@@ -687,7 +737,8 @@ class _PriceListScreenState extends State<PriceListScreen> {
   final logger = Logger(printer: PrettyPrinter());
 
   Future<void> _showEditDialog(String variety, double currentPrice) async {
-    final priceController = TextEditingController(text: currentPrice.toString());
+    final priceController =
+        TextEditingController(text: currentPrice.toString());
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
@@ -744,7 +795,8 @@ class _PriceListScreenState extends State<PriceListScreen> {
           'updatedBy': user.uid,
           'timestamp': Timestamp.now(),
         });
-        setState(() => _feedbackMessage = 'Price for $variety updated to Ksh $price/kg');
+        setState(() =>
+            _feedbackMessage = 'Price for $variety updated to Ksh $price/kg');
       } catch (e, stackTrace) {
         logger.e('Error updating price: $e\nStack trace: $stackTrace');
         setState(() => _feedbackMessage = 'Error updating price: $e');
@@ -757,7 +809,8 @@ class _PriceListScreenState extends State<PriceListScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Delete $variety'),
-        content: const Text('Are you sure you want to delete this variety and price?'),
+        content: const Text(
+            'Are you sure you want to delete this variety and price?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -791,7 +844,8 @@ class _PriceListScreenState extends State<PriceListScreen> {
   Widget build(BuildContext context) {
     if (_feedbackMessage != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_feedbackMessage!)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_feedbackMessage!)));
         setState(() => _feedbackMessage = null);
       });
     }
@@ -801,20 +855,24 @@ class _PriceListScreenState extends State<PriceListScreen> {
       appBar: AppBar(
         title: Text(
           'Price List - ${widget.cooperativeName}',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style:
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: coffeeBrown,
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('${formattedCoopId}_coffeeprices').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('${formattedCoopId}_coffeeprices')
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            logger.e('Error loading prices: ${snapshot.error}\nStack trace: ${StackTrace.current}');
+            logger.e(
+                'Error loading prices: ${snapshot.error}\nStack trace: ${StackTrace.current}');
             return Center(child: Text('Error: ${snapshot.error}'));
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -838,9 +896,15 @@ class _PriceListScreenState extends State<PriceListScreen> {
           return SingleChildScrollView(
             child: DataTable(
               columns: const [
-                DataColumn(label: Text('Variety', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Price (Ksh/kg)', style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
+                DataColumn(
+                    label: Text('Variety',
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                DataColumn(
+                    label: Text('Price (Ksh/kg)',
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                DataColumn(
+                    label: Text('Actions',
+                        style: TextStyle(fontWeight: FontWeight.bold))),
               ],
               rows: prices.map((price) {
                 return DataRow(cells: [
@@ -851,7 +915,8 @@ class _PriceListScreenState extends State<PriceListScreen> {
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.blue),
                         onPressed: () async {
-                          await _showEditDialog(price['variety'] as String, price['price'] as double);
+                          await _showEditDialog(price['variety'] as String,
+                              price['price'] as double);
                         },
                       ),
                       IconButton(
@@ -898,7 +963,9 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
     try {
       String formattedCoopId = widget.cooperativeName.replaceAll(' ', '_');
       // Fetch users
-      QuerySnapshot userSnapshot = await FirebaseFirestore.instance.collection('${formattedCoopId}_users').get();
+      QuerySnapshot userSnapshot = await FirebaseFirestore.instance
+          .collection('${formattedCoopId}_users')
+          .get();
       logger.i('Fetched users: ${userSnapshot.docs.length} found');
       _userDetails = userSnapshot.docs.map((doc) {
         String userId = doc.id;
@@ -920,14 +987,17 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
             .where('submissionDate', isGreaterThan: '')
             .orderBy('submissionDate', descending: true)
             .get();
-        logger.i('Fetched ${submissionSnapshot.docs.length} submissions for user ${user['id']}');
+        logger.i(
+            'Fetched ${submissionSnapshot.docs.length} submissions for user ${user['id']}');
         var dates = submissionSnapshot.docs
-            .map((doc) => (doc.data() as Map<String, dynamic>)['submissionDate'] as String)
+            .map((doc) => (doc.data() as Map<String, dynamic>)['submissionDate']
+                as String)
             .toSet()
             .toList();
         _submissionDates.addAll(dates);
       }
-      _submissionDates = _submissionDates.toSet().toList()..sort((a, b) => b.compareTo(a));
+      _submissionDates = _submissionDates.toSet().toList()
+        ..sort((a, b) => b.compareTo(a));
       setState(() {});
     } catch (e, stackTrace) {
       logger.e('Error fetching users or dates: $e\nStack trace: $stackTrace');
@@ -937,9 +1007,11 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
     }
   }
 
-  Future<void> _editProduceSubmission(String userId, String submissionId, double currentAmount) async {
+  Future<void> _editProduceSubmission(
+      String userId, String submissionId, double currentAmount) async {
     String formattedCoopId = widget.cooperativeName.replaceAll(' ', '_');
-    final TextEditingController amountController = TextEditingController(text: currentAmount.toString());
+    final TextEditingController amountController =
+        TextEditingController(text: currentAmount.toString());
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -969,7 +1041,9 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
               double? newAmount = double.tryParse(amountController.text);
               if (newAmount == null || newAmount <= 0) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid amount greater than zero')),
+                  const SnackBar(
+                      content: Text(
+                          'Please enter a valid amount greater than zero')),
                 );
                 return;
               }
@@ -993,12 +1067,14 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
           'totalAmount': newAmount,
           'timestamp': Timestamp.now(),
         });
-        logger.i('Successfully updated produce data for user $userId at ${formattedCoopId}_FarmerProduce/$userId/submissions/$submissionId');
+        logger.i(
+            'Successfully updated produce data for user $userId at ${formattedCoopId}_FarmerProduce/$userId/submissions/$submissionId');
         setState(() {
           _feedbackMessage = 'Produce amount updated to $newAmount kg';
         });
       } catch (e, stackTrace) {
-        logger.e('Error updating produce submission: $e\nStack trace: $stackTrace\nPath: ${formattedCoopId}_FarmerProduce/$userId/submissions/$submissionId');
+        logger.e(
+            'Error updating produce submission: $e\nStack trace: $stackTrace\nPath: ${formattedCoopId}_FarmerProduce/$userId/submissions/$submissionId');
         setState(() {
           _feedbackMessage = 'Error updating produce submission: $e';
         });
@@ -1011,7 +1087,8 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
   Widget build(BuildContext context) {
     if (_feedbackMessage != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_feedbackMessage!)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_feedbackMessage!)));
         setState(() => _feedbackMessage = null);
       });
     }
@@ -1021,7 +1098,8 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
       appBar: AppBar(
         title: Text(
           'Submission List - ${widget.cooperativeName}',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style:
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: coffeeBrown,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -1031,13 +1109,14 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
           ? const Center(child: CircularProgressIndicator())
           : StreamBuilder<List<QuerySnapshot>>(
               stream: CombineLatestStream.list(
-                _userDetails.map((user) => FirebaseFirestore.instance
-                    .collection('${formattedCoopId}_FarmerProduce')
-                    .doc(user['id'])
-                    .collection('submissions')
-                    .where('submissionDate', isGreaterThan: '')
-                    .orderBy('submissionDate', descending: true)
-                    .snapshots())
+                _userDetails
+                    .map((user) => FirebaseFirestore.instance
+                        .collection('${formattedCoopId}_FarmerProduce')
+                        .doc(user['id'])
+                        .collection('submissions')
+                        .where('submissionDate', isGreaterThan: '')
+                        .orderBy('submissionDate', descending: true)
+                        .snapshots())
                     .toList(),
               ),
               builder: (context, snapshot) {
@@ -1045,10 +1124,12 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  logger.e('Error loading submissions: ${snapshot.error}\nStack trace: ${StackTrace.current}\nPath: ${formattedCoopId}_FarmerProduce/*/submissions');
+                  logger.e(
+                      'Error loading submissions: ${snapshot.error}\nStack trace: ${StackTrace.current}\nPath: ${formattedCoopId}_FarmerProduce/*/submissions');
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
-                if (!snapshot.hasData || snapshot.data!.every((s) => s.docs.isEmpty)) {
+                if (!snapshot.hasData ||
+                    snapshot.data!.every((s) => s.docs.isEmpty)) {
                   return const Center(
                     child: Text(
                       'No submissions found.',
@@ -1064,10 +1145,12 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
 
                 List<DataColumn> columns = [
                   const DataColumn(
-                      label: Text('Farmer Name', style: TextStyle(fontWeight: FontWeight.bold))),
+                      label: Text('Farmer Name',
+                          style: TextStyle(fontWeight: FontWeight.bold))),
                 ];
                 columns.addAll(_submissionDates.map((date) => DataColumn(
-                      label: Text(date, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      label: Text(date,
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                     )));
 
                 List<DataRow> rows = _userDetails.map((user) {
@@ -1092,10 +1175,13 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                           children: [
                             Text(submission.totalAmount.toStringAsFixed(2)),
                             IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                              icon: const Icon(Icons.edit,
+                                  color: Colors.blue, size: 20),
                               onPressed: () {
                                 _editProduceSubmission(
-                                    submission.id, submission.submissionId, submission.totalAmount);
+                                    submission.id,
+                                    submission.submissionId,
+                                    submission.totalAmount);
                               },
                             ),
                           ],

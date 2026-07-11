@@ -63,7 +63,9 @@ class CoffeePestIntervention {
     };
   }
 
-  factory CoffeePestIntervention.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot, SnapshotOptions? options) {
+  factory CoffeePestIntervention.fromFirestore(
+      DocumentSnapshot<Map<String, dynamic>> snapshot,
+      SnapshotOptions? options) {
     final data = snapshot.data()!;
     return CoffeePestIntervention(
       id: snapshot.id,

@@ -40,7 +40,8 @@ class _MessagingScreenState extends State<MessagingScreen> {
       return;
     }
     try {
-      String role = await RoleUtils.getUserRole(_userId!, widget.cooperativeName);
+      String role =
+          await RoleUtils.getUserRole(_userId!, widget.cooperativeName);
       if (mounted) {
         setState(() {
           _userRole = role;
@@ -59,15 +60,22 @@ class _MessagingScreenState extends State<MessagingScreen> {
   Widget build(BuildContext context) {
     String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
     final chatGroups = [
-      {'name': '${widget.cooperativeName} Management', 'id': '${formattedCoopName}_Management'},
-      {'name': '${widget.cooperativeName} Users', 'id': '${formattedCoopName}_Users'},
+      {
+        'name': '${widget.cooperativeName} Management',
+        'id': '${formattedCoopName}_Management'
+      },
+      {
+        'name': '${widget.cooperativeName} Users',
+        'id': '${formattedCoopName}_Users'
+      },
     ];
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
           '${widget.cooperativeName} Messages',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style:
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.brown[700],
         foregroundColor: Colors.white,
@@ -77,7 +85,9 @@ class _MessagingScreenState extends State<MessagingScreen> {
           : _userRole == null
               ? const Center(child: CircularProgressIndicator())
               : _userRole == 'None'
-                  ? const Center(child: Text('No role assigned for this cooperative. Contact admin.'))
+                  ? const Center(
+                      child: Text(
+                          'No role assigned for this cooperative. Contact admin.'))
                   : _selectedChat == null
                       ? ListView.builder(
                           itemCount: chatGroups.length,
@@ -85,11 +95,15 @@ class _MessagingScreenState extends State<MessagingScreen> {
                             final chat = chatGroups[index];
                             bool canAccess = _userRole == 'Main Admin' ||
                                 _userRole == 'Coop Admin' ||
-                                (_userRole == 'Market Manager' && chat['id'] == '${formattedCoopName}_Management') ||
-                                (_userRole == 'User' && chat['id'] == '${formattedCoopName}_Users');
+                                (_userRole == 'Market Manager' &&
+                                    chat['id'] ==
+                                        '${formattedCoopName}_Management') ||
+                                (_userRole == 'User' &&
+                                    chat['id'] == '${formattedCoopName}_Users');
                             return canAccess
                                 ? ListTile(
-                                    leading: Icon(Icons.group, color: Colors.brown[700]),
+                                    leading: Icon(Icons.group,
+                                        color: Colors.brown[700]),
                                     title: Text(chat['name']!),
                                     onTap: () {
                                       setState(() {
@@ -200,11 +214,11 @@ class _ChatScreenState extends State<ChatScreen> {
     String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
     try {
       await FirebaseFirestore.instance
-        .collection('messages')
-        .doc(formattedCoopName)
-        .collection(widget.chatId)
-        .doc(messageId)
-        .update({'isDeleted': false});
+          .collection('messages')
+          .doc(formattedCoopName)
+          .collection(widget.chatId)
+          .doc(messageId)
+          .update({'isDeleted': false});
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -243,7 +257,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasError) {
-                return Center(child: Text('Error loading messages: ${snapshot.error}'));
+                return Center(
+                    child: Text('Error loading messages: ${snapshot.error}'));
               }
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return const Center(
@@ -255,7 +270,8 @@ class _ChatScreenState extends State<ChatScreen> {
               }
 
               final messages = snapshot.data!.docs;
-              WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+              WidgetsBinding.instance
+                  .addPostFrameCallback((_) => _scrollToBottom());
               return ListView.builder(
                 controller: _scrollController,
                 itemCount: messages.length,
@@ -267,26 +283,32 @@ class _ChatScreenState extends State<ChatScreen> {
                   final isDeleted = message['isDeleted'] == true;
 
                   if (_deletedForMe.contains(messageId) ||
-                      (isDeleted && widget.userRole != 'Coop Admin' && widget.userRole != 'Main Admin')) {
+                      (isDeleted &&
+                          widget.userRole != 'Coop Admin' &&
+                          widget.userRole != 'Main Admin')) {
                     return const SizedBox.shrink();
                   }
 
                   return FutureBuilder<String>(
-                    future: RoleUtils.getUserRole(message['senderId'], widget.cooperativeName),
+                    future: RoleUtils.getUserRole(
+                        message['senderId'], widget.cooperativeName),
                     builder: (context, roleSnapshot) {
-                      if (roleSnapshot.connectionState == ConnectionState.waiting) {
+                      if (roleSnapshot.connectionState ==
+                          ConnectionState.waiting) {
                         return const SizedBox.shrink();
                       }
                       if (roleSnapshot.hasError) {
                         return const SizedBox.shrink();
                       }
                       final senderRole = roleSnapshot.data ?? 'User';
-                      final isAdminMessage =
-                          senderRole == 'Coop Admin' && widget.chatId.contains('_Management');
+                      final isAdminMessage = senderRole == 'Coop Admin' &&
+                          widget.chatId.contains('_Management');
 
                       return GestureDetector(
                         onLongPress: () {
-                          if (isMe || widget.userRole == 'Coop Admin' || widget.userRole == 'Main Admin') {
+                          if (isMe ||
+                              widget.userRole == 'Coop Admin' ||
+                              widget.userRole == 'Main Admin') {
                             showModalBottomSheet(
                               context: context,
                               builder: (context) => Column(
@@ -310,7 +332,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                         Navigator.pop(context);
                                       },
                                     ),
-                                  if ((widget.userRole == 'Coop Admin' || widget.userRole == 'Main Admin') && isDeleted)
+                                  if ((widget.userRole == 'Coop Admin' ||
+                                          widget.userRole == 'Main Admin') &&
+                                      isDeleted)
                                     ListTile(
                                       leading: const Icon(Icons.restore),
                                       title: const Text('Restore Message'),
@@ -325,9 +349,12 @@ class _ChatScreenState extends State<ChatScreen> {
                           }
                         },
                         child: Align(
-                          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                          alignment: isMe
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
                           child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 4, horizontal: 8),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: isMe
@@ -360,7 +387,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   controller: _messageController,
                   decoration: InputDecoration(
                     hintText: 'Type a message...',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     filled: true,
                     fillColor: Colors.white,
                   ),

@@ -4,10 +4,12 @@ class NotificationsSettingsScreen extends StatefulWidget {
   const NotificationsSettingsScreen({super.key});
 
   @override
-  State<NotificationsSettingsScreen> createState() => _NotificationsSettingsScreenState();
+  State<NotificationsSettingsScreen> createState() =>
+      _NotificationsSettingsScreenState();
 }
 
-class _NotificationsSettingsScreenState extends State<NotificationsSettingsScreen> {
+class _NotificationsSettingsScreenState
+    extends State<NotificationsSettingsScreen> {
   // State variables for notification toggles
   bool _pushNotifications = true;
   bool _weatherAlerts = true;
@@ -70,10 +72,12 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                   }
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: coffeeBrown),
-                child: const Text('Pick Date', style: TextStyle(color: Colors.white)),
+                child: const Text('Pick Date',
+                    style: TextStyle(color: Colors.white)),
               ),
               if (selectedDate != null)
-                Text('Selected Date: ${selectedDate.toString().substring(0, 10)}'),
+                Text(
+                    'Selected Date: ${selectedDate.toString().substring(0, 10)}'),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: selectedDate != null
@@ -90,7 +94,8 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                       }
                     : null,
                 style: ElevatedButton.styleFrom(backgroundColor: coffeeBrown),
-                child: const Text('Pick Time', style: TextStyle(color: Colors.white)),
+                child: const Text('Pick Time',
+                    style: TextStyle(color: Colors.white)),
               ),
               if (selectedTime != null)
                 Text('Selected Time: ${selectedTime!.format(context)}'),
@@ -126,11 +131,17 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
   DateTime? _getReminderTimeFromSection(String section) {
     switch (section) {
       case 'field':
-        return _fieldReminderActivities ? DateTime.now().add(const Duration(hours: 1)) : null;
+        return _fieldReminderActivities
+            ? DateTime.now().add(const Duration(hours: 1))
+            : null;
       case 'pest':
-        return _pestReminderActivities ? DateTime.now().add(const Duration(hours: 2)) : null;
+        return _pestReminderActivities
+            ? DateTime.now().add(const Duration(hours: 2))
+            : null;
       case 'coffeeManagement':
-        return _coffeeManagementReminderActivities ? DateTime.now().add(const Duration(hours: 3)) : null;
+        return _coffeeManagementReminderActivities
+            ? DateTime.now().add(const Duration(hours: 3))
+            : null;
       default:
         return null;
     }
@@ -258,13 +269,17 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                                     });
                                     if (value) {
                                       if (_fieldReminderActivities) {
-                                        final autoTime = _getReminderTimeFromSection('field');
+                                        final autoTime =
+                                            _getReminderTimeFromSection(
+                                                'field');
                                         if (autoTime != null) {
                                           setState(() {
                                             _fieldReminderTime = autoTime;
                                           });
                                         } else if (mounted) {
-                                          final time = await _showDateTimePickerDialog(context);
+                                          final time =
+                                              await _showDateTimePickerDialog(
+                                                  context);
                                           if (time != null) {
                                             setState(() {
                                               _fieldReminderTime = time;
@@ -272,7 +287,9 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                                           }
                                         }
                                       } else if (mounted) {
-                                        final time = await _showDateTimePickerDialog(context);
+                                        final time =
+                                            await _showDateTimePickerDialog(
+                                                context);
                                         if (time != null) {
                                           setState(() {
                                             _fieldReminderTime = time;
@@ -344,13 +361,16 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                                     });
                                     if (value) {
                                       if (_pestReminderActivities) {
-                                        final autoTime = _getReminderTimeFromSection('pest');
+                                        final autoTime =
+                                            _getReminderTimeFromSection('pest');
                                         if (autoTime != null) {
                                           setState(() {
                                             _pestReminderTime = autoTime;
                                           });
                                         } else if (mounted) {
-                                          final time = await _showDateTimePickerDialog(context);
+                                          final time =
+                                              await _showDateTimePickerDialog(
+                                                  context);
                                           if (time != null) {
                                             setState(() {
                                               _pestReminderTime = time;
@@ -358,7 +378,9 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                                           }
                                         }
                                       } else if (mounted) {
-                                        final time = await _showDateTimePickerDialog(context);
+                                        final time =
+                                            await _showDateTimePickerDialog(
+                                                context);
                                         if (time != null) {
                                           setState(() {
                                             _pestReminderTime = time;
@@ -430,24 +452,33 @@ class _NotificationsSettingsScreenState extends State<NotificationsSettingsScree
                                     });
                                     if (value) {
                                       if (_coffeeManagementReminderActivities) {
-                                        final autoTime = _getReminderTimeFromSection('coffeeManagement');
+                                        final autoTime =
+                                            _getReminderTimeFromSection(
+                                                'coffeeManagement');
                                         if (autoTime != null) {
                                           setState(() {
-                                            _coffeeManagementReminderTime = autoTime;
+                                            _coffeeManagementReminderTime =
+                                                autoTime;
                                           });
                                         } else if (mounted) {
-                                          final time = await _showDateTimePickerDialog(context);
+                                          final time =
+                                              await _showDateTimePickerDialog(
+                                                  context);
                                           if (time != null) {
                                             setState(() {
-                                              _coffeeManagementReminderTime = time;
+                                              _coffeeManagementReminderTime =
+                                                  time;
                                             });
                                           }
                                         }
                                       } else if (mounted) {
-                                        final time = await _showDateTimePickerDialog(context);
+                                        final time =
+                                            await _showDateTimePickerDialog(
+                                                context);
                                         if (time != null) {
                                           setState(() {
-                                            _coffeeManagementReminderTime = time;
+                                            _coffeeManagementReminderTime =
+                                                time;
                                           });
                                         }
                                       }

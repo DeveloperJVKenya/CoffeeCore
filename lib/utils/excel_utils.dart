@@ -41,7 +41,8 @@ class ExcelUtils {
       for (var item in data) {
         List<TextCellValue> row = [];
         for (var header in headers) {
-          row.add(TextCellValue(item[header.toLowerCase()]?.toString() ?? 'N/A'));
+          row.add(
+              TextCellValue(item[header.toLowerCase()]?.toString() ?? 'N/A'));
         }
         sheet.appendRow(row);
       }
@@ -52,7 +53,8 @@ class ExcelUtils {
       await excelFile.writeAsBytes(excel.encode()!);
 
       if (await excelFile.exists()) {
-        logger.i('File exists at $fullPath, size: ${await excelFile.length()} bytes');
+        logger.i(
+            'File exists at $fullPath, size: ${await excelFile.length()} bytes');
       } else {
         logger.w('File does not exist at $fullPath');
       }

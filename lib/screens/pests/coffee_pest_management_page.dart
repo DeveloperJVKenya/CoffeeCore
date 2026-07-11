@@ -52,8 +52,16 @@ final Map<String, Map<String, dynamic>> kPestDetails = {
     'chemicalControls': ['Imidacloprid', 'Lambda-cyhalothrin'],
     'mechanicalControls': ['Pheromone traps'],
     'biologicalControls': ['Parasitoid wasps'],
-    'possibleCauses': ['Warm temperatures (25–30°C)', 'High humidity', 'Poor sanitation'],
-    'preventiveMeasures': ['Regular harvesting', 'Sanitation of fallen cherries', 'Shade management'],
+    'possibleCauses': [
+      'Warm temperatures (25–30°C)',
+      'High humidity',
+      'Poor sanitation'
+    ],
+    'preventiveMeasures': [
+      'Regular harvesting',
+      'Sanitation of fallen cherries',
+      'Shade management'
+    ],
     'lifecycleImages': [
       'assets/pests/coffee_berry_borer1.png',
       'assets/pests/coffee_berry_borer2.png',
@@ -69,7 +77,8 @@ final Map<String, Map<String, dynamic>> kPestDetails = {
     ],
   },
   'Coffee Leaf Miner': {
-    'description': 'A small moth whose larvae mine the leaves of coffee plants.',
+    'description':
+        'A small moth whose larvae mine the leaves of coffee plants.',
     'symptoms':
         'Irregular, silvery streaks or tunnels on leaves, with premature leaf drop in severe cases.',
     'chemicalControls': ['Malathion', 'Permethrin'],
@@ -109,13 +118,18 @@ final Map<String, Map<String, dynamic>> kPestDetails = {
     ],
   },
   'Coffee Stem Borer': {
-    'description': 'A beetle that bores into the stems and branches of coffee plants.',
-    'symptoms': 'Holes in stems or branches, sawdust-like frass, weakened or snapping branches.',
+    'description':
+        'A beetle that bores into the stems and branches of coffee plants.',
+    'symptoms':
+        'Holes in stems or branches, sawdust-like frass, weakened or snapping branches.',
     'chemicalControls': ['Carbaryl', 'Permethrin'],
     'mechanicalControls': ['Pruning of infested branches'],
     'biologicalControls': [],
     'possibleCauses': ['High altitude', 'Old plants'],
-    'preventiveMeasures': ['Remove infested branches', 'Plant health monitoring'],
+    'preventiveMeasures': [
+      'Remove infested branches',
+      'Plant health monitoring'
+    ],
     'lifecycleImages': [
       'assets/pests/coffee_stem_borer1.png',
       'assets/pests/coffee_stem_borer2.png',
@@ -128,8 +142,10 @@ final Map<String, Map<String, dynamic>> kPestDetails = {
     ],
   },
   'Root-Knot Nematodes': {
-    'description': 'Nematodes that attack the roots of coffee plants, causing galls.',
-    'symptoms': 'Swollen or knotted roots, yellowing leaves, wilting despite adequate watering.',
+    'description':
+        'Nematodes that attack the roots of coffee plants, causing galls.',
+    'symptoms':
+        'Swollen or knotted roots, yellowing leaves, wilting despite adequate watering.',
     'chemicalControls': ['Fenamiphos', 'Oxamyl', 'Carbofuran'],
     'mechanicalControls': [],
     'biologicalControls': [],
@@ -146,14 +162,18 @@ final Map<String, Map<String, dynamic>> kPestDetails = {
     ],
   },
   'White Flies': {
-    'description': 'Tiny white flying insects that suck sap from coffee plants.',
+    'description':
+        'Tiny white flying insects that suck sap from coffee plants.',
     'symptoms':
         'Yellowing leaves, sticky honeydew, sooty mold, cloud of white insects when disturbed.',
     'chemicalControls': ['Imidacloprid', 'Lambda-cyhalothrin'],
     'mechanicalControls': [],
     'biologicalControls': ['Natural predators like ladybugs'],
     'possibleCauses': ['Warm, humid conditions', 'Poor ventilation'],
-    'preventiveMeasures': ['Encourage natural predators', 'Improve air circulation'],
+    'preventiveMeasures': [
+      'Encourage natural predators',
+      'Improve air circulation'
+    ],
     'lifecycleImages': [
       'assets/pests/white_flies1.png',
       'assets/pests/white_flies2.png',
@@ -228,8 +248,10 @@ final Map<String, Map<String, dynamic>> kPestDetails = {
     ],
   },
   'Ants': {
-    'description': 'Certain ants protect and farm pests like aphids or mealybugs.',
-    'symptoms': 'Presence of ants tending pests, sticky honeydew on leaves or fruits, ant trails on stems.',
+    'description':
+        'Certain ants protect and farm pests like aphids or mealybugs.',
+    'symptoms':
+        'Presence of ants tending pests, sticky honeydew on leaves or fruits, ant trails on stems.',
     'chemicalControls': ['Permethrin', 'Cypermethrin'],
     'mechanicalControls': ['Ant baits'],
     'biologicalControls': [],
@@ -248,7 +270,8 @@ final Map<String, Map<String, dynamic>> kPestDetails = {
     ],
   },
   'Scale Insects': {
-    'description': 'Small insects with waxy shells that suck sap from coffee plants.',
+    'description':
+        'Small insects with waxy shells that suck sap from coffee plants.',
     'symptoms':
         'Small, flat, oval insects or waxy shells on leaves or stems, sticky honeydew, sooty mold.',
     'chemicalControls': ['Imidacloprid', 'Horticultural oil'],
@@ -266,8 +289,10 @@ final Map<String, Map<String, dynamic>> kPestDetails = {
     ],
   },
   'Thrips': {
-    'description': 'Tiny, slender insects that feed on leaves, fruits, and flowers.',
-    'symptoms': 'Silvering or bronzing of leaves, tiny insects on leaves or flowers, deformed buds.',
+    'description':
+        'Tiny, slender insects that feed on leaves, fruits, and flowers.',
+    'symptoms':
+        'Silvering or bronzing of leaves, tiny insects on leaves or flowers, deformed buds.',
     'chemicalControls': ['Spinosad', 'Imidacloprid'],
     'mechanicalControls': [],
     'biologicalControls': ['Predatory mites'],
@@ -339,10 +364,8 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
 
     _heroController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 700));
-    _heroFade =
-        CurvedAnimation(parent: _heroController, curve: Curves.easeOut);
-    _heroSlide = Tween<Offset>(
-            begin: const Offset(0, 0.15), end: Offset.zero)
+    _heroFade = CurvedAnimation(parent: _heroController, curve: Curves.easeOut);
+    _heroSlide = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
         .animate(
             CurvedAnimation(parent: _heroController, curve: Curves.easeOut));
 
@@ -486,8 +509,8 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
   }
 
   void _showSnack(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg, style: GoogleFonts.poppins())));
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg, style: GoogleFonts.poppins())));
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -512,7 +535,8 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildSectionLabel('How would you like to identify the pest?'),
+                  _buildSectionLabel(
+                      'How would you like to identify the pest?'),
                   const SizedBox(height: 12),
 
                   // ── Three mode cards ──────────────────────────────────────
@@ -1011,8 +1035,7 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
         initialValue: value,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle:
-              GoogleFonts.poppins(fontSize: 13, color: _midBrown),
+          labelStyle: GoogleFonts.poppins(fontSize: 13, color: _midBrown),
           border: InputBorder.none,
           prefixIcon: Icon(leadingIcon, color: _darkBrown, size: 20),
           contentPadding: EdgeInsets.zero,
@@ -1057,8 +1080,8 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
         icon: Icon(icon, size: 18),
         label: Text(
           label,
-          style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600, fontSize: 13.5),
+          style:
+              GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13.5),
         ),
       ),
     );

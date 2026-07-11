@@ -59,29 +59,29 @@ class PestDiagnosisRecord {
   ) {
     final d = doc.data()!;
     return PestDiagnosisRecord(
-      id:             doc.id,
-      pestName:       d['pestName']      as String? ?? 'Unknown Pest',
-      stage:          d['stage']         as String? ?? '',
-      detectionMode:  d['detectionMode'] as String? ?? '',
+      id: doc.id,
+      pestName: d['pestName'] as String? ?? 'Unknown Pest',
+      stage: d['stage'] as String? ?? '',
+      detectionMode: d['detectionMode'] as String? ?? '',
       managementData: (d['managementData'] as Map<String, dynamic>?) ?? {},
-      imageUrls:      List<String>.from(d['imageUrls'] ?? []),
-      aiConfidence:   (d['aiConfidence'] as num?)?.toDouble(),
-      aiReasoning:    d['aiReasoning']   as String?,
+      imageUrls: List<String>.from(d['imageUrls'] ?? []),
+      aiConfidence: (d['aiConfidence'] as num?)?.toDouble(),
+      aiReasoning: d['aiReasoning'] as String?,
       savedAt: (d['savedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
   Map<String, dynamic> toMap() => {
-    'pestName'      : pestName,
-    'stage'         : stage,
-    'detectionMode' : detectionMode,
-    'managementData': managementData,
-    'imageUrls'     : imageUrls,
-    'aiConfidence'  : aiConfidence,
-    'aiReasoning'   : aiReasoning,
-    'savedAt'       : FieldValue.serverTimestamp(),
-    'appVersion'    : '1.0.0',
-  };
+        'pestName': pestName,
+        'stage': stage,
+        'detectionMode': detectionMode,
+        'managementData': managementData,
+        'imageUrls': imageUrls,
+        'aiConfidence': aiConfidence,
+        'aiReasoning': aiReasoning,
+        'savedAt': FieldValue.serverTimestamp(),
+        'appVersion': '1.0.0',
+      };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,8 +91,8 @@ class PestDiagnosisRecord {
 class PestFirestoreService {
   PestFirestoreService._(); // prevent instantiation
 
-  static final FirebaseFirestore _db   = FirebaseFirestore.instance;
-  static final FirebaseAuth      _auth = FirebaseAuth.instance;
+  static final FirebaseFirestore _db = FirebaseFirestore.instance;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // ── Max records stored per user (prevents unbounded growth) ───────────────
   static const int _maxHistoryRecords = 100;
@@ -125,27 +125,27 @@ class PestFirestoreService {
   /// Returns the Firestore document ID of the saved record.
   /// Throws on auth failure or Firestore write error.
   static Future<String> saveDiagnosis({
-    required String               pestName,
-    required String               stage,
-    required String               detectionMode,
+    required String pestName,
+    required String stage,
+    required String detectionMode,
     required Map<String, dynamic> managementData,
-    required List<String>         imageUrls,
-    double?                       aiConfidence,
-    String?                       aiReasoning,
+    required List<String> imageUrls,
+    double? aiConfidence,
+    String? aiReasoning,
   }) async {
     debugPrint('[PestFirestore] 💾 Saving diagnosis for '
         '"$pestName" | stage="$stage" | mode="$detectionMode"');
 
     final record = PestDiagnosisRecord(
-      id:            '',   // Firestore will assign
-      pestName:      pestName,
-      stage:         stage,
+      id: '', // Firestore will assign
+      pestName: pestName,
+      stage: stage,
       detectionMode: detectionMode,
       managementData: managementData,
-      imageUrls:     imageUrls.take(10).toList(), // cap at 10 URLs per record
-      aiConfidence:  aiConfidence,
-      aiReasoning:   aiReasoning,
-      savedAt:       DateTime.now(),
+      imageUrls: imageUrls.take(10).toList(), // cap at 10 URLs per record
+      aiConfidence: aiConfidence,
+      aiReasoning: aiReasoning,
+      savedAt: DateTime.now(),
     );
 
     // ── Check record count to avoid exceeding _maxHistoryRecords ──────────
@@ -188,7 +188,6 @@ class PestFirestoreService {
 
       debugPrint('[PestFirestore] ✅ Loaded ${records.length} records.');
       return records;
-
     } on _AuthException {
       debugPrint('[PestFirestore] ⚠️ Not signed in — returning empty history.');
       return [];
@@ -209,7 +208,8 @@ class PestFirestoreService {
   /// Fetches a single diagnosis record by its Firestore document ID.
   /// Returns null if not found or on error.
   static Future<PestDiagnosisRecord?> loadById(String diagnosisId) async {
-    debugPrint('[PestFirestore] 🔍 Loading single record by ID: "$diagnosisId"');
+    debugPrint(
+        '[PestFirestore] 🔍 Loading single record by ID: "$diagnosisId"');
     try {
       final doc = await _diagnosesRef.doc(diagnosisId).get();
       if (!doc.exists || doc.data() == null) {
@@ -240,7 +240,8 @@ class PestFirestoreService {
       await _diagnosesRef.doc(diagnosisId).delete();
       debugPrint('[PestFirestore] ✅ Deleted "$diagnosisId".');
     } on _AuthException {
-      debugPrint('[PestFirestore] ❌ deleteDiagnosis failed — user not signed in.');
+      debugPrint(
+          '[PestFirestore] ❌ deleteDiagnosis failed — user not signed in.');
       rethrow;
     } on FirebaseException catch (e) {
       debugPrint('[PestFirestore] ❌ Delete error for "$diagnosisId": '
@@ -289,8 +290,7 @@ class PestFirestoreService {
       const batchSize = 400;
       int totalDeleted = 0;
       while (true) {
-        final snapshot =
-            await _diagnosesRef.limit(batchSize).get();
+        final snapshot = await _diagnosesRef.limit(batchSize).get();
         if (snapshot.docs.isEmpty) break;
 
         final batch = _db.batch();
@@ -324,7 +324,7 @@ class PestFirestoreService {
     try {
       // count() uses Firestore's aggregation query — does NOT read all docs
       final result = await _diagnosesRef.count().get();
-      final count  = result.count ?? 0;
+      final count = result.count ?? 0;
       debugPrint('[PestFirestore] 🔢 Diagnosis count for current user: $count');
       return count;
     } on _AuthException {
@@ -347,7 +347,8 @@ class PestFirestoreService {
     try {
       final count = await diagnosisCount();
       if (count < _maxHistoryRecords) {
-        debugPrint('[PestFirestore] 📊 Record count $count / $_maxHistoryRecords '
+        debugPrint(
+            '[PestFirestore] 📊 Record count $count / $_maxHistoryRecords '
             '— within limit, no deletion needed.');
         return;
       }
@@ -368,10 +369,12 @@ class PestFirestoreService {
             'to enforce $_maxHistoryRecords record limit.');
       }
     } on _AuthException {
-      debugPrint('[PestFirestore] ⚠️ _enforceRecordLimit — user not signed in.');
+      debugPrint(
+          '[PestFirestore] ⚠️ _enforceRecordLimit — user not signed in.');
     } catch (e) {
       // Non-critical — proceed with save even if limit check fails
-      debugPrint('[PestFirestore] ⚠️ Record limit check failed (non-critical): $e '
+      debugPrint(
+          '[PestFirestore] ⚠️ Record limit check failed (non-critical): $e '
           '— proceeding with save anyway.');
     }
   }
@@ -384,7 +387,6 @@ class PestFirestoreService {
 class _AuthException implements Exception {
   const _AuthException();
   @override
-  String toString() =>
-      'PestFirestoreService: No authenticated user. '
+  String toString() => 'PestFirestoreService: No authenticated user. '
       'Ensure Firebase Auth is initialised and a user is signed in.';
 }

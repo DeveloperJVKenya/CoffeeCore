@@ -47,7 +47,8 @@ class RegistrationScreenState extends State<RegistrationScreen> {
   void _updateConstituencies(String? county) {
     setState(() {
       _county = county;
-      _currentConstituencies = county != null ? kenyaLocations[county] ?? [] : [];
+      _currentConstituencies =
+          county != null ? kenyaLocations[county] ?? [] : [];
       _constituency = null; // Reset constituency when county changes
       _currentWards = []; // Reset wards when county changes
       _ward = null;
@@ -57,7 +58,8 @@ class RegistrationScreenState extends State<RegistrationScreen> {
   void _updateWards(String? constituency) {
     setState(() {
       _constituency = constituency;
-      _currentWards = constituency != null ? constituencyWards[constituency] ?? [] : [];
+      _currentWards =
+          constituency != null ? constituencyWards[constituency] ?? [] : [];
       _ward = null; // Reset ward when constituency changes
     });
   }
@@ -71,7 +73,8 @@ class RegistrationScreenState extends State<RegistrationScreen> {
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage('assets/coffee_registration_background.jpg'), // Updated asset
+                image: AssetImage(
+                    'assets/coffee_registration_background.jpg'), // Updated asset
                 fit: BoxFit.cover,
               ),
             ),
@@ -86,7 +89,10 @@ class RegistrationScreenState extends State<RegistrationScreen> {
                   const SizedBox(height: 20.0),
                   Text(
                     'Welcome to CoffeeCore!',
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.brown[700]),
+                    style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.brown[700]),
                   ),
                   const SizedBox(height: 10.0),
                   Text(
@@ -100,7 +106,8 @@ class RegistrationScreenState extends State<RegistrationScreen> {
                     decoration: InputDecoration(
                       labelText: 'Full Name',
                       hintText: 'Enter your full name',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.brown[50],
                     ),
@@ -121,12 +128,15 @@ class RegistrationScreenState extends State<RegistrationScreen> {
                     decoration: InputDecoration(
                       labelText: 'Email',
                       hintText: 'Enter your email address',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.brown[50],
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                      if (value == null ||
+                          value.isEmpty ||
+                          !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                         return 'Please enter a valid email address';
                       }
                       return null;
@@ -141,17 +151,21 @@ class RegistrationScreenState extends State<RegistrationScreen> {
                     decoration: InputDecoration(
                       labelText: 'County',
                       hintText: 'Select your county',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.brown[50],
                     ),
                     initialValue: _county,
-                    items: kenyaLocations.keys.map((county) => DropdownMenuItem(
-                      value: county,
-                      child: Text(county),
-                    )).toList(),
+                    items: kenyaLocations.keys
+                        .map((county) => DropdownMenuItem(
+                              value: county,
+                              child: Text(county),
+                            ))
+                        .toList(),
                     onChanged: _updateConstituencies,
-                    validator: (value) => value == null ? 'Please select a county' : null,
+                    validator: (value) =>
+                        value == null ? 'Please select a county' : null,
                     onSaved: (value) => _county = value,
                   ),
                   const SizedBox(height: 15.0),
@@ -160,17 +174,21 @@ class RegistrationScreenState extends State<RegistrationScreen> {
                     decoration: InputDecoration(
                       labelText: 'Constituency',
                       hintText: 'Select your constituency',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.brown[50],
                     ),
                     initialValue: _constituency,
-                    items: _currentConstituencies.map((constituency) => DropdownMenuItem(
-                      value: constituency,
-                      child: Text(constituency),
-                    )).toList(),
+                    items: _currentConstituencies
+                        .map((constituency) => DropdownMenuItem(
+                              value: constituency,
+                              child: Text(constituency),
+                            ))
+                        .toList(),
                     onChanged: _updateWards,
-                    validator: (value) => value == null ? 'Please select a constituency' : null,
+                    validator: (value) =>
+                        value == null ? 'Please select a constituency' : null,
                     onSaved: (value) => _constituency = value,
                   ),
                   const SizedBox(height: 15.0),
@@ -179,17 +197,21 @@ class RegistrationScreenState extends State<RegistrationScreen> {
                     decoration: InputDecoration(
                       labelText: 'Ward',
                       hintText: 'Select your ward',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.brown[50],
                     ),
                     initialValue: _ward,
-                    items: _currentWards.map((ward) => DropdownMenuItem(
-                      value: ward,
-                      child: Text(ward),
-                    )).toList(),
+                    items: _currentWards
+                        .map((ward) => DropdownMenuItem(
+                              value: ward,
+                              child: Text(ward),
+                            ))
+                        .toList(),
                     onChanged: (value) => setState(() => _ward = value),
-                    validator: (value) => value == null ? 'Please select a ward' : null,
+                    validator: (value) =>
+                        value == null ? 'Please select a ward' : null,
                     onSaved: (value) => _ward = value,
                   ),
                   const SizedBox(height: 15.0),
@@ -199,7 +221,8 @@ class RegistrationScreenState extends State<RegistrationScreen> {
                     decoration: InputDecoration(
                       labelText: 'Phone Number',
                       hintText: 'Enter your phone number',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.brown[50],
                     ),
@@ -221,15 +244,19 @@ class RegistrationScreenState extends State<RegistrationScreen> {
                     decoration: InputDecoration(
                       labelText: 'Password',
                       hintText: 'Enter your password',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(30.0)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30.0)),
                       filled: true,
                       fillColor: Colors.brown[50],
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                           color: Colors.brown[700],
                         ),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
                     ),
                     validator: (value) {
@@ -256,15 +283,18 @@ class RegistrationScreenState extends State<RegistrationScreen> {
                               }
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.brown[700], // Coffee-inspired color
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.0)),
+                        backgroundColor:
+                            Colors.brown[700], // Coffee-inspired color
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30.0)),
                         padding: const EdgeInsets.symmetric(vertical: 15.0),
                       ),
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                               'Sign Up',
-                              style: TextStyle(fontSize: 20.0, color: Colors.white),
+                              style: TextStyle(
+                                  fontSize: 20.0, color: Colors.white),
                             ),
                     ),
                   ),
@@ -272,7 +302,8 @@ class RegistrationScreenState extends State<RegistrationScreen> {
                   // Login Link
                   Center(
                     child: TextButton(
-                      onPressed: () => Navigator.of(context).pushReplacementNamed('/login'),
+                      onPressed: () =>
+                          Navigator.of(context).pushReplacementNamed('/login'),
                       child: Text(
                         'Already have an account? Log In',
                         style: TextStyle(color: Colors.brown[700]),
@@ -293,7 +324,8 @@ class RegistrationScreenState extends State<RegistrationScreen> {
 
     try {
       // Create user with email and password
-      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      final UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
         email: _email!,
         password: _password!,
       );

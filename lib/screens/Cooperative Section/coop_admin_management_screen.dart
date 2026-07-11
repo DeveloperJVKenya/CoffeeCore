@@ -7,14 +7,15 @@ import 'package:rxdart/rxdart.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/user_management_screen.dart';
 import 'package:coffeecore/screens/learn_coffee_farming.dart';
 import 'package:coffeecore/screens/manuals_screen.dart';
-import 'package:coffeecore/screens/Farm%20Management/coffee_management_screen.dart';
+import 'package:coffeecore/screens/Farm%20Management/screens/farm_management_home_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/coop_collection_management_screen.dart';
 
 class CoopAdminManagementScreen extends StatefulWidget {
   const CoopAdminManagementScreen({super.key});
 
   @override
-  State<CoopAdminManagementScreen> createState() => _CoopAdminManagementScreenState();
+  State<CoopAdminManagementScreen> createState() =>
+      _CoopAdminManagementScreenState();
 }
 
 class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
@@ -61,7 +62,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
           .collection('CoopAdmins')
           .doc(_userId)
           .get();
-      if (!coopAdminDoc.exists || !coopAdminDoc.data().toString().contains('cooperative')) {
+      if (!coopAdminDoc.exists ||
+          !coopAdminDoc.data().toString().contains('cooperative')) {
         if (mounted) {
           _showCreateCoopDialog();
         }
@@ -88,7 +90,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Create Cooperative', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Create Cooperative',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         content: TextField(
           controller: _coopNameController,
           decoration: InputDecoration(
@@ -102,7 +105,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
             onPressed: () {
               if (_coopNameController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a cooperative name')),
+                  const SnackBar(
+                      content: Text('Please enter a cooperative name')),
                 );
                 return;
               }
@@ -122,13 +126,19 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('cooperative_name_$_userId', coopName);
 
-      await FirebaseFirestore.instance.collection('cooperatives').doc(formattedCoopName).set({
+      await FirebaseFirestore.instance
+          .collection('cooperatives')
+          .doc(formattedCoopName)
+          .set({
         'name': coopName,
         'createdBy': _userId,
         'timestamp': Timestamp.now(),
       });
 
-      await FirebaseFirestore.instance.collection('CoopAdmins').doc(_userId).set({
+      await FirebaseFirestore.instance
+          .collection('CoopAdmins')
+          .doc(_userId)
+          .set({
         'cooperative': formattedCoopName,
         'uid': _userId,
       }, SetOptions(merge: true));
@@ -158,7 +168,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
       if (!userDoc.exists) throw 'User not found in this cooperative';
       final userData = userDoc.data() as Map<String, dynamic>;
 
-      String collection = role == 'Market Manager' ? 'marketmanagers' : 'loanmanagers';
+      String collection =
+          role == 'Market Manager' ? 'marketmanagers' : 'loanmanagers';
       await FirebaseFirestore.instance
           .collection('${formattedCoopName}_$collection')
           .doc(uid)
@@ -171,7 +182,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
         'email': userData['email'] ?? '',
         'uid': uid,
       });
-      await _logActivity('Assigned $role role to $uid in cooperative $_cooperativeName');
+      await _logActivity(
+          'Assigned $role role to $uid in cooperative $_cooperativeName');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$role assigned successfully!')),
@@ -208,7 +220,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Assign User Role', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Assign User Role',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -242,7 +255,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Assign $role', style: TextStyle(fontWeight: FontWeight.bold)),
+        title:
+            Text('Assign $role', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Row(
           children: [
             Expanded(
@@ -251,7 +265,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
                 decoration: InputDecoration(
                   labelText: 'Enter User UID',
                   hintText: 'e.g., abc123xyz789',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
@@ -292,12 +307,15 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select User', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Select User',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: double.maxFinite,
           height: 300,
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance.collection('${formattedCoopName}_users').snapshots(),
+            stream: FirebaseFirestore.instance
+                .collection('${formattedCoopName}_users')
+                .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -371,7 +389,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
                 builder: (context, constraints) {
                   return SingleChildScrollView(
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      constraints:
+                          BoxConstraints(minHeight: constraints.maxHeight),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -416,174 +435,216 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Collection Statistics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Collection Statistics',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             ..._allCollections.map((collection) => FutureBuilder<List<String>>(
-              future: _globalCollections.contains(collection)
-                  ? FirebaseFirestore.instance
-                      .collection('${formattedCoopName}_users')
-                      .get()
-                      .then((snapshot) => snapshot.docs.map((doc) => doc.id).toList())
-                  : Future.value([]),
-              builder: (context, userIdsSnapshot) {
-                if (userIdsSnapshot.connectionState == ConnectionState.waiting) {
-                  return const CircularProgressIndicator();
-                }
-                if (userIdsSnapshot.hasError) {
-                  logger.e('Error fetching user IDs for $collection: ${userIdsSnapshot.error}');
-                  return ListTile(
-                    title: Text(
-                      _collectionDisplayNames[collection] ?? collection,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    trailing: const Text('Error', style: TextStyle(fontSize: 16, color: Colors.red)),
-                  );
-                }
-                final coopUserIds = userIdsSnapshot.data ?? [];
-                if (_globalCollections.contains(collection)) {
-                  if (coopUserIds.isEmpty) {
-                    return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CoopCollectionManagementScreen(
-                              cooperativeName: _cooperativeName!,
-                              collectionName: collection,
-                            ),
-                          ),
-                        );
-                      },
-                      child: ListTile(
+                  future: _globalCollections.contains(collection)
+                      ? FirebaseFirestore.instance
+                          .collection('${formattedCoopName}_users')
+                          .get()
+                          .then((snapshot) =>
+                              snapshot.docs.map((doc) => doc.id).toList())
+                      : Future.value([]),
+                  builder: (context, userIdsSnapshot) {
+                    if (userIdsSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const CircularProgressIndicator();
+                    }
+                    if (userIdsSnapshot.hasError) {
+                      logger.e(
+                          'Error fetching user IDs for $collection: ${userIdsSnapshot.error}');
+                      return ListTile(
                         title: Text(
                           _collectionDisplayNames[collection] ?? collection,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
-                        trailing: const Text('0', style: TextStyle(fontSize: 16, color: Colors.brown)),
-                      ),
-                    );
-                  }
-
-                  const batchSize = 10;
-                  final batches = <List<String>>[];
-                  for (var i = 0; i < coopUserIds.length; i += batchSize) {
-                    batches.add(coopUserIds.sublist(
-                        i, i + batchSize > coopUserIds.length ? coopUserIds.length : i + batchSize));
-                  }
-
-                  final streams = batches.map((batch) => FirebaseFirestore.instance
-                      .collection(collection)
-                      .where('userId', whereIn: batch)
-                      .snapshots());
-
-                  return StreamBuilder<List<QuerySnapshot>>(
-                    stream: CombineLatestStream.list(streams),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const CircularProgressIndicator();
-                      }
-                      if (snapshot.hasError) {
-                        logger.e('Error in batch query for $collection: ${snapshot.error}');
-                        return ListTile(
-                          title: Text(
-                            _collectionDisplayNames[collection] ?? collection,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                          trailing: const Text('Error', style: TextStyle(fontSize: 16, color: Colors.red)),
-                        );
-                      }
-                      if (!snapshot.hasData) {
-                        return ListTile(
-                          title: Text(
-                            _collectionDisplayNames[collection] ?? collection,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                          trailing: const Text('0', style: TextStyle(fontSize: 16, color: Colors.brown)),
-                        );
-                      }
-
-                      final totalCount = snapshot.data!.fold<int>(
-                          0, (previous, querySnapshot) => previous + querySnapshot.docs.length);
-
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CoopCollectionManagementScreen(
-                                cooperativeName: _cooperativeName!,
-                                collectionName: collection,
-                              ),
-                            ),
-                          );
-                        },
-                        child: ListTile(
-                          title: Text(
-                            _collectionDisplayNames[collection] ?? collection,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                          trailing: Text('$totalCount', style: const TextStyle(fontSize: 16, color: Colors.brown)),
-                        ),
+                        trailing: const Text('Error',
+                            style: TextStyle(fontSize: 16, color: Colors.red)),
                       );
-                    },
-                  );
-                } else {
-                  return StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('${formattedCoopName}_$collection')
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const CircularProgressIndicator();
-                      }
-                      if (snapshot.hasError) {
-                        logger.e('Error in collection stats for $collection: ${snapshot.error}');
-                        return ListTile(
-                          title: Text(
-                            _collectionDisplayNames[collection] ?? collection,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                          trailing: const Text('Error', style: TextStyle(fontSize: 16, color: Colors.red)),
-                        );
-                      }
-                      final docs = snapshot.data?.docs ?? [];
-                      final count = docs.length;
-                      return GestureDetector(
-                        onTap: () {
-                          if (collection == 'users') {
+                    }
+                    final coopUserIds = userIdsSnapshot.data ?? [];
+                    if (_globalCollections.contains(collection)) {
+                      if (coopUserIds.isEmpty) {
+                        return GestureDetector(
+                          onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => UserManagementScreen(
-                                  cooperativeName: _cooperativeName!,
-                                ),
-                              ),
-                            );
-                          } else {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CoopCollectionManagementScreen(
+                                builder: (context) =>
+                                    CoopCollectionManagementScreen(
                                   cooperativeName: _cooperativeName!,
                                   collectionName: collection,
                                 ),
                               ),
                             );
-                          }
-                        },
-                        child: ListTile(
-                          title: Text(
-                            _collectionDisplayNames[collection] ?? collection,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          },
+                          child: ListTile(
+                            title: Text(
+                              _collectionDisplayNames[collection] ?? collection,
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            trailing: const Text('0',
+                                style: TextStyle(
+                                    fontSize: 16, color: Colors.brown)),
                           ),
-                          trailing: Text('$count', style: const TextStyle(fontSize: 16, color: Colors.brown)),
-                        ),
+                        );
+                      }
+
+                      const batchSize = 10;
+                      final batches = <List<String>>[];
+                      for (var i = 0; i < coopUserIds.length; i += batchSize) {
+                        batches.add(coopUserIds.sublist(
+                            i,
+                            i + batchSize > coopUserIds.length
+                                ? coopUserIds.length
+                                : i + batchSize));
+                      }
+
+                      final streams = batches.map((batch) => FirebaseFirestore
+                          .instance
+                          .collection(collection)
+                          .where('userId', whereIn: batch)
+                          .snapshots());
+
+                      return StreamBuilder<List<QuerySnapshot>>(
+                        stream: CombineLatestStream.list(streams),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const CircularProgressIndicator();
+                          }
+                          if (snapshot.hasError) {
+                            logger.e(
+                                'Error in batch query for $collection: ${snapshot.error}');
+                            return ListTile(
+                              title: Text(
+                                _collectionDisplayNames[collection] ??
+                                    collection,
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              trailing: const Text('Error',
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.red)),
+                            );
+                          }
+                          if (!snapshot.hasData) {
+                            return ListTile(
+                              title: Text(
+                                _collectionDisplayNames[collection] ??
+                                    collection,
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              trailing: const Text('0',
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.brown)),
+                            );
+                          }
+
+                          final totalCount = snapshot.data!.fold<int>(
+                              0,
+                              (previous, querySnapshot) =>
+                                  previous + querySnapshot.docs.length);
+
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      CoopCollectionManagementScreen(
+                                    cooperativeName: _cooperativeName!,
+                                    collectionName: collection,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: ListTile(
+                              title: Text(
+                                _collectionDisplayNames[collection] ??
+                                    collection,
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              trailing: Text('$totalCount',
+                                  style: const TextStyle(
+                                      fontSize: 16, color: Colors.brown)),
+                            ),
+                          );
+                        },
                       );
-                    },
-                  );
-                }
-              },
-            )),
+                    } else {
+                      return StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('${formattedCoopName}_$collection')
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const CircularProgressIndicator();
+                          }
+                          if (snapshot.hasError) {
+                            logger.e(
+                                'Error in collection stats for $collection: ${snapshot.error}');
+                            return ListTile(
+                              title: Text(
+                                _collectionDisplayNames[collection] ??
+                                    collection,
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              trailing: const Text('Error',
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.red)),
+                            );
+                          }
+                          final docs = snapshot.data?.docs ?? [];
+                          final count = docs.length;
+                          return GestureDetector(
+                            onTap: () {
+                              if (collection == 'users') {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => UserManagementScreen(
+                                      cooperativeName: _cooperativeName!,
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        CoopCollectionManagementScreen(
+                                      cooperativeName: _cooperativeName!,
+                                      collectionName: collection,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                            child: ListTile(
+                              title: Text(
+                                _collectionDisplayNames[collection] ??
+                                    collection,
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              trailing: Text('$count',
+                                  style: const TextStyle(
+                                      fontSize: 16, color: Colors.brown)),
+                            ),
+                          );
+                        },
+                      );
+                    }
+                  },
+                )),
           ],
         ),
       ),
@@ -597,8 +658,10 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
       physics: const NeverScrollableScrollPhysics(),
       childAspectRatio: 1.5,
       children: [
-        _buildOptionCard('Assign User Role', Icons.person_add, () => _showAssignUserRoleDialog()),
-        _buildOptionCard('Combined Data', Icons.data_usage, () => _showCombinedDataScreen()),
+        _buildOptionCard('Assign User Role', Icons.person_add,
+            () => _showAssignUserRoleDialog()),
+        _buildOptionCard(
+            'Combined Data', Icons.data_usage, () => _showCombinedDataScreen()),
       ],
     );
   }
@@ -619,7 +682,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -633,7 +697,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
         BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Manuals'),
-        BottomNavigationBarItem(icon: Icon(Icons.supervisor_account), label: 'F-Management'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.supervisor_account), label: 'F-Management'),
         BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Tips'),
       ],
       currentIndex: _selectedIndex,
@@ -647,7 +712,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
           case 0:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const CoopAdminManagementScreen()),
+              MaterialPageRoute(
+                  builder: (context) => const CoopAdminManagementScreen()),
             );
             break;
           case 1:
@@ -659,13 +725,15 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
           case 2:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const CoffeeManagementScreen()),
+              MaterialPageRoute(
+                  builder: (context) => const FarmManagementHomeScreen()),
             );
             break;
           case 3:
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const LearnCoffeeFarming()),
+              MaterialPageRoute(
+                  builder: (context) => const LearnCoffeeFarming()),
             );
             break;
         }

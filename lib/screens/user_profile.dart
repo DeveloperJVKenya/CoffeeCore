@@ -139,13 +139,15 @@ class UserProfileScreenState extends State<UserProfileScreen> {
         constituency: _constituencyController.text,
         ward: _wardController.text,
         phoneNumber: _phoneNumberController.text,
-        profileImage: photoBase64 ?? _currentPhotoUrl, // Use new or existing Base64
+        profileImage:
+            photoBase64 ?? _currentPhotoUrl, // Use new or existing Base64
       );
 
       // Use set() with merge to create/update document
       await _firestore.collection('Users').doc(user!.uid).set(
             updatedUser.toMap(),
-            SetOptions(merge: true), // Merge to avoid overwriting unchanged fields
+            SetOptions(
+                merge: true), // Merge to avoid overwriting unchanged fields
           );
 
       if (!imageOnly && _emailController.text != user?.email) {
@@ -178,7 +180,8 @@ class UserProfileScreenState extends State<UserProfileScreen> {
       await user?.verifyBeforeUpdateEmail(_emailController.text);
 
       if (mounted) {
-        _showSuccessSnackBar('Verification email sent to ${_emailController.text}');
+        _showSuccessSnackBar(
+            'Verification email sent to ${_emailController.text}');
       }
     } catch (e) {
       throw Exception('Failed to update email: $e');
@@ -293,25 +296,31 @@ class UserProfileScreenState extends State<UserProfileScreen> {
                 const SizedBox(height: 16),
                 _buildEditableField(_emailController, 'Email', Icons.email),
                 const SizedBox(height: 16),
-                _buildEditableField(_countyController, 'County', Icons.location_city),
+                _buildEditableField(
+                    _countyController, 'County', Icons.location_city),
                 const SizedBox(height: 16),
-                _buildEditableField(_constituencyController, 'Constituency', Icons.map),
+                _buildEditableField(
+                    _constituencyController, 'Constituency', Icons.map),
                 const SizedBox(height: 16),
                 _buildEditableField(_wardController, 'Ward', Icons.place),
                 const SizedBox(height: 16),
-                _buildEditableField(_phoneNumberController, 'Phone Number', Icons.phone),
+                _buildEditableField(
+                    _phoneNumberController, 'Phone Number', Icons.phone),
                 const SizedBox(height: 32),
                 ElevatedButton(
                   onPressed: _isLoading ? null : () => _updateProfile(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.brown[700],
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 30),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 15, horizontal: 30),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30)),
                   ),
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Update Profile', style: TextStyle(fontSize: 18, color: Colors.white)),
+                      : const Text('Update Profile',
+                          style: TextStyle(fontSize: 18, color: Colors.white)),
                 ),
               ],
             ),
@@ -336,7 +345,8 @@ class UserProfileScreenState extends State<UserProfileScreen> {
     return null;
   }
 
-  Widget _buildEditableField(TextEditingController controller, String label, IconData icon) {
+  Widget _buildEditableField(
+      TextEditingController controller, String label, IconData icon) {
     return TextFormField(
       controller: controller,
       decoration: InputDecoration(

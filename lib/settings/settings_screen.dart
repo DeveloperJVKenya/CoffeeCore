@@ -70,7 +70,9 @@ class SettingsScreen extends StatelessWidget {
         ),
         title: const Text(
           'Settings',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold), // Bold to match HomePage
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold), // Bold to match HomePage
         ),
         backgroundColor: primaryColor,
         elevation: 0,
@@ -156,7 +158,8 @@ class SettingsScreen extends StatelessWidget {
                           'Account',
                           style: TextStyle(color: primaryColor),
                         ),
-                        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: primaryColor),
+                        trailing: Icon(Icons.arrow_forward_ios,
+                            size: 16, color: primaryColor),
                         onTap: () {
                           Navigator.push(
                             context,
@@ -173,12 +176,14 @@ class SettingsScreen extends StatelessWidget {
                           'Notification Settings',
                           style: TextStyle(color: primaryColor),
                         ),
-                        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: primaryColor),
+                        trailing: Icon(Icons.arrow_forward_ios,
+                            size: 16, color: primaryColor),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const NotificationsSettingsScreen(),
+                              builder: (context) =>
+                                  const NotificationsSettingsScreen(),
                             ),
                           );
                         },
@@ -206,7 +211,8 @@ class SettingsScreen extends StatelessWidget {
                       const SizedBox(height: 10),
                       ListTile(
                         leading: _buildIcon(Icons.contact_support),
-                        title: Text('Contact Us', style: TextStyle(color: primaryColor)),
+                        title: Text('Contact Us',
+                            style: TextStyle(color: primaryColor)),
                         onTap: () {
                           Navigator.push(
                             context,
@@ -218,7 +224,8 @@ class SettingsScreen extends StatelessWidget {
                       ),
                       ListTile(
                         leading: _buildIcon(Icons.help),
-                        title: Text('Knowledge Base/FAQ', style: TextStyle(color: primaryColor)),
+                        title: Text('Knowledge Base/FAQ',
+                            style: TextStyle(color: primaryColor)),
                         onTap: () {
                           Navigator.push(
                             context,
@@ -230,19 +237,22 @@ class SettingsScreen extends StatelessWidget {
                       ),
                       ListTile(
                         leading: _buildIcon(Icons.description),
-                        title: Text('Terms and Conditions', style: TextStyle(color: primaryColor)),
+                        title: Text('Terms and Conditions',
+                            style: TextStyle(color: primaryColor)),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const TermsAndConditionsScreen(),
+                              builder: (context) =>
+                                  const TermsAndConditionsScreen(),
                             ),
                           );
                         },
                       ),
                       ListTile(
                         leading: _buildIcon(Icons.privacy_tip),
-                        title: Text('Privacy Policy', style: TextStyle(color: primaryColor)),
+                        title: Text('Privacy Policy',
+                            style: TextStyle(color: primaryColor)),
                         onTap: () {
                           Navigator.push(
                             context,
@@ -254,12 +264,16 @@ class SettingsScreen extends StatelessWidget {
                       ),
                       ListTile(
                         leading: _buildIcon(Icons.info),
-                        title: Text('About CoffeeCore', style: TextStyle(color: primaryColor)), // Updated from Kilimo Mkononi
+                        title: Text('About CoffeeCore',
+                            style: TextStyle(
+                                color:
+                                    primaryColor)), // Updated from Kilimo Mkononi
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const AboutCoffeeCoreScreen(),
+                              builder: (context) =>
+                                  const AboutCoffeeCoreScreen(),
                             ),
                           );
                         },
@@ -276,7 +290,8 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 10.0),
                 child: GestureDetector(
-                  onTap: () => _handleLogout(context), // Updated to use proper logout
+                  onTap: () =>
+                      _handleLogout(context), // Updated to use proper logout
                   child: const Center(
                     child: Text(
                       'Logout',

@@ -46,7 +46,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
             .limit(1)
             .get();
       } catch (e) {
-        logger.w('Index needed for ${formattedCoopName}_users.$field (Ascending): $e');
+        logger.w(
+            'Index needed for ${formattedCoopName}_users.$field (Ascending): $e');
       }
       try {
         await FirebaseFirestore.instance
@@ -55,7 +56,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
             .limit(1)
             .get();
       } catch (e) {
-        logger.w('Index needed for ${formattedCoopName}_users.$field (Descending): $e');
+        logger.w(
+            'Index needed for ${formattedCoopName}_users.$field (Descending): $e');
       }
     }
   }
@@ -160,7 +162,11 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
       }).toList();
 
       // Generate file name with timestamp
-      String timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      String timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
       String fileName = 'Filtered_Users_$timestamp.xlsx';
 
       // Call ExcelUtils to generate and share the Excel file, but only if mounted
@@ -215,7 +221,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                   decoration: InputDecoration(
                     labelText: 'Search by any field (e.g., Name, Ward)',
                     prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
                 if (_showSuggestions && _suggestions.isNotEmpty)
@@ -240,7 +247,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                               title: Text(_suggestions[index]),
                               onTap: () {
                                 _searchController.text = _suggestions[index];
-                                _searchQuery = _suggestions[index].toLowerCase();
+                                _searchQuery =
+                                    _suggestions[index].toLowerCase();
                                 _showSuggestions = false;
                                 setState(() {});
                               },
@@ -276,12 +284,15 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                       .collection('${formattedCoopName}_marketmanagers')
                       .snapshots(),
                   builder: (context, marketManagerSnapshot) {
-                    if (marketManagerSnapshot.connectionState == ConnectionState.waiting) {
+                    if (marketManagerSnapshot.connectionState ==
+                        ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (marketManagerSnapshot.hasError) {
-                      logger.e('Error in market manager snapshot: ${marketManagerSnapshot.error}');
-                      return Center(child: Text('Error: ${marketManagerSnapshot.error}'));
+                      logger.e(
+                          'Error in market manager snapshot: ${marketManagerSnapshot.error}');
+                      return Center(
+                          child: Text('Error: ${marketManagerSnapshot.error}'));
                     }
 
                     return StreamBuilder<QuerySnapshot>(
@@ -289,12 +300,17 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                           .collection('${formattedCoopName}_loanmanagers')
                           .snapshots(),
                       builder: (context, loanManagerSnapshot) {
-                        if (loanManagerSnapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (loanManagerSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
                         }
                         if (loanManagerSnapshot.hasError) {
-                          logger.e('Error in loan manager snapshot: ${loanManagerSnapshot.error}');
-                          return Center(child: Text('Error: ${loanManagerSnapshot.error}'));
+                          logger.e(
+                              'Error in loan manager snapshot: ${loanManagerSnapshot.error}');
+                          return Center(
+                              child:
+                                  Text('Error: ${loanManagerSnapshot.error}'));
                         }
 
                         return FutureBuilder<List<Map<String, dynamic>>>(
@@ -304,79 +320,115 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                             loanManagerSnapshot.data,
                           ),
                           builder: (context, futureSnapshot) {
-                            if (futureSnapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(child: CircularProgressIndicator());
+                            if (futureSnapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                  child: CircularProgressIndicator());
                             }
                             if (futureSnapshot.hasError) {
-                              logger.e('Error in future snapshot: ${futureSnapshot.error}');
-                              return Center(child: Text('Error: ${futureSnapshot.error}'));
+                              logger.e(
+                                  'Error in future snapshot: ${futureSnapshot.error}');
+                              return Center(
+                                  child:
+                                      Text('Error: ${futureSnapshot.error}'));
                             }
-                            if (!futureSnapshot.hasData || futureSnapshot.data!.isEmpty) {
-                              return const Center(child: Text('No users found.'));
+                            if (!futureSnapshot.hasData ||
+                                futureSnapshot.data!.isEmpty) {
+                              return const Center(
+                                  child: Text('No users found.'));
                             }
 
                             final users = futureSnapshot.data!;
                             final filteredUsers = _searchQuery.isEmpty
                                 ? users
                                 : users.where((user) {
-                                    return user.values.any((value) =>
-                                        value.toString().toLowerCase().contains(_searchQuery));
+                                    return user.values.any((value) => value
+                                        .toString()
+                                        .toLowerCase()
+                                        .contains(_searchQuery));
                                   }).toList();
 
                             return Column(
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0, vertical: 8.0),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         'Showing ${filteredUsers.length} user${filteredUsers.length == 1 ? '' : 's'}',
-                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                        style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
                                       ),
                                       ElevatedButton.icon(
                                         onPressed: filteredUsers.isEmpty
                                             ? null
-                                            : () => _downloadExcel(filteredUsers),
-                                        icon: const Icon(Icons.download, color: Colors.white),
+                                            : () =>
+                                                _downloadExcel(filteredUsers),
+                                        icon: const Icon(Icons.download,
+                                            color: Colors.white),
                                         label: const Text('Export to Excel'),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.brown[700],
                                           foregroundColor: Colors.white,
                                           shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(12)),
+                                              borderRadius:
+                                                  BorderRadius.circular(12)),
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0),
                                   child: Row(
                                     children: [
-                                      const Text('Sort by: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      const Text('Sort by: ',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold)),
                                       DropdownButton<String>(
                                         value: _sortField,
                                         items: const [
-                                          DropdownMenuItem(value: 'fullName', child: Text('Full Name')),
-                                          DropdownMenuItem(value: 'email', child: Text('Email')),
-                                          DropdownMenuItem(value: 'county', child: Text('County')),
-                                          DropdownMenuItem(value: 'constituency', child: Text('Constituency')),
-                                          DropdownMenuItem(value: 'ward', child: Text('Ward')),
+                                          DropdownMenuItem(
+                                              value: 'fullName',
+                                              child: Text('Full Name')),
+                                          DropdownMenuItem(
+                                              value: 'email',
+                                              child: Text('Email')),
+                                          DropdownMenuItem(
+                                              value: 'county',
+                                              child: Text('County')),
+                                          DropdownMenuItem(
+                                              value: 'constituency',
+                                              child: Text('Constituency')),
+                                          DropdownMenuItem(
+                                              value: 'ward',
+                                              child: Text('Ward')),
                                         ],
-                                        onChanged: (value) => setState(() => _sortField = value!),
-                                        style: const TextStyle(color: Colors.black),
+                                        onChanged: (value) =>
+                                            setState(() => _sortField = value!),
+                                        style: const TextStyle(
+                                            color: Colors.black),
                                       ),
                                       IconButton(
-                                        icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
-                                        onPressed: () => setState(() => _sortAscending = !_sortAscending),
+                                        icon: Icon(_sortAscending
+                                            ? Icons.arrow_upward
+                                            : Icons.arrow_downward),
+                                        onPressed: () => setState(() =>
+                                            _sortAscending = !_sortAscending),
                                       ),
                                     ],
                                   ),
                                 ),
                                 Expanded(
                                   child: filteredUsers.isEmpty
-                                      ? const Center(child: Text('No users match your search.'))
+                                      ? const Center(
+                                          child: Text(
+                                              'No users match your search.'))
                                       : SingleChildScrollView(
                                           scrollDirection: Axis.horizontal,
                                           child: SingleChildScrollView(
@@ -393,40 +445,70 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                                               columns: const [
                                                 DataColumn(
                                                     label: Text('Full Name',
-                                                        style: TextStyle(fontWeight: FontWeight.bold))),
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold))),
                                                 DataColumn(
                                                     label: Text('Email',
-                                                        style: TextStyle(fontWeight: FontWeight.bold))),
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold))),
                                                 DataColumn(
                                                     label: Text('County',
-                                                        style: TextStyle(fontWeight: FontWeight.bold))),
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold))),
                                                 DataColumn(
                                                     label: Text('Constituency',
-                                                        style: TextStyle(fontWeight: FontWeight.bold))),
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold))),
                                                 DataColumn(
                                                     label: Text('Ward',
-                                                        style: TextStyle(fontWeight: FontWeight.bold))),
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold))),
                                                 DataColumn(
                                                     label: Text('Phone Number',
-                                                        style: TextStyle(fontWeight: FontWeight.bold))),
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold))),
                                                 DataColumn(
                                                     label: Text('Role',
-                                                        style: TextStyle(fontWeight: FontWeight.bold))),
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold))),
                                                 DataColumn(
                                                     label: Text('Status',
-                                                        style: TextStyle(fontWeight: FontWeight.bold))),
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold))),
                                               ],
                                               rows: filteredUsers.map((user) {
                                                 return DataRow(cells: [
-                                                  DataCell(Text(user['fullName'])),
-                                                  DataCell(Text(user['email'])),
-                                                  DataCell(Text(user['county'])),
-                                                  DataCell(Text(user['constituency'])),
-                                                  DataCell(Text(user['ward'])),
-                                                  DataCell(Text(user['phoneNumber'])),
-                                                  DataCell(Text(user['role'])),
                                                   DataCell(
-                                                      Text(user['isDisabled'] ? 'Disabled' : 'Active')),
+                                                      Text(user['fullName'])),
+                                                  DataCell(Text(user['email'])),
+                                                  DataCell(
+                                                      Text(user['county'])),
+                                                  DataCell(Text(
+                                                      user['constituency'])),
+                                                  DataCell(Text(user['ward'])),
+                                                  DataCell(Text(
+                                                      user['phoneNumber'])),
+                                                  DataCell(Text(user['role'])),
+                                                  DataCell(Text(
+                                                      user['isDisabled']
+                                                          ? 'Disabled'
+                                                          : 'Active')),
                                                 ]);
                                               }).toList(),
                                             ),
@@ -485,17 +567,20 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
       // Check if user is a Market Manager
       if (marketManagerUids.contains(doc.id)) {
         role = 'Market Manager';
-        logger.i('Assigned Market Manager role to UID: ${doc.id} based on marketManagerUids');
+        logger.i(
+            'Assigned Market Manager role to UID: ${doc.id} based on marketManagerUids');
       }
       // Check if user is a Loan Manager
       else if (loanManagerUids.contains(doc.id)) {
         role = 'Loan Manager';
-        logger.i('Assigned Loan Manager role to UID: ${doc.id} based on loanManagerUids');
+        logger.i(
+            'Assigned Loan Manager role to UID: ${doc.id} based on loanManagerUids');
       }
       // Check for Coop Admin or Main Admin roles
       else {
         try {
-          String fetchedRole = await RoleUtils.getUserRole(doc.id, widget.cooperativeName);
+          String fetchedRole =
+              await RoleUtils.getUserRole(doc.id, widget.cooperativeName);
           if (fetchedRole == 'Coop Admin' || fetchedRole == 'Main Admin') {
             role = fetchedRole;
             logger.i('Assigned $role to UID: ${doc.id} based on RoleUtils');

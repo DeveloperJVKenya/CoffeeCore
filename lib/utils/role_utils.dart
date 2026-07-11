@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RoleUtils {
-  static Future<String> getUserRole(String userId, String cooperativeName) async {
+  static Future<String> getUserRole(
+      String userId, String cooperativeName) async {
     try {
       String formattedCoopName = cooperativeName.replaceAll(' ', '_');
 
@@ -24,7 +25,8 @@ class RoleUtils {
         if (data['cooperative'] == formattedCoopName) {
           return 'Coop Admin';
         } else {
-          throw Exception('User is a Coop Admin for a different cooperative: ${data['cooperative']}');
+          throw Exception(
+              'User is a Coop Admin for a different cooperative: ${data['cooperative']}');
         }
       }
 

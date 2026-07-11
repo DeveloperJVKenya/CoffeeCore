@@ -24,7 +24,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       final String message = _messageController.text;
       logger.i('Feedback: Name: $name, Email: $email, Message: $message');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Thank you for your feedback! We’ll get back to you soon.')),
+        const SnackBar(
+            content: Text(
+                'Thank you for your feedback! We’ll get back to you soon.')),
       );
       _nameController.clear();
       _emailController.clear();
@@ -64,9 +66,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
               Text(
                 'Contact Us',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: primaryColor,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 16),
               // Introduction
@@ -116,7 +118,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                         ),
                       ),
                       validator: (String? value) =>
-                          value == null || value.isEmpty ? 'Please enter your name' : null,
+                          value == null || value.isEmpty
+                              ? 'Please enter your name'
+                              : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -151,7 +155,9 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                       ),
                       maxLines: 4,
                       validator: (String? value) =>
-                          value == null || value.isEmpty ? 'Please enter your message' : null,
+                          value == null || value.isEmpty
+                              ? 'Please enter your message'
+                              : null,
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
@@ -188,15 +194,19 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
       child: Text(
         title,
         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-          color: primaryColor,
-          fontWeight: FontWeight.bold,
-        ),
+              color: primaryColor,
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
 
   // Helper method for contact items
-  Widget _buildContactItem(BuildContext context, {required IconData icon, required String title, required String value, required VoidCallback onTap}) {
+  Widget _buildContactItem(BuildContext context,
+      {required IconData icon,
+      required String title,
+      required String value,
+      required VoidCallback onTap}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: InkWell(
@@ -212,12 +222,19 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     value,
-                    style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.blue, decoration: TextDecoration.underline),
+                    style: const TextStyle(
+                        fontSize: 16,
+                        height: 1.5,
+                        color: Colors.blue,
+                        decoration: TextDecoration.underline),
                   ),
                 ],
               ),

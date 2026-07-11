@@ -4,13 +4,16 @@ import 'package:flutter/material.dart';
 class CoffeePestSymptomAnalysisPage extends StatefulWidget {
   final Map<String, List<Map<String, dynamic>>> selectedSymptoms;
 
-  const CoffeePestSymptomAnalysisPage({required this.selectedSymptoms, super.key});
+  const CoffeePestSymptomAnalysisPage(
+      {required this.selectedSymptoms, super.key});
 
   @override
-  State<CoffeePestSymptomAnalysisPage> createState() => _CoffeePestSymptomAnalysisPageState();
+  State<CoffeePestSymptomAnalysisPage> createState() =>
+      _CoffeePestSymptomAnalysisPageState();
 }
 
-class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysisPage> {
+class _CoffeePestSymptomAnalysisPageState
+    extends State<CoffeePestSymptomAnalysisPage> {
   static final Color coffeeBrown = Colors.brown[700]!;
   static final Color backgroundColor = Colors.brown[50]!;
   bool _isLoading = false;
@@ -24,89 +27,269 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
   final Map<String, Map<String, List<Map<String, dynamic>>>> pestSymptoms = {
     'Coffee Berry Borer': {
       'Fruits': [
-        {'symptom': 'Small entry holes in coffee cherries', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Larvae inside cherries, often with frass', 'weight': 0.9, 'cluster': 'unique'},
-        {'symptom': 'Premature fruit drop with tiny holes', 'weight': 0.7, 'cluster': 'shared'},
-        {'symptom': 'Small beetles in cherries', 'weight': 0.9, 'cluster': 'unique'},
-        {'symptom': 'Powdery frass in cherry cavities', 'weight': 0.8, 'cluster': 'unique'},
+        {
+          'symptom': 'Small entry holes in coffee cherries',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Larvae inside cherries, often with frass',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Premature fruit drop with tiny holes',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Small beetles in cherries',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Powdery frass in cherry cavities',
+          'weight': 0.8,
+          'cluster': 'unique'
+        },
       ],
     },
     'Coffee Leaf Miner': {
       'Leaves': [
-        {'symptom': 'Silvery tunnels or trails on leaves', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Leaves with irregular, winding patterns', 'weight': 0.9, 'cluster': 'unique'},
-        {'symptom': 'Premature leaf drop with miner damage', 'weight': 0.7, 'cluster': 'shared'},
-        {'symptom': 'Tiny larvae visible inside leaf tissue', 'weight': 0.9, 'cluster': 'unique'},
-        {'symptom': 'Yellowing leaves with serpentine trails', 'weight': 0.8, 'cluster': 'unique'},
+        {
+          'symptom': 'Silvery tunnels or trails on leaves',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Leaves with irregular, winding patterns',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Premature leaf drop with miner damage',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Tiny larvae visible inside leaf tissue',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Yellowing leaves with serpentine trails',
+          'weight': 0.8,
+          'cluster': 'unique'
+        },
       ],
     },
     'Coffee Antestia Bug': {
       'Fruits': [
-        {'symptom': 'Deformed or discolored cherries', 'weight': 0.7, 'cluster': 'shared'},
-        {'symptom': 'Tiny insects on fruit surfaces', 'weight': 0.9, 'cluster': 'unique'},
-        {'symptom': 'Premature fruit drop due to sap-sucking', 'weight': 0.7, 'cluster': 'shared'},
-        {'symptom': 'Blackened spots on cherries', 'weight': 0.6, 'cluster': 'shared'},
+        {
+          'symptom': 'Deformed or discolored cherries',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Tiny insects on fruit surfaces',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Premature fruit drop due to sap-sucking',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Blackened spots on cherries',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
       ],
       'Leaves': [
-        {'symptom': 'Sticky honeydew on leaves', 'weight': 0.6, 'cluster': 'shared'},
-        {'symptom': 'Ants attracted to leaves', 'weight': 0.6, 'cluster': 'shared'},
+        {
+          'symptom': 'Sticky honeydew on leaves',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Ants attracted to leaves',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
       ],
     },
     'Coffee Stem Borer': {
       'Stems/Branches': [
-        {'symptom': 'Small holes bored into stems', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Sawdust-like frass around stem base', 'weight': 0.9, 'cluster': 'unique'},
-        {'symptom': 'Visible larvae inside stems', 'weight': 0.9, 'cluster': 'unique'},
-        {'symptom': 'Weakened or snapping branches', 'weight': 0.7, 'cluster': 'shared'},
-        {'symptom': 'Hollowed-out stem interiors', 'weight': 0.8, 'cluster': 'unique'},
+        {
+          'symptom': 'Small holes bored into stems',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Sawdust-like frass around stem base',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Visible larvae inside stems',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Weakened or snapping branches',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Hollowed-out stem interiors',
+          'weight': 0.8,
+          'cluster': 'unique'
+        },
       ],
       'Leaves': [
-        {'symptom': 'Yellowing leaves above bored stems', 'weight': 0.6, 'cluster': 'shared'},
-        {'symptom': 'Wilting leaves above affected stems', 'weight': 0.7, 'cluster': 'shared'},
+        {
+          'symptom': 'Yellowing leaves above bored stems',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Wilting leaves above affected stems',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
       ],
     },
     'Root-Knot Nematodes': {
       'Roots': [
-        {'symptom': 'Swollen or knotted roots', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Wilting despite adequate watering', 'weight': 0.7, 'cluster': 'shared'},
-        {'symptom': 'Tiny worms in soil near roots', 'weight': 0.9, 'cluster': 'unique'},
-        {'symptom': 'Yellowing lower leaves', 'weight': 0.6, 'cluster': 'shared'},
+        {
+          'symptom': 'Swollen or knotted roots',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Wilting despite adequate watering',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Tiny worms in soil near roots',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Yellowing lower leaves',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
         {'symptom': 'Stunted root growth', 'weight': 0.8, 'cluster': 'unique'},
       ],
     },
     'White Flies': {
       'Leaves': [
-        {'symptom': 'Tiny white insects under leaves', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Sticky honeydew with ants present', 'weight': 0.6, 'cluster': 'shared'},
-        {'symptom': 'Leaves curling or yellowing', 'weight': 0.6, 'cluster': 'shared'},
-        {'symptom': 'Sooty mold on leaf surfaces', 'weight': 0.7, 'cluster': 'shared'},
-        {'symptom': 'Cloud of white insects when plant is disturbed', 'weight': 0.9, 'cluster': 'unique'},
+        {
+          'symptom': 'Tiny white insects under leaves',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Sticky honeydew with ants present',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Leaves curling or yellowing',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Sooty mold on leaf surfaces',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Cloud of white insects when plant is disturbed',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
         {'symptom': 'Premature leaf drop', 'weight': 0.6, 'cluster': 'shared'},
       ],
     },
     'Coffee Mealybug': {
       'Leaves': [
-        {'symptom': 'White, waxy insects on leaves', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Sticky honeydew and sooty mold', 'weight': 0.6, 'cluster': 'shared'},
-        {'symptom': 'Leaves curling or wilting', 'weight': 0.6, 'cluster': 'shared'},
-        {'symptom': 'Ants tending mealybugs', 'weight': 0.8, 'cluster': 'unique'},
-        {'symptom': 'Cotton-like masses on leaves', 'weight': 0.9, 'cluster': 'unique'},
+        {
+          'symptom': 'White, waxy insects on leaves',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Sticky honeydew and sooty mold',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Leaves curling or wilting',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Ants tending mealybugs',
+          'weight': 0.8,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Cotton-like masses on leaves',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
       ],
       'Stems/Branches': [
-        {'symptom': 'White, waxy insects on stems', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Cotton-like masses on stems', 'weight': 0.9, 'cluster': 'unique'},
+        {
+          'symptom': 'White, waxy insects on stems',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Cotton-like masses on stems',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
       ],
     },
     'Caterpillars': {
       'Leaves': [
-        {'symptom': 'Irregular holes in leaves', 'weight': 0.7, 'cluster': 'shared'},
-        {'symptom': 'Skeletonized leaves with veins intact', 'weight': 0.9, 'cluster': 'unique'},
-        {'symptom': 'Visible caterpillars on leaves', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Silk threads on leaves', 'weight': 0.9, 'cluster': 'unique'},
-        {'symptom': 'Fecal pellets on leaves', 'weight': 0.8, 'cluster': 'unique'},
+        {
+          'symptom': 'Irregular holes in leaves',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Skeletonized leaves with veins intact',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Visible caterpillars on leaves',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Silk threads on leaves',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Fecal pellets on leaves',
+          'weight': 0.8,
+          'cluster': 'unique'
+        },
       ],
       'Fruits': [
-        {'symptom': 'Irregular holes in fruits', 'weight': 0.7, 'cluster': 'shared'},
+        {
+          'symptom': 'Irregular holes in fruits',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
       ],
       'Flowers': [
         {'symptom': 'Chewed flower buds', 'weight': 0.7, 'cluster': 'shared'},
@@ -114,52 +297,136 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
     },
     'Coffee Weevil': {
       'Fruits': [
-        {'symptom': 'Small holes in stored coffee beans', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Damaged or hollowed-out beans', 'weight': 0.9, 'cluster': 'unique'},
-        {'symptom': 'Presence of weevils in storage', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Powdery debris in storage', 'weight': 0.8, 'cluster': 'unique'},
-        {'symptom': 'Infested beans with larvae', 'weight': 0.9, 'cluster': 'unique'},
+        {
+          'symptom': 'Small holes in stored coffee beans',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Damaged or hollowed-out beans',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Presence of weevils in storage',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Powdery debris in storage',
+          'weight': 0.8,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Infested beans with larvae',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
       ],
     },
     'Ants': {
       'Leaves': [
-        {'symptom': 'Presence of ants tending pests', 'weight': 0.8, 'cluster': 'unique'},
-        {'symptom': 'Sticky honeydew on leaves', 'weight': 0.6, 'cluster': 'shared'},
+        {
+          'symptom': 'Presence of ants tending pests',
+          'weight': 0.8,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Sticky honeydew on leaves',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
       ],
       'Fruits': [
-        {'symptom': 'Sticky honeydew on fruits', 'weight': 0.6, 'cluster': 'shared'},
+        {
+          'symptom': 'Sticky honeydew on fruits',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
         {'symptom': 'Ant trails on fruits', 'weight': 0.7, 'cluster': 'unique'},
       ],
       'Stems/Branches': [
-        {'symptom': 'Ant trails on plant stems', 'weight': 0.7, 'cluster': 'unique'},
+        {
+          'symptom': 'Ant trails on plant stems',
+          'weight': 0.7,
+          'cluster': 'unique'
+        },
       ],
     },
     'Scale Insects': {
       'Leaves': [
-        {'symptom': 'Small, flat, oval insects on leaves', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Sticky honeydew on leaves', 'weight': 0.6, 'cluster': 'shared'},
-        {'symptom': 'Yellowing or wilting leaves', 'weight': 0.6, 'cluster': 'shared'},
-        {'symptom': 'Sooty mold from sap-sucking', 'weight': 0.7, 'cluster': 'shared'},
-        {'symptom': 'Discolored spots under scales', 'weight': 0.7, 'cluster': 'unique'},
+        {
+          'symptom': 'Small, flat, oval insects on leaves',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Sticky honeydew on leaves',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Yellowing or wilting leaves',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Sooty mold from sap-sucking',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Discolored spots under scales',
+          'weight': 0.7,
+          'cluster': 'unique'
+        },
       ],
       'Stems/Branches': [
-        {'symptom': 'Small, flat, oval insects on stems', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Hard, waxy shells on stems', 'weight': 0.9, 'cluster': 'unique'},
+        {
+          'symptom': 'Small, flat, oval insects on stems',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Hard, waxy shells on stems',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
       ],
     },
     'Thrips': {
       'Leaves': [
-        {'symptom': 'Silvering or bronzing of leaves', 'weight': 0.9, 'cluster': 'unique'},
-        {'symptom': 'Tiny, slender insects on leaves', 'weight': 1.0, 'cluster': 'unique'},
-        {'symptom': 'Black fecal spots on leaves', 'weight': 0.8, 'cluster': 'unique'},
+        {
+          'symptom': 'Silvering or bronzing of leaves',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Tiny, slender insects on leaves',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Black fecal spots on leaves',
+          'weight': 0.8,
+          'cluster': 'unique'
+        },
         {'symptom': 'Premature leaf drop', 'weight': 0.6, 'cluster': 'shared'},
       ],
       'Fruits': [
-        {'symptom': 'Distorted or scarred fruit surfaces', 'weight': 0.8, 'cluster': 'shared'},
+        {
+          'symptom': 'Distorted or scarred fruit surfaces',
+          'weight': 0.8,
+          'cluster': 'shared'
+        },
       ],
       'Flowers': [
         {'symptom': 'Deformed flower buds', 'weight': 0.7, 'cluster': 'shared'},
-        {'symptom': 'Tiny, slender insects on flowers', 'weight': 1.0, 'cluster': 'unique'},
+        {
+          'symptom': 'Tiny, slender insects on flowers',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
       ],
     },
   };
@@ -196,7 +463,8 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
     _initializeAdditionalSymptoms();
   }
 
-  Map<String, List<String>> _convertToSymptomStrings(Map<String, List<Map<String, dynamic>>> input) {
+  Map<String, List<String>> _convertToSymptomStrings(
+      Map<String, List<Map<String, dynamic>>> input) {
     Map<String, List<String>> result = {};
     input.forEach((section, symptoms) {
       result[section] = symptoms.map((s) => s['symptom'] as String).toList();
@@ -211,7 +479,8 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
       for (var section in allSelectedSymptoms.keys) {
         if (pestSymptoms[pest]!.containsKey(section)) {
           for (var symptom in allSelectedSymptoms[section]!) {
-            if (pestSymptoms[pest]![section]!.any((s) => s['symptom'] == symptom)) {
+            if (pestSymptoms[pest]![section]!
+                .any((s) => s['symptom'] == symptom)) {
               hasMatch = true;
               break;
             }
@@ -230,27 +499,32 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
         if (!filteredPestSymptoms.containsKey(section)) {
           filteredPestSymptoms[section] = [];
         }
-        var additional = pestSymptoms[pest]![section]!.where((s) => !allSelectedSymptoms[section]!.contains(s['symptom'])).toList();
+        var additional = pestSymptoms[pest]![section]!
+            .where((s) => !allSelectedSymptoms[section]!.contains(s['symptom']))
+            .toList();
         filteredPestSymptoms[section]!.addAll(additional);
       }
     }
 
     for (var section in filteredPestSymptoms.keys.toList()) {
-      filteredPestSymptoms[section] = filteredPestSymptoms[section]!.toSet().toList();
+      filteredPestSymptoms[section] =
+          filteredPestSymptoms[section]!.toSet().toList();
       if (filteredPestSymptoms[section]!.isEmpty) {
         filteredPestSymptoms.remove(section);
       }
     }
 
     for (var section in filteredPestSymptoms.keys) {
-      additionalSymptoms[section] = List.filled(filteredPestSymptoms[section]!.length, false);
+      additionalSymptoms[section] =
+          List.filled(filteredPestSymptoms[section]!.length, false);
     }
   }
 
   void _resetSymptoms() {
     setState(() {
       for (var section in additionalSymptoms.keys) {
-        additionalSymptoms[section] = List.filled(additionalSymptoms[section]!.length, false);
+        additionalSymptoms[section] =
+            List.filled(additionalSymptoms[section]!.length, false);
       }
       analysisIterations = 0;
     });
@@ -272,7 +546,8 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
     if (!hasNewSymptoms && analysisIterations > 0) {
       setState(() => _isLoading = false);
       StringBuffer resultMessage = StringBuffer();
-      resultMessage.writeln('No new symptoms selected. Please select additional symptoms and press the search icon to continue analysis.');
+      resultMessage.writeln(
+          'No new symptoms selected. Please select additional symptoms and press the search icon to continue analysis.');
       resultMessage.writeln('\nCurrent matching pests:');
       for (var pest in matchingPests) {
         resultMessage.writeln('  • **$pest**');
@@ -283,12 +558,14 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
           ElevatedButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const CoffeePestManagementPage()),
+              MaterialPageRoute(
+                  builder: (context) => const CoffeePestManagementPage()),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: coffeeBrown,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Explore Pest Management'),
           ),
@@ -307,7 +584,8 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
       }
       for (int i = 0; i < filteredPestSymptoms[section]!.length; i++) {
         if (additionalSymptoms[section]![i]) {
-          allSelectedSymptoms[section]!.add(filteredPestSymptoms[section]![i]['symptom']);
+          allSelectedSymptoms[section]!
+              .add(filteredPestSymptoms[section]![i]['symptom']);
         }
       }
     }
@@ -316,7 +594,8 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
     analysisIterations++;
     if (analysisIterations > maxIterations) {
       StringBuffer resultMessage = StringBuffer();
-      resultMessage.writeln('Unable to narrow down to a single pest after $maxIterations attempts.');
+      resultMessage.writeln(
+          'Unable to narrow down to a single pest after $maxIterations attempts.');
       resultMessage.writeln('Multiple pests match the symptoms:');
       for (var pest in matchingPests) {
         resultMessage.writeln('  • **$pest**');
@@ -329,12 +608,14 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
           ElevatedButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const CoffeePestManagementPage()),
+              MaterialPageRoute(
+                  builder: (context) => const CoffeePestManagementPage()),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: coffeeBrown,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Explore Pest Management'),
           ),
@@ -362,12 +643,23 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
               weight *= 1.5;
             }
             score += weight;
-            matchedSymptoms.add('${matchingSymptom['symptom']} (${matchingSymptom['cluster']}, Weight: ${matchingSymptom['weight']})');
+            matchedSymptoms.add(
+                '${matchingSymptom['symptom']} (${matchingSymptom['cluster']}, Weight: ${matchingSymptom['weight']})');
           }
         }
       }
       if (score > 0) {
-        double maxScore = pestSymptoms[pest]!.values.fold(0.0, (sum, symptoms) => sum + symptoms.fold(0.0, (s, sym) => s + (sym['cluster'] == 'unique' ? sym['weight'] * 1.5 : sym['weight'])));
+        double maxScore = pestSymptoms[pest]!.values.fold(
+            0.0,
+            (sum, symptoms) =>
+                sum +
+                symptoms.fold(
+                    0.0,
+                    (s, sym) =>
+                        s +
+                        (sym['cluster'] == 'unique'
+                            ? sym['weight'] * 1.5
+                            : sym['weight'])));
         pestMatches[pest] = {
           'score': score,
           'matchedSymptoms': matchedSymptoms,
@@ -377,7 +669,11 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
     }
 
     if (pestMatches.isEmpty) {
-      _showResult('No specific pest identified. Explore pest management options.', [], null, null);
+      _showResult(
+          'No specific pest identified. Explore pest management options.',
+          [],
+          null,
+          null);
       setState(() => _isLoading = false);
       return;
     }
@@ -388,7 +684,9 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
 
     matchingPests = topPests.map((e) => e.key).toList();
 
-    bool isConclusive = topPests.length == 1 || (topPests.length > 1 && topPests[0].value['score'] > topPests[1].value['score'] * 1.5);
+    bool isConclusive = topPests.length == 1 ||
+        (topPests.length > 1 &&
+            topPests[0].value['score'] > topPests[1].value['score'] * 1.5);
 
     if (isConclusive) {
       StringBuffer resultMessage = StringBuffer();
@@ -399,7 +697,8 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
       double confidence = pestEntry.value['confidence'];
       List<String> matchedSymptoms = pestEntry.value['matchedSymptoms'];
       resultMessage.writeln('Top Matching Pest:');
-      resultMessage.writeln('**$pest** (Score: ${score.toStringAsFixed(1)}, Confidence: ${confidence.toStringAsFixed(1)}%)');
+      resultMessage.writeln(
+          '**$pest** (Score: ${score.toStringAsFixed(1)}, Confidence: ${confidence.toStringAsFixed(1)}%)');
       resultMessage.writeln('Matching Symptoms:');
       for (var symptom in matchedSymptoms) {
         resultMessage.writeln('  • $symptom');
@@ -425,13 +724,15 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
           style: ElevatedButton.styleFrom(
             backgroundColor: coffeeBrown,
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
           child: Text('Manage $pest'),
         ),
       );
       analysisIterations = 0;
-      _showResult(resultMessage.toString(), navigationButtons, pest, coffeeStage);
+      _showResult(
+          resultMessage.toString(), navigationButtons, pest, coffeeStage);
     } else {
       filteredPestSymptoms = {};
       for (var pest in matchingPests) {
@@ -439,18 +740,23 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
           if (!filteredPestSymptoms.containsKey(section)) {
             filteredPestSymptoms[section] = [];
           }
-          var additional = pestSymptoms[pest]![section]!.where((s) => !allSelectedSymptoms[section]!.contains(s['symptom'])).toList();
+          var additional = pestSymptoms[pest]![section]!
+              .where(
+                  (s) => !allSelectedSymptoms[section]!.contains(s['symptom']))
+              .toList();
           filteredPestSymptoms[section]!.addAll(additional);
         }
       }
       for (var section in filteredPestSymptoms.keys.toList()) {
-        filteredPestSymptoms[section] = filteredPestSymptoms[section]!.toSet().toList();
+        filteredPestSymptoms[section] =
+            filteredPestSymptoms[section]!.toSet().toList();
         if (filteredPestSymptoms[section]!.isEmpty) {
           filteredPestSymptoms.remove(section);
         }
       }
       for (var section in filteredPestSymptoms.keys) {
-        additionalSymptoms[section] = List.filled(filteredPestSymptoms[section]!.length, false);
+        additionalSymptoms[section] =
+            List.filled(filteredPestSymptoms[section]!.length, false);
       }
 
       StringBuffer resultMessage = StringBuffer();
@@ -461,7 +767,8 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
         double score = pestEntry.value['score'];
         double confidence = pestEntry.value['confidence'];
         List<String> matchedSymptoms = pestEntry.value['matchedSymptoms'];
-        resultMessage.writeln('**$pest** (Score: ${score.toStringAsFixed(1)}, Confidence: ${confidence.toStringAsFixed(1)}%)');
+        resultMessage.writeln(
+            '**$pest** (Score: ${score.toStringAsFixed(1)}, Confidence: ${confidence.toStringAsFixed(1)}%)');
         resultMessage.writeln('Matching Symptoms:');
         for (var symptom in matchedSymptoms) {
           resultMessage.writeln('  • $symptom');
@@ -469,25 +776,30 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
         resultMessage.writeln();
       }
       if (filteredPestSymptoms.isEmpty) {
-        resultMessage.writeln('No additional symptoms available to narrow down the pest.');
-        resultMessage.writeln('Explore pest management for the identified pests or select different symptoms.');
+        resultMessage.writeln(
+            'No additional symptoms available to narrow down the pest.');
+        resultMessage.writeln(
+            'Explore pest management for the identified pests or select different symptoms.');
         navigationButtons.add(
           ElevatedButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const CoffeePestManagementPage()),
+              MaterialPageRoute(
+                  builder: (context) => const CoffeePestManagementPage()),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: coffeeBrown,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Explore Pest Management'),
           ),
         );
         analysisIterations = 0;
       } else {
-        resultMessage.writeln('Select additional symptoms below and press the search icon to continue analysis.');
+        resultMessage.writeln(
+            'Select additional symptoms below and press the search icon to continue analysis.');
         navigationButtons.add(
           ElevatedButton(
             onPressed: () {
@@ -496,7 +808,8 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
             style: ElevatedButton.styleFrom(
               backgroundColor: coffeeBrown,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Select More Symptoms'),
           ),
@@ -508,17 +821,23 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
     setState(() => _isLoading = false);
   }
 
-  void _showResult(String message, List<Widget> navigationButtons, String? topPest, String? coffeeStage) {
+  void _showResult(String message, List<Widget> navigationButtons,
+      String? topPest, String? coffeeStage) {
     if (mounted) {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Pest Analysis Result', style: TextStyle(fontWeight: FontWeight.bold)),
+          title: const Text('Pest Analysis Result',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Analysis Results', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: coffeeBrown)),
+                Text('Analysis Results',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: coffeeBrown)),
                 const SizedBox(height: 8),
                 RichText(
                   text: TextSpan(
@@ -587,12 +906,16 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
                 children: [
                   Text(
                     'Closely Matching Pests',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: coffeeBrown),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: coffeeBrown),
                   ),
                   const SizedBox(height: 8),
                   Card(
                     elevation: 4,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     child: Padding(
                       padding: const EdgeInsets.all(12.0),
                       child: Column(
@@ -604,20 +927,29 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
                                   style: TextStyle(fontSize: 14),
                                 ),
                               ]
-                            : matchingPests.map((pest) => Text('• **$pest**', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold))).toList(),
+                            : matchingPests
+                                .map((pest) => Text('• **$pest**',
+                                    style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold)))
+                                .toList(),
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'Additional Symptoms for Deeper Analysis',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: coffeeBrown),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: coffeeBrown),
                   ),
                   const SizedBox(height: 8),
                   if (filteredPestSymptoms.isEmpty)
                     Card(
                       elevation: 4,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       child: const Padding(
                         padding: EdgeInsets.all(12.0),
                         child: Text(
@@ -632,7 +964,8 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
                       List<Map<String, dynamic>> symptoms = entry.value;
                       return Card(
                         elevation: 4,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         child: Padding(
                           padding: const EdgeInsets.all(12.0),
                           child: Column(
@@ -640,20 +973,26 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
                             children: [
                               Text(
                                 section,
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: coffeeBrown),
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: coffeeBrown),
                               ),
                               const SizedBox(height: 8),
                               ...List.generate(symptoms.length, (index) {
                                 return CheckboxListTile(
-                                  title: Text(symptoms[index]['symptom'], style: const TextStyle(fontSize: 14)),
+                                  title: Text(symptoms[index]['symptom'],
+                                      style: const TextStyle(fontSize: 14)),
                                   value: additionalSymptoms[section]![index],
                                   onChanged: (bool? value) {
                                     setState(() {
-                                      additionalSymptoms[section]![index] = value!;
+                                      additionalSymptoms[section]![index] =
+                                          value!;
                                     });
                                   },
                                   activeColor: coffeeBrown,
-                                  controlAffinity: ListTileControlAffinity.leading,
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
                                   dense: true,
                                 );
                               }),
@@ -668,7 +1007,8 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
                     style: ElevatedButton.styleFrom(
                       backgroundColor: coffeeBrown,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text('Reset Additional Symptoms'),
                   ),
@@ -681,7 +1021,8 @@ class _CoffeePestSymptomAnalysisPageState extends State<CoffeePestSymptomAnalysi
             Container(
               color: Colors.black54,
               child: Center(
-                child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(coffeeBrown)),
+                child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(coffeeBrown)),
               ),
             ),
         ],

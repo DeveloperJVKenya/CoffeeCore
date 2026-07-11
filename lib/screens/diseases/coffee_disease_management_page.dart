@@ -53,13 +53,26 @@ final Map<String, Map<String, dynamic>> kDiseaseDetails = {
   'Coffee Leaf Rust': {
     'description':
         'The most devastating coffee disease worldwide, caused by the fungus Hemileia vastatrix. '
-        'It produces orange-yellow powdery spore masses on the undersides of leaves, reducing photosynthesis and fruit production.',
+            'It produces orange-yellow powdery spore masses on the undersides of leaves, reducing photosynthesis and fruit production.',
     'symptoms':
         'Yellow-orange powdery pustules on the undersides of leaves, corresponding pale yellow spots on the upper surface, '
-        'premature leaf drop, and defoliation of branches. Severe infection causes complete leaf loss and branch die-back.',
-    'chemicalControls': ['Copper oxychloride', 'Mancozeb', 'Propiconazole', 'Trifloxystrobin'],
-    'biologicalControls': ['Trichoderma harzianum', 'Bacillus subtilis', 'Copper-based organic fungicides'],
-    'culturalControls': ['Shade management', 'Pruning for airflow', 'Remove infected leaves'],
+            'premature leaf drop, and defoliation of branches. Severe infection causes complete leaf loss and branch die-back.',
+    'chemicalControls': [
+      'Copper oxychloride',
+      'Mancozeb',
+      'Propiconazole',
+      'Trifloxystrobin'
+    ],
+    'biologicalControls': [
+      'Trichoderma harzianum',
+      'Bacillus subtilis',
+      'Copper-based organic fungicides'
+    ],
+    'culturalControls': [
+      'Shade management',
+      'Pruning for airflow',
+      'Remove infected leaves'
+    ],
     'possibleCauses': [
       'High humidity (above 70%)',
       'Temperatures between 15–28°C',
@@ -86,13 +99,22 @@ final Map<String, Map<String, dynamic>> kDiseaseDetails = {
   'Coffee Berry Disease': {
     'description':
         'CBD (Colletotrichum kahawae) is the most economically damaging coffee disease in Africa. '
-        'It infects coffee berries at all development stages, causing total crop loss if unmanaged.',
+            'It infects coffee berries at all development stages, causing total crop loss if unmanaged.',
     'symptoms':
         'Dark, sunken lesions on green berries that turn brown-black and mummify, "ghost" berries remaining on branches, '
-        'black pedicels, and premature fruit drop. Infected beans show brown discolouration inside.',
-    'chemicalControls': ['Copper oxychloride', 'Carbendazim', 'Thiophanate-methyl', 'Cymoxanil + Mancozeb'],
+            'black pedicels, and premature fruit drop. Infected beans show brown discolouration inside.',
+    'chemicalControls': [
+      'Copper oxychloride',
+      'Carbendazim',
+      'Thiophanate-methyl',
+      'Cymoxanil + Mancozeb'
+    ],
     'biologicalControls': ['Trichoderma spp.', 'Bacillus amyloliquefaciens'],
-    'culturalControls': ['Remove mummified berries', 'Timely harvesting', 'Sanitation pruning'],
+    'culturalControls': [
+      'Remove mummified berries',
+      'Timely harvesting',
+      'Sanitation pruning'
+    ],
     'possibleCauses': [
       'Rainfall and wet conditions during fruit development',
       'Temperatures of 15–25°C',
@@ -118,13 +140,23 @@ final Map<String, Map<String, dynamic>> kDiseaseDetails = {
   'Coffee Wilt Disease': {
     'description':
         'Caused by the soil-borne fungus Gibberella xylarioides (Fusarium xylarioides). '
-        'It blocks the water-conducting vessels of the coffee plant, causing rapid wilting and death.',
+            'It blocks the water-conducting vessels of the coffee plant, causing rapid wilting and death.',
     'symptoms':
         'Sudden wilting of one or more branches while the rest of the plant appears healthy, yellowing and browning of leaves '
-        'on affected branches, brown-red discolouration inside the stem when cut, and eventual death of the whole plant.',
-    'chemicalControls': ['Carbendazim (soil drench)', 'Thiophanate-methyl (soil drench)'],
-    'biologicalControls': ['Trichoderma harzianum (soil application)', 'Pseudomonas fluorescens'],
-    'culturalControls': ['Uproot and burn infected plants', 'Avoid replanting in same hole', 'Disinfect tools'],
+            'on affected branches, brown-red discolouration inside the stem when cut, and eventual death of the whole plant.',
+    'chemicalControls': [
+      'Carbendazim (soil drench)',
+      'Thiophanate-methyl (soil drench)'
+    ],
+    'biologicalControls': [
+      'Trichoderma harzianum (soil application)',
+      'Pseudomonas fluorescens'
+    ],
+    'culturalControls': [
+      'Uproot and burn infected plants',
+      'Avoid replanting in same hole',
+      'Disinfect tools'
+    ],
     'possibleCauses': [
       'Contaminated soil or planting material',
       'Infected pruning tools',
@@ -149,13 +181,25 @@ final Map<String, Map<String, dynamic>> kDiseaseDetails = {
   'Coffee Root Rot': {
     'description':
         'A complex of soil-borne pathogens including Phytophthora cinnamomi, Pythium spp., and Fusarium spp. '
-        'that attack the roots of coffee plants, disrupting water and nutrient uptake.',
+            'that attack the roots of coffee plants, disrupting water and nutrient uptake.',
     'symptoms':
         'Yellowing and wilting of leaves despite adequate water, dark-brown discolouration and decay of the roots, '
-        'stunted plant growth, and progressive decline. Roots appear slimy and may have a foul smell.',
-    'chemicalControls': ['Metalaxyl (Ridomil)', 'Fosetyl-aluminium', 'Copper oxychloride (soil drench)'],
-    'biologicalControls': ['Trichoderma viride', 'Bacillus subtilis', 'Mycorrhizal inoculants'],
-    'culturalControls': ['Improve drainage', 'Avoid overwatering', 'Mulch with well-composted material'],
+            'stunted plant growth, and progressive decline. Roots appear slimy and may have a foul smell.',
+    'chemicalControls': [
+      'Metalaxyl (Ridomil)',
+      'Fosetyl-aluminium',
+      'Copper oxychloride (soil drench)'
+    ],
+    'biologicalControls': [
+      'Trichoderma viride',
+      'Bacillus subtilis',
+      'Mycorrhizal inoculants'
+    ],
+    'culturalControls': [
+      'Improve drainage',
+      'Avoid overwatering',
+      'Mulch with well-composted material'
+    ],
     'possibleCauses': [
       'Waterlogged or poorly drained soils',
       'Soil compaction',
@@ -179,13 +223,17 @@ final Map<String, Map<String, dynamic>> kDiseaseDetails = {
   'Coffee Brown Eye Spot': {
     'description':
         'Caused by Cercospora coffeicola, this fungal disease affects leaves, berries, and nursery seedlings. '
-        'It is most damaging in nurseries and on plants under nutritional stress.',
+            'It is most damaging in nurseries and on plants under nutritional stress.',
     'symptoms':
         'Circular brown spots with a pale tan centre and dark brown border on leaves (resembling an eye), '
-        'similar lesions on berries causing premature drop, and in nurseries causing widespread seedling blight.',
+            'similar lesions on berries causing premature drop, and in nurseries causing widespread seedling blight.',
     'chemicalControls': ['Copper oxychloride', 'Mancozeb', 'Chlorothalonil'],
     'biologicalControls': ['Trichoderma spp.', 'Neem-based fungicides'],
-    'culturalControls': ['Shade management', 'Adequate fertilisation (especially potassium)', 'Proper nursery hygiene'],
+    'culturalControls': [
+      'Shade management',
+      'Adequate fertilisation (especially potassium)',
+      'Proper nursery hygiene'
+    ],
     'possibleCauses': [
       'Nutrient deficiency (especially nitrogen and potassium)',
       'High humidity and rainfall',
@@ -210,14 +258,23 @@ final Map<String, Map<String, dynamic>> kDiseaseDetails = {
   'Coffee Damping Off': {
     'description':
         'Caused by soil-borne pathogens primarily Pythium spp. and Rhizoctonia solani, '
-        'this disease kills coffee seedlings at or just below the soil line in nurseries.',
+            'this disease kills coffee seedlings at or just below the soil line in nurseries.',
     'symptoms':
         'Seedlings collapse and die suddenly at ground level (post-emergence damping off), '
-        'or fail to emerge at all (pre-emergence). Affected stems show a dark, water-soaked constriction at the soil line. '
-        'Patches of dead seedlings spread rapidly in nursery beds.',
-    'chemicalControls': ['Metalaxyl (Ridomil)', 'Mancozeb', 'Carbendazim (soil drench)'],
+            'or fail to emerge at all (pre-emergence). Affected stems show a dark, water-soaked constriction at the soil line. '
+            'Patches of dead seedlings spread rapidly in nursery beds.',
+    'chemicalControls': [
+      'Metalaxyl (Ridomil)',
+      'Mancozeb',
+      'Carbendazim (soil drench)'
+    ],
     'biologicalControls': ['Trichoderma harzianum', 'Bacillus subtilis'],
-    'culturalControls': ['Sterilise nursery soil', 'Improve drainage', 'Avoid overcrowding', 'Reduce overhead watering'],
+    'culturalControls': [
+      'Sterilise nursery soil',
+      'Improve drainage',
+      'Avoid overcrowding',
+      'Reduce overhead watering'
+    ],
     'possibleCauses': [
       'Overwatering or poorly drained nursery beds',
       'Contaminated nursery soil or pots',
@@ -241,14 +298,24 @@ final Map<String, Map<String, dynamic>> kDiseaseDetails = {
   'Coffee Sooty Mold': {
     'description':
         'A secondary fungal disease caused by various saprophytic fungi (Capnodium spp., Cladosporium spp.) '
-        'that grow on honeydew secreted by sap-sucking pests. It does not directly infect plant tissue.',
+            'that grow on honeydew secreted by sap-sucking pests. It does not directly infect plant tissue.',
     'symptoms':
         'Black, powdery coating on leaves, stems, and berries that can be rubbed off. '
-        'Affected leaves show reduced photosynthesis due to light blockage. '
-        'Presence of honeydew-producing pests (mealybugs, whiteflies, scale insects) is always associated.',
-    'chemicalControls': ['Copper-based fungicides (for secondary control)', 'Control the honeydew-producing pest first'],
-    'biologicalControls': ['Control underlying pest biologically', 'Neem oil sprays reduce honeydew pests'],
-    'culturalControls': ['Wash leaves with water and mild soap', 'Control ants that protect honeydew pests', 'Improve air circulation'],
+            'Affected leaves show reduced photosynthesis due to light blockage. '
+            'Presence of honeydew-producing pests (mealybugs, whiteflies, scale insects) is always associated.',
+    'chemicalControls': [
+      'Copper-based fungicides (for secondary control)',
+      'Control the honeydew-producing pest first'
+    ],
+    'biologicalControls': [
+      'Control underlying pest biologically',
+      'Neem oil sprays reduce honeydew pests'
+    ],
+    'culturalControls': [
+      'Wash leaves with water and mild soap',
+      'Control ants that protect honeydew pests',
+      'Improve air circulation'
+    ],
     'possibleCauses': [
       'Infestation of honeydew-producing pests (mealybugs, scale, whiteflies)',
       'Ant presence protecting pest colonies',
@@ -271,14 +338,25 @@ final Map<String, Map<String, dynamic>> kDiseaseDetails = {
   'Coffee Bacterial Blight': {
     'description':
         'Caused by Pseudomonas syringae pv. garcae, this bacterial disease is prevalent in cool, '
-        'high-altitude coffee growing regions of East Africa and causes significant leaf and berry damage.',
+            'high-altitude coffee growing regions of East Africa and causes significant leaf and berry damage.',
     'symptoms':
         'Water-soaked spots on leaves that turn brown-black with a greasy appearance, '
-        'necrotic streaks along leaf veins, blackening and shrivelling of young shoots (dieback), '
-        'dark spots on berries with sunken lesions.',
-    'chemicalControls': ['Copper oxychloride', 'Copper hydroxide', 'Streptomycin sulphate (where registered)'],
-    'biologicalControls': ['Bacillus subtilis', 'Pseudomonas fluorescens (antagonistic strains)'],
-    'culturalControls': ['Remove and destroy infected material', 'Avoid overhead irrigation', 'Disinfect pruning tools'],
+            'necrotic streaks along leaf veins, blackening and shrivelling of young shoots (dieback), '
+            'dark spots on berries with sunken lesions.',
+    'chemicalControls': [
+      'Copper oxychloride',
+      'Copper hydroxide',
+      'Streptomycin sulphate (where registered)'
+    ],
+    'biologicalControls': [
+      'Bacillus subtilis',
+      'Pseudomonas fluorescens (antagonistic strains)'
+    ],
+    'culturalControls': [
+      'Remove and destroy infected material',
+      'Avoid overhead irrigation',
+      'Disinfect pruning tools'
+    ],
     'possibleCauses': [
       'Cool temperatures (12–22°C) with high rainfall',
       'High altitudes (above 1500 m)',
@@ -300,16 +378,26 @@ final Map<String, Map<String, dynamic>> kDiseaseDetails = {
     ],
   },
   'Coffee Anthracnose': {
-    'description':
-        'Caused by Colletotrichum gloeosporioides and related species, '
+    'description': 'Caused by Colletotrichum gloeosporioides and related species, '
         'anthracnose affects coffee berries, leaves, and stems especially during warm, wet seasons.',
-    'symptoms':
-        'Sunken, dark-brown to black lesions on berries, leaves, and young shoots. '
+    'symptoms': 'Sunken, dark-brown to black lesions on berries, leaves, and young shoots. '
         'Lesions on berries may show salmon-pink spore masses in humid conditions. '
         'Post-harvest, it causes rapid blackening and rotting of stored coffee berries.',
-    'chemicalControls': ['Carbendazim', 'Thiophanate-methyl', 'Copper oxychloride', 'Azoxystrobin'],
-    'biologicalControls': ['Trichoderma asperellum', 'Bacillus amyloliquefaciens'],
-    'culturalControls': ['Harvest ripe berries promptly', 'Remove infected berries', 'Improve drainage'],
+    'chemicalControls': [
+      'Carbendazim',
+      'Thiophanate-methyl',
+      'Copper oxychloride',
+      'Azoxystrobin'
+    ],
+    'biologicalControls': [
+      'Trichoderma asperellum',
+      'Bacillus amyloliquefaciens'
+    ],
+    'culturalControls': [
+      'Harvest ripe berries promptly',
+      'Remove infected berries',
+      'Improve drainage'
+    ],
     'possibleCauses': [
       'Warm, wet conditions during fruiting',
       'Injuries to berries from pests or hail',
@@ -334,13 +422,24 @@ final Map<String, Map<String, dynamic>> kDiseaseDetails = {
   'Coffee Nursery Blight': {
     'description':
         'A complex nursery condition involving multiple fungal pathogens (Rhizoctonia, Phytophthora) '
-        'causing widespread seedling collapse in poorly managed coffee nurseries.',
+            'causing widespread seedling collapse in poorly managed coffee nurseries.',
     'symptoms':
         'Mass wilting and death of seedlings in patches, brown water-soaked lesions at the base of stems, '
-        'rapid spread through nursery beds, and associated mould growth on affected seedlings.',
-    'chemicalControls': ['Metalaxyl + Mancozeb (Ridomil Gold)', 'Copper oxychloride', 'Carbendazim'],
-    'biologicalControls': ['Trichoderma harzianum', 'Bacillus subtilis strain QST 713'],
-    'culturalControls': ['Sterilise nursery soil', 'Remove and destroy affected seedlings immediately', 'Improve drainage'],
+            'rapid spread through nursery beds, and associated mould growth on affected seedlings.',
+    'chemicalControls': [
+      'Metalaxyl + Mancozeb (Ridomil Gold)',
+      'Copper oxychloride',
+      'Carbendazim'
+    ],
+    'biologicalControls': [
+      'Trichoderma harzianum',
+      'Bacillus subtilis strain QST 713'
+    ],
+    'culturalControls': [
+      'Sterilise nursery soil',
+      'Remove and destroy affected seedlings immediately',
+      'Improve drainage'
+    ],
     'possibleCauses': [
       'Contaminated nursery soil or compost',
       'Overwatering and poor drainage',
@@ -363,14 +462,24 @@ final Map<String, Map<String, dynamic>> kDiseaseDetails = {
   'Coffee Green Mold': {
     'description':
         'Caused by Penicillium spp. and Aspergillus spp., green and blue-green molds colonise '
-        'improperly dried coffee beans during storage, rendering them unmarketable and potentially toxic.',
+            'improperly dried coffee beans during storage, rendering them unmarketable and potentially toxic.',
     'symptoms':
         'Blue-green or grey powdery mold growth on stored coffee beans, musty off-odour, '
-        'discolouration of bean surface, and structural deterioration of the bean. '
-        'Clumping of beans due to moisture absorption.',
-    'chemicalControls': ['Proper drying to below 12% moisture (primary control — no chemical treatment for stored beans)'],
-    'biologicalControls': ['Biocontrol yeasts (experimental)', 'Competitive exclusion with Pichia spp.'],
-    'culturalControls': ['Dry beans to correct moisture level', 'Use airtight storage', 'Monitor storage humidity', 'Regular inspection'],
+            'discolouration of bean surface, and structural deterioration of the bean. '
+            'Clumping of beans due to moisture absorption.',
+    'chemicalControls': [
+      'Proper drying to below 12% moisture (primary control — no chemical treatment for stored beans)'
+    ],
+    'biologicalControls': [
+      'Biocontrol yeasts (experimental)',
+      'Competitive exclusion with Pichia spp.'
+    ],
+    'culturalControls': [
+      'Dry beans to correct moisture level',
+      'Use airtight storage',
+      'Monitor storage humidity',
+      'Regular inspection'
+    ],
     'possibleCauses': [
       'Storage at above 12% moisture content',
       'High relative humidity in storage',
@@ -393,14 +502,23 @@ final Map<String, Map<String, dynamic>> kDiseaseDetails = {
   'Coffee Ochratoxin A Contamination': {
     'description':
         'Ochratoxin A (OTA) is a mycotoxin produced by Aspergillus carbonarius and Aspergillus ochraceus '
-        'in improperly stored or dried coffee. It is a serious food safety and export compliance concern.',
+            'in improperly stored or dried coffee. It is a serious food safety and export compliance concern.',
     'symptoms':
         'Not directly visible — OTA contamination has no reliable visual symptoms. '
-        'Affected batches may show general mold growth, musty smell, or discoloured beans. '
-        'Confirmation requires laboratory testing (ELISA or HPLC methods).',
-    'chemicalControls': ['No chemical treatment for contaminated beans — prevention is the only control'],
-    'biologicalControls': ['Aflatoxin biocontrol agents (Aflasafe) reduce related mold risk', 'Lactobacillus spp. fermentation'],
-    'culturalControls': ['Rapid drying after harvest', 'Regular warehouse monitoring', 'Segregation of damaged lots'],
+            'Affected batches may show general mold growth, musty smell, or discoloured beans. '
+            'Confirmation requires laboratory testing (ELISA or HPLC methods).',
+    'chemicalControls': [
+      'No chemical treatment for contaminated beans — prevention is the only control'
+    ],
+    'biologicalControls': [
+      'Aflatoxin biocontrol agents (Aflasafe) reduce related mold risk',
+      'Lactobacillus spp. fermentation'
+    ],
+    'culturalControls': [
+      'Rapid drying after harvest',
+      'Regular warehouse monitoring',
+      'Segregation of damaged lots'
+    ],
     'possibleCauses': [
       'Slow or incomplete drying of coffee beans',
       'Damaged or overripe berries at processing',
@@ -435,7 +553,8 @@ class CoffeeDiseaseManagementPage extends StatefulWidget {
   final String? diseaseName;
   final String? coffeeStage;
 
-  const CoffeeDiseaseManagementPage({this.diseaseName, this.coffeeStage, super.key});
+  const CoffeeDiseaseManagementPage(
+      {this.diseaseName, this.coffeeStage, super.key});
 
   @override
   State<CoffeeDiseaseManagementPage> createState() =>
@@ -445,16 +564,16 @@ class CoffeeDiseaseManagementPage extends StatefulWidget {
 class _CoffeeDiseaseManagementPageState
     extends State<CoffeeDiseaseManagementPage> with TickerProviderStateMixin {
   // ── Theme ──────────────────────────────────────────────────────────────────
-  static const Color _darkBrown  = Color(0xFF3E2723);
-  static const Color _midBrown   = Color(0xFF6D4C41);
+  static const Color _darkBrown = Color(0xFF3E2723);
+  static const Color _midBrown = Color(0xFF6D4C41);
   static const Color _lightBrown = Color(0xFFA1887F);
-  static const Color _cream      = Color(0xFFFFF8F2);
-  static const Color _amber      = Color(0xFFFFCC80);
+  static const Color _cream = Color(0xFFFFF8F2);
+  static const Color _amber = Color(0xFFFFCC80);
 
   // ── State ──────────────────────────────────────────────────────────────────
-  _DetectionMode _activeMode   = _DetectionMode.none;
-  String?        _selectedStage;
-  String?        _selectedDisease;
+  _DetectionMode _activeMode = _DetectionMode.none;
+  String? _selectedStage;
+  String? _selectedDisease;
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -462,11 +581,11 @@ class _CoffeeDiseaseManagementPageState
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _heroController;
-  late Animation<double>   _heroFade;
-  late Animation<Offset>   _heroSlide;
+  late Animation<double> _heroFade;
+  late Animation<Offset> _heroSlide;
 
   late AnimationController _panelController;
-  late Animation<double>   _panelFade;
+  late Animation<double> _panelFade;
 
   @override
   void initState() {
@@ -474,26 +593,28 @@ class _CoffeeDiseaseManagementPageState
 
     _heroController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 700));
-    _heroFade  = CurvedAnimation(parent: _heroController, curve: Curves.easeOut);
+    _heroFade = CurvedAnimation(parent: _heroController, curve: Curves.easeOut);
     _heroSlide = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _heroController, curve: Curves.easeOut));
+        .animate(
+            CurvedAnimation(parent: _heroController, curve: Curves.easeOut));
 
     _panelController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 400));
-    _panelFade = CurvedAnimation(parent: _panelController, curve: Curves.easeOut);
+    _panelFade =
+        CurvedAnimation(parent: _panelController, curve: Curves.easeOut);
 
     _heroController.forward();
     _initializeNotifications();
 
     // Deep-link: arrived with preset disease + stage
     if (widget.diseaseName != null && widget.coffeeStage != null) {
-      _selectedStage   = widget.coffeeStage;
+      _selectedStage = widget.coffeeStage;
       _selectedDisease = widget.diseaseName;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _navigateToResults(
-          stage:   widget.coffeeStage!,
+          stage: widget.coffeeStage!,
           disease: widget.diseaseName,
-          mode:    _DetectionMode.knownBoth,
+          mode: _DetectionMode.knownBoth,
         );
       });
     }
@@ -508,8 +629,9 @@ class _CoffeeDiseaseManagementPageState
   }
 
   Future<void> _initializeNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings    = InitializationSettings(android: androidSettings);
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const initSettings = InitializationSettings(android: androidSettings);
     await _notificationsPlugin.initialize(settings: initSettings);
     await _notificationsPlugin
         .resolvePlatformSpecificImplementation<
@@ -519,8 +641,8 @@ class _CoffeeDiseaseManagementPageState
 
   void _setMode(_DetectionMode mode) {
     setState(() {
-      _activeMode      = _activeMode == mode ? _DetectionMode.none : mode;
-      _selectedStage   = null;
+      _activeMode = _activeMode == mode ? _DetectionMode.none : mode;
+      _selectedStage = null;
       _selectedDisease = null;
     });
     _panelController.forward(from: 0);
@@ -529,7 +651,7 @@ class _CoffeeDiseaseManagementPageState
   // ── Navigation helpers ─────────────────────────────────────────────────────
 
   void _navigateToResults({
-    required String  stage,
+    required String stage,
     required String? disease,
     required _DetectionMode mode,
   }) {
@@ -539,14 +661,15 @@ class _CoffeeDiseaseManagementPageState
         pageBuilder: (_, animation, __) => FadeTransition(
           opacity: animation,
           child: DiseaseResultsPage(
-            selectedStage:   stage,
+            selectedStage: stage,
             selectedDisease: disease,
-            detectionMode:   mode == _DetectionMode.knownBoth
+            detectionMode: mode == _DetectionMode.knownBoth
                 ? DiseaseDetectionMode.knownBoth
                 : DiseaseDetectionMode.knownStage,
-            localDiseaseData: disease != null && kDiseaseDetails.containsKey(disease)
-                ? _buildLocalDiseaseData(disease)
-                : null,
+            localDiseaseData:
+                disease != null && kDiseaseDetails.containsKey(disease)
+                    ? _buildLocalDiseaseData(disease)
+                    : null,
             notificationsPlugin: _notificationsPlugin,
           ),
         ),
@@ -571,15 +694,16 @@ class _CoffeeDiseaseManagementPageState
   CoffeeDiseaseData _buildLocalDiseaseData(String diseaseName) {
     final d = kDiseaseDetails[diseaseName]!;
     return CoffeeDiseaseData(
-      name:               diseaseName,
-      description:        d['description'],
-      symptoms:           d['symptoms'],
-      chemicalControls:   List<String>.from(d['chemicalControls']),
+      name: diseaseName,
+      description: d['description'],
+      symptoms: d['symptoms'],
+      chemicalControls: List<String>.from(d['chemicalControls']),
       biologicalControls: List<String>.from(d['biologicalControls']),
-      culturalControls:   List<String>.from(d['culturalControls']),
-      possibleCauses:     List<String>.from(d['possibleCauses']),
+      culturalControls: List<String>.from(d['culturalControls']),
+      possibleCauses: List<String>.from(d['possibleCauses']),
       preventiveMeasures: List<String>.from(d['preventiveMeasures']),
-      lifecycleImages:    List<String>.from(d['lifecycleImages']), mechanicalControls: [],
+      lifecycleImages: List<String>.from(d['lifecycleImages']),
+      mechanicalControls: [],
     );
   }
 
@@ -605,9 +729,9 @@ class _CoffeeDiseaseManagementPageState
       return;
     }
     _navigateToResults(
-      stage:   _selectedStage!,
+      stage: _selectedStage!,
       disease: _selectedDisease,
-      mode:    _DetectionMode.knownBoth,
+      mode: _DetectionMode.knownBoth,
     );
   }
 
@@ -624,9 +748,9 @@ class _CoffeeDiseaseManagementPageState
       return;
     }
     _navigateToResults(
-      stage:   _selectedStage!,
+      stage: _selectedStage!,
       disease: null,
-      mode:    _DetectionMode.knownStage,
+      mode: _DetectionMode.knownStage,
     );
   }
 
@@ -652,27 +776,30 @@ class _CoffeeDiseaseManagementPageState
 
                 // ── Mode cards ───────────────────────────────────────────────
                 _buildModeCard(
-                  mode:        _DetectionMode.knownBoth,
-                  icon:        Icons.manage_search_rounded,
-                  title:       'I Know the Disease',
-                  subtitle:    'Select your growth stage and disease name for full management details.',
+                  mode: _DetectionMode.knownBoth,
+                  icon: Icons.manage_search_rounded,
+                  title: 'I Know the Disease',
+                  subtitle:
+                      'Select your growth stage and disease name for full management details.',
                   accentColor: const Color(0xFF6D4C41),
                 ),
                 const SizedBox(height: 10),
                 _buildModeCard(
-                  mode:        _DetectionMode.knownStage,
-                  icon:        Icons.layers_rounded,
-                  title:       'I Know the Growth Stage',
-                  subtitle:    'AI lists all diseases likely affecting your crop at that stage with images.',
+                  mode: _DetectionMode.knownStage,
+                  icon: Icons.layers_rounded,
+                  title: 'I Know the Growth Stage',
+                  subtitle:
+                      'AI lists all diseases likely affecting your crop at that stage with images.',
                   accentColor: const Color(0xFF8D6E63),
                 ),
                 const SizedBox(height: 10),
                 _buildModeCard(
-                  mode:         _DetectionMode.aiScan,
-                  icon:         Icons.biotech_rounded,
-                  title:        'Scan a Disease (AI)',
-                  subtitle:     'Take or upload a photo — AI identifies the disease and provides treatment guidance.',
-                  accentColor:  _amber,
+                  mode: _DetectionMode.aiScan,
+                  icon: Icons.biotech_rounded,
+                  title: 'Scan a Disease (AI)',
+                  subtitle:
+                      'Take or upload a photo — AI identifies the disease and provides treatment guidance.',
+                  accentColor: _amber,
                   isActionCard: true,
                 ),
 
@@ -737,7 +864,8 @@ class _CoffeeDiseaseManagementPageState
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: .12),
                       borderRadius: BorderRadius.circular(20),
@@ -746,7 +874,8 @@ class _CoffeeDiseaseManagementPageState
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.biotech_rounded, color: _amber, size: 14),
+                        const Icon(Icons.biotech_rounded,
+                            color: _amber, size: 14),
                         const SizedBox(width: 6),
                         Text(
                           'AI-POWERED · EAST AFRICA',
@@ -845,10 +974,10 @@ class _CoffeeDiseaseManagementPageState
 
   Widget _buildModeCard({
     required _DetectionMode mode,
-    required IconData        icon,
-    required String          title,
-    required String          subtitle,
-    required Color           accentColor,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color accentColor,
     bool isActionCard = false,
   }) {
     final isActive = _activeMode == mode;
@@ -957,24 +1086,24 @@ class _CoffeeDiseaseManagementPageState
 
     return _buildInputPanel(
       title: 'Select Your Stage & Disease',
-      icon:  Icons.checklist_rounded,
+      icon: Icons.checklist_rounded,
       children: [
         _buildStageDropdown(
           onChanged: (val) => setState(() {
-            _selectedStage   = val;
+            _selectedStage = val;
             _selectedDisease = null;
           }),
         ),
         const SizedBox(height: 14),
         _buildDiseaseDropdown(
-          items:     List<String>.from(diseases),
-          enabled:   _selectedStage != null,
+          items: List<String>.from(diseases),
+          enabled: _selectedStage != null,
           onChanged: (val) => setState(() => _selectedDisease = val),
         ),
         const SizedBox(height: 18),
         _buildProceedButton(
           label: 'View Disease Images & Treatment',
-          icon:  Icons.search_rounded,
+          icon: Icons.search_rounded,
           onTap: _proceedPathA,
         ),
       ],
@@ -986,24 +1115,25 @@ class _CoffeeDiseaseManagementPageState
   Widget _buildPathBPanel() {
     return _buildInputPanel(
       title: 'Select the Growth Stage',
-      icon:  Icons.eco_rounded,
+      icon: Icons.eco_rounded,
       children: [
         Text(
           'The AI will list all diseases likely affecting coffee at that stage, '
           'display images of each, and let you pick the one you observe.',
-          style: GoogleFonts.poppins(fontSize: 12.5, color: _midBrown, height: 1.5),
+          style: GoogleFonts.poppins(
+              fontSize: 12.5, color: _midBrown, height: 1.5),
         ),
         const SizedBox(height: 14),
         _buildStageDropdown(
           onChanged: (val) => setState(() {
-            _selectedStage   = val;
+            _selectedStage = val;
             _selectedDisease = null;
           }),
         ),
         const SizedBox(height: 18),
         _buildProceedButton(
           label: 'Show Possible Diseases for This Stage',
-          icon:  Icons.auto_fix_high_rounded,
+          icon: Icons.auto_fix_high_rounded,
           onTap: _proceedPathB,
         ),
       ],
@@ -1013,8 +1143,8 @@ class _CoffeeDiseaseManagementPageState
   // ── Shared panel shell ─────────────────────────────────────────────────────
 
   Widget _buildInputPanel({
-    required String       title,
-    required IconData     icon,
+    required String title,
+    required IconData icon,
     required List<Widget> children,
   }) {
     return Container(
@@ -1057,12 +1187,12 @@ class _CoffeeDiseaseManagementPageState
 
   Widget _buildStageDropdown({required ValueChanged<String?> onChanged}) {
     return _buildStyledDropdown<String>(
-      label:       'Coffee Growth Stage',
-      hint:        'Select a stage',
-      value:       _selectedStage,
-      items:       kDiseaseStages,
-      itemLabel:   (s) => s,
-      onChanged:   onChanged,
+      label: 'Coffee Growth Stage',
+      hint: 'Select a stage',
+      value: _selectedStage,
+      items: kDiseaseStages,
+      itemLabel: (s) => s,
+      onChanged: onChanged,
       leadingIcon: Icons.layers_rounded,
     );
   }
@@ -1070,8 +1200,8 @@ class _CoffeeDiseaseManagementPageState
   // ── Disease dropdown ───────────────────────────────────────────────────────
 
   Widget _buildDiseaseDropdown({
-    required List<String>    items,
-    required bool            enabled,
+    required List<String> items,
+    required bool enabled,
     required ValueChanged<String?> onChanged,
   }) {
     return Opacity(
@@ -1079,12 +1209,12 @@ class _CoffeeDiseaseManagementPageState
       child: AbsorbPointer(
         absorbing: !enabled,
         child: _buildStyledDropdown<String>(
-          label:       'Disease Name',
-          hint:        enabled ? 'Select a disease' : 'Select a stage first',
-          value:       _selectedDisease,
-          items:       items,
-          itemLabel:   (s) => s,
-          onChanged:   onChanged,
+          label: 'Disease Name',
+          hint: enabled ? 'Select a disease' : 'Select a stage first',
+          value: _selectedDisease,
+          items: items,
+          itemLabel: (s) => s,
+          onChanged: onChanged,
           leadingIcon: Icons.coronavirus_rounded,
         ),
       ),
@@ -1094,13 +1224,13 @@ class _CoffeeDiseaseManagementPageState
   // ── Generic styled dropdown ────────────────────────────────────────────────
 
   Widget _buildStyledDropdown<T>({
-    required String            label,
-    required String            hint,
-    required T?                value,
-    required List<T>           items,
+    required String label,
+    required String hint,
+    required T? value,
+    required List<T> items,
     required String Function(T) itemLabel,
-    required ValueChanged<T?>  onChanged,
-    required IconData          leadingIcon,
+    required ValueChanged<T?> onChanged,
+    required IconData leadingIcon,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -1112,15 +1242,15 @@ class _CoffeeDiseaseManagementPageState
       child: DropdownButtonFormField<T>(
         initialValue: value,
         decoration: InputDecoration(
-          labelText:     label,
-          labelStyle:    GoogleFonts.poppins(fontSize: 13, color: _midBrown),
-          border:        InputBorder.none,
-          prefixIcon:    Icon(leadingIcon, color: _darkBrown, size: 20),
+          labelText: label,
+          labelStyle: GoogleFonts.poppins(fontSize: 13, color: _midBrown),
+          border: InputBorder.none,
+          prefixIcon: Icon(leadingIcon, color: _darkBrown, size: 20),
           contentPadding: EdgeInsets.zero,
         ),
         hint: Text(hint,
             style: GoogleFonts.poppins(fontSize: 13, color: _lightBrown)),
-        isExpanded:    true,
+        isExpanded: true,
         dropdownColor: Colors.white,
         icon: const Icon(Icons.expand_more_rounded, color: _midBrown),
         style: GoogleFonts.poppins(fontSize: 13.5, color: _darkBrown),
@@ -1138,8 +1268,8 @@ class _CoffeeDiseaseManagementPageState
   // ── Proceed button ─────────────────────────────────────────────────────────
 
   Widget _buildProceedButton({
-    required String      label,
-    required IconData    icon,
+    required String label,
+    required IconData icon,
     required VoidCallback onTap,
   }) {
     return SizedBox(
@@ -1150,14 +1280,16 @@ class _CoffeeDiseaseManagementPageState
           backgroundColor: _darkBrown,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 15),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation:   4,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 4,
           shadowColor: _darkBrown.withValues(alpha: .4),
         ),
-        icon:  Icon(icon, size: 18),
+        icon: Icon(icon, size: 18),
         label: Text(
           label,
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13.5),
+          style:
+              GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13.5),
         ),
       ),
     );
@@ -1171,18 +1303,21 @@ class _CoffeeDiseaseManagementPageState
       child: OutlinedButton.icon(
         onPressed: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const CoffeeUserDiseaseHistoryPage()),
+          MaterialPageRoute(
+              builder: (_) => const CoffeeUserDiseaseHistoryPage()),
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: _darkBrown,
           side: const BorderSide(color: _darkBrown, width: 1.5),
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        icon:  const Icon(Icons.history_rounded, size: 18),
+        icon: const Icon(Icons.history_rounded, size: 18),
         label: Text(
           'View My Disease Diagnosis History',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13.5),
+          style:
+              GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13.5),
         ),
       ),
     );

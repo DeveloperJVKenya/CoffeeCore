@@ -10,28 +10,38 @@ class CollectionManagementScreen extends StatefulWidget {
   const CollectionManagementScreen({required this.collectionName, super.key});
 
   @override
-  State<CollectionManagementScreen> createState() => _CollectionManagementScreenState();
+  State<CollectionManagementScreen> createState() =>
+      _CollectionManagementScreenState();
 }
 
-class _CollectionManagementScreenState extends State<CollectionManagementScreen> {
+class _CollectionManagementScreenState
+    extends State<CollectionManagementScreen> {
   String _sortField = '';
   bool _sortAscending = true;
   final logger = Logger(printer: PrettyPrinter());
   final DateFormat _dateFormat = DateFormat('MMM dd, yyyy HH:mm');
 
-  Future<Map<String, String>?> _fetchUserName(String uid, String sourceCollection) async {
+  Future<Map<String, String>?> _fetchUserName(
+      String uid, String sourceCollection) async {
     try {
       final collection = sourceCollection == 'Admins'
           ? 'Admins'
           : sourceCollection == 'CoopAdmins'
               ? 'CoopAdmins'
               : 'Users';
-      final userDoc = await FirebaseFirestore.instance.collection(collection).doc(uid).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection(collection)
+          .doc(uid)
+          .get();
       if (userDoc.exists) {
-        return {'fullName': userDoc['fullName'] ?? 'N/A', 'email': userDoc['email'] ?? 'N/A'};
+        return {
+          'fullName': userDoc['fullName'] ?? 'N/A',
+          'email': userDoc['email'] ?? 'N/A'
+        };
       }
     } catch (e) {
-      logger.e('Error fetching user name for UID $uid from $sourceCollection: $e');
+      logger.e(
+          'Error fetching user name for UID $uid from $sourceCollection: $e');
     }
     return {'fullName': 'N/A', 'email': 'N/A'};
   }
@@ -42,8 +52,10 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Confirm Deletion', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: const Text('Are you sure you want to soft delete this document?'),
+          title: const Text('Confirm Deletion',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          content:
+              const Text('Are you sure you want to soft delete this document?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
@@ -58,16 +70,21 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
       );
 
       if (confirmed == true && mounted) {
-        await FirebaseFirestore.instance.collection(widget.collectionName).doc(docId).update({
+        await FirebaseFirestore.instance
+            .collection(widget.collectionName)
+            .doc(docId)
+            .update({
           'isDeleted': true,
           'deletedAt': Timestamp.now(),
         });
         await _logActivity('soft_delete', widget.collectionName, docId);
-        scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Document soft deleted!')));
+        scaffoldMessenger.showSnackBar(
+            const SnackBar(content: Text('Document soft deleted!')));
       }
     } catch (e) {
       if (mounted) {
-        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error soft deleting document: $e')));
+        scaffoldMessenger.showSnackBar(
+            SnackBar(content: Text('Error soft deleting document: $e')));
       }
     }
   }
@@ -75,20 +92,26 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
   Future<void> _restoreDocument(String docId) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
-      await FirebaseFirestore.instance.collection(widget.collectionName).doc(docId).update({
+      await FirebaseFirestore.instance
+          .collection(widget.collectionName)
+          .doc(docId)
+          .update({
         'isDeleted': false,
         'deletedAt': null,
       });
       await _logActivity('restore', widget.collectionName, docId);
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Document restored!')));
+      scaffoldMessenger
+          .showSnackBar(const SnackBar(content: Text('Document restored!')));
     } catch (e) {
       if (mounted) {
-        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error restoring document: $e')));
+        scaffoldMessenger.showSnackBar(
+            SnackBar(content: Text('Error restoring document: $e')));
       }
     }
   }
 
-  Future<void> _editDocument(String docId, Map<String, dynamic> currentData) async {
+  Future<void> _editDocument(
+      String docId, Map<String, dynamic> currentData) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final Map<String, TextEditingController> controllers = {};
     DateTime? interventionFollowUpDate;
@@ -114,12 +137,16 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
           ? (currentData['interventionFollowUpDate'] as Timestamp).toDate()
           : null;
       for (var field in coffeeSoilFields) {
-        controllers[field] = TextEditingController(text: currentData[field]?.toString() ?? '');
+        controllers[field] =
+            TextEditingController(text: currentData[field]?.toString() ?? '');
       }
     } else {
       currentData.forEach((key, value) {
-        if (!_excludedFields.contains(key) && key != 'fullName' && key != 'timestamp') {
-          controllers[key] = TextEditingController(text: value?.toString() ?? '');
+        if (!_excludedFields.contains(key) &&
+            key != 'fullName' &&
+            key != 'timestamp') {
+          controllers[key] =
+              TextEditingController(text: value?.toString() ?? '');
         }
       });
     }
@@ -127,7 +154,8 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Edit Document $docId', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Edit Document $docId',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -139,10 +167,17 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                         controller: controllers[field]!,
                         decoration: InputDecoration(
                           labelText: field,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
-                        keyboardType: ['ph', 'nitrogen', 'phosphorus', 'potassium', 'magnesium', 'calcium']
-                                .contains(field)
+                        keyboardType: [
+                          'ph',
+                          'nitrogen',
+                          'phosphorus',
+                          'potassium',
+                          'magnesium',
+                          'calcium'
+                        ].contains(field)
                             ? TextInputType.number
                             : TextInputType.text,
                       ),
@@ -170,7 +205,8 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                         controller: entry.value,
                         decoration: InputDecoration(
                           labelText: entry.key,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     )),
@@ -185,7 +221,8 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
           ),
           TextButton(
             onPressed: () {
-              final updatedData = controllers.map((key, controller) => MapEntry(key, controller.text));
+              final updatedData = controllers
+                  .map((key, controller) => MapEntry(key, controller.text));
               Navigator.pop(dialogContext, updatedData);
             },
             child: const Text('Save'),
@@ -199,30 +236,48 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
         final updateData = <String, dynamic>{};
         result.forEach((key, value) {
           if (widget.collectionName == 'coffee_soil_data' &&
-              ['ph', 'nitrogen', 'phosphorus', 'potassium', 'magnesium', 'calcium'].contains(key)) {
+              [
+                'ph',
+                'nitrogen',
+                'phosphorus',
+                'potassium',
+                'magnesium',
+                'calcium'
+              ].contains(key)) {
             updateData[key] = value.isNotEmpty ? double.tryParse(value) : null;
           } else {
             updateData[key] = value.isNotEmpty ? value : null;
           }
         });
-        if (widget.collectionName == 'coffee_soil_data' && interventionFollowUpDate != null) {
-          updateData['interventionFollowUpDate'] = Timestamp.fromDate(interventionFollowUpDate!);
+        if (widget.collectionName == 'coffee_soil_data' &&
+            interventionFollowUpDate != null) {
+          updateData['interventionFollowUpDate'] =
+              Timestamp.fromDate(interventionFollowUpDate!);
         }
-        await FirebaseFirestore.instance.collection(widget.collectionName).doc(docId).update(updateData);
+        await FirebaseFirestore.instance
+            .collection(widget.collectionName)
+            .doc(docId)
+            .update(updateData);
         await _logActivity('edit', widget.collectionName, docId);
-        scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Document updated successfully!')));
+        scaffoldMessenger.showSnackBar(
+            const SnackBar(content: Text('Document updated successfully!')));
       } catch (e) {
-        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error updating document: $e')));
+        scaffoldMessenger.showSnackBar(
+            SnackBar(content: Text('Error updating document: $e')));
       }
     }
 
     controllers.forEach((_, controller) => controller.dispose());
   }
 
-  Future<void> _logActivity(String action, String collection, String docId) async {
+  Future<void> _logActivity(
+      String action, String collection, String docId) async {
     try {
       final adminUid = FirebaseAuth.instance.currentUser?.uid;
-      final adminDoc = await FirebaseFirestore.instance.collection('Admins').doc(adminUid).get();
+      final adminDoc = await FirebaseFirestore.instance
+          .collection('Admins')
+          .doc(adminUid)
+          .get();
       final adminName = adminDoc.exists ? adminDoc['fullName'] ?? 'N/A' : 'N/A';
       await FirebaseFirestore.instance.collection('admin_logs').add({
         'action': '$action in $collection ($docId) by (User: $adminName)',
@@ -254,7 +309,9 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
     bool isCoopCollection = widget.collectionName.contains('_users') ||
         widget.collectionName.contains('_marketmanagers') ||
         widget.collectionName.contains('_coffeeprices');
-    String baseCollection = widget.collectionName.contains('_coffeeprices') ? 'coffeeprices' : widget.collectionName;
+    String baseCollection = widget.collectionName.contains('_coffeeprices')
+        ? 'coffeeprices'
+        : widget.collectionName;
     String nameSourceCollection = widget.collectionName == 'admin_logs'
         ? 'Admins'
         : widget.collectionName == 'cooperatives'
@@ -263,12 +320,16 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Manage ${widget.collectionName}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text('Manage ${widget.collectionName}',
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.brown[700],
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection(widget.collectionName).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection(widget.collectionName)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -281,7 +342,8 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
           }
 
           final docs = snapshot.data!.docs;
-          final firstDocData = docs.isNotEmpty ? docs.first.data() as Map<String, dynamic> : {};
+          final firstDocData =
+              docs.isNotEmpty ? docs.first.data() as Map<String, dynamic> : {};
           List<String> fields = [];
 
           if (widget.collectionName == 'coffee_soil_data') {
@@ -311,7 +373,8 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
             fields = ['variety', 'price', 'timestamp'];
           } else {
             fields = firstDocData.keys
-                .where((key) => !_excludedFields.contains(key) && key != 'fullName')
+                .where((key) =>
+                    !_excludedFields.contains(key) && key != 'fullName')
                 .toList()
                 .cast<String>();
           }
@@ -330,29 +393,39 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
-                    const Text('Sort by: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text('Sort by: ',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     DropdownButton<String>(
                       value: _sortField,
-                      items: fields.map((field) => DropdownMenuItem(value: field, child: Text(field))).toList(),
+                      items: fields
+                          .map((field) => DropdownMenuItem(
+                              value: field, child: Text(field)))
+                          .toList(),
                       onChanged: (value) => setState(() => _sortField = value!),
                       style: const TextStyle(color: Colors.black),
                     ),
                     IconButton(
-                      icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
-                      onPressed: () => setState(() => _sortAscending = !_sortAscending),
+                      icon: Icon(_sortAscending
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward),
+                      onPressed: () =>
+                          setState(() => _sortAscending = !_sortAscending),
                     ),
                   ],
                 ),
               ),
               Expanded(
                 child: FutureBuilder<List<Map<String, dynamic>>>(
-                  future: _processDocuments(docs, isCoopCollection, baseCollection, nameSourceCollection),
+                  future: _processDocuments(docs, isCoopCollection,
+                      baseCollection, nameSourceCollection),
                   builder: (context, futureSnapshot) {
-                    if (futureSnapshot.connectionState == ConnectionState.waiting) {
+                    if (futureSnapshot.connectionState ==
+                        ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (futureSnapshot.hasError) {
-                      return Center(child: Text('Error: ${futureSnapshot.error}'));
+                      return Center(
+                          child: Text('Error: ${futureSnapshot.error}'));
                     }
 
                     final dataRows = futureSnapshot.data ?? [];
@@ -366,12 +439,20 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                           columns: [
                             DataColumn(
                                 label: Text(
-                                    isCoopCollection && baseCollection != 'coffeeprices' ? 'Full Name' : 'Name',
-                                    style: const TextStyle(fontWeight: FontWeight.bold))),
+                                    isCoopCollection &&
+                                            baseCollection != 'coffeeprices'
+                                        ? 'Full Name'
+                                        : 'Name',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold))),
                             ...fields.map((field) => DataColumn(
-                                label: Text(field, style: const TextStyle(fontWeight: FontWeight.bold)))),
+                                label: Text(field,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold)))),
                             const DataColumn(
-                                label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
+                                label: Text('Actions',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
                           ],
                           rows: dataRows.asMap().entries.map((entry) {
                             final index = entry.key;
@@ -379,7 +460,9 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                             final docId = docs[index].id;
                             final isDeleted = data['isDeleted'] == true;
                             return DataRow(cells: [
-                              DataCell(Text(data['fullName'] ?? data['displayName'] ?? 'N/A')),
+                              DataCell(Text(data['fullName'] ??
+                                  data['displayName'] ??
+                                  'N/A')),
                               ...fields.map((field) => DataCell(Text(
                                     field == 'timestamp' ||
                                             field == 'createdAt' ||
@@ -387,7 +470,9 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                                             field == 'deletedAt' ||
                                             field == 'interventionFollowUpDate'
                                         ? data[field] != null
-                                            ? _dateFormat.format((data[field] as Timestamp).toDate())
+                                            ? _dateFormat.format(
+                                                (data[field] as Timestamp)
+                                                    .toDate())
                                             : 'N/A'
                                         : data[field]?.toString() ?? 'N/A',
                                   ))),
@@ -396,9 +481,11 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                                   onSelected: (value) {
                                     if (value == 'Edit' && !isDeleted) {
                                       _editDocument(docId, data);
-                                    } else if (value == 'Delete' && !isDeleted) {
+                                    } else if (value == 'Delete' &&
+                                        !isDeleted) {
                                       _deleteDocument(docId);
-                                    } else if (value == 'Restore' && isDeleted) {
+                                    } else if (value == 'Restore' &&
+                                        isDeleted) {
                                       _restoreDocument(docId);
                                     }
                                   },
@@ -408,7 +495,8 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                                       enabled: !isDeleted,
                                       child: Row(
                                         children: const [
-                                          Icon(Icons.edit, color: Colors.blue, size: 20),
+                                          Icon(Icons.edit,
+                                              color: Colors.blue, size: 20),
                                           SizedBox(width: 8),
                                           Text('Edit'),
                                         ],
@@ -419,7 +507,8 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                                       enabled: !isDeleted,
                                       child: Row(
                                         children: const [
-                                          Icon(Icons.delete, color: Colors.red, size: 20),
+                                          Icon(Icons.delete,
+                                              color: Colors.red, size: 20),
                                           SizedBox(width: 8),
                                           Text('Delete'),
                                         ],
@@ -430,7 +519,8 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
                                       enabled: isDeleted,
                                       child: Row(
                                         children: const [
-                                          Icon(Icons.restore, color: Colors.green, size: 20),
+                                          Icon(Icons.restore,
+                                              color: Colors.green, size: 20),
                                           SizedBox(width: 8),
                                           Text('Restore'),
                                         ],
@@ -456,7 +546,10 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
   }
 
   Future<List<Map<String, dynamic>>> _processDocuments(
-      List<QueryDocumentSnapshot> docs, bool isCoopCollection, String baseCollection, String nameSourceCollection) async {
+      List<QueryDocumentSnapshot> docs,
+      bool isCoopCollection,
+      String baseCollection,
+      String nameSourceCollection) async {
     List<Map<String, dynamic>> processedData = [];
     for (var doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
@@ -468,16 +561,23 @@ class _CollectionManagementScreenState extends State<CollectionManagementScreen>
       } else if (widget.collectionName == 'admin_logs') {
         final userInfo = await _fetchUserName(data['adminUid'] ?? '', 'Admins');
         rowData['fullName'] = userInfo?['fullName'] ?? 'N/A';
-      } else if (['coffee_disease_interventions', 'coffee_pest_interventions', 'coffee_soil_data'].contains(widget.collectionName)) {
+      } else if ([
+        'coffee_disease_interventions',
+        'coffee_pest_interventions',
+        'coffee_soil_data'
+      ].contains(widget.collectionName)) {
         final userInfo = await _fetchUserName(data['userId'] ?? '', 'Users');
         rowData['fullName'] = userInfo?['fullName'] ?? 'N/A';
       } else if (widget.collectionName == 'cooperatives') {
-        final userInfo = await _fetchUserName(data['createdBy'] ?? '', 'CoopAdmins');
+        final userInfo =
+            await _fetchUserName(data['createdBy'] ?? '', 'CoopAdmins');
         rowData['fullName'] = userInfo?['fullName'] ?? 'N/A';
       } else if (isCoopCollection && baseCollection == 'coffeeprices') {
         final userInfo = await _fetchUserName(data['updatedBy'] ?? '', 'Users');
         rowData['fullName'] = userInfo?['fullName'] ?? 'N/A';
-      } else if (isCoopCollection && (baseCollection.contains('_users') || baseCollection.contains('_marketmanagers'))) {
+      } else if (isCoopCollection &&
+          (baseCollection.contains('_users') ||
+              baseCollection.contains('_marketmanagers'))) {
         final userInfo = await _fetchUserName(doc.id, 'Users');
         rowData['fullName'] = userInfo?['fullName'] ?? 'N/A';
       } else {

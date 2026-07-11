@@ -20,7 +20,7 @@ class CoffeeDiseaseData {
     required this.biologicalControls,
     required this.possibleCauses,
     required this.preventiveMeasures,
-   // required this.lifecycleImages,// Added this parameter
+    // required this.lifecycleImages,// Added this parameter
   });
 }
 
@@ -63,7 +63,9 @@ class CoffeeDiseaseIntervention {
     };
   }
 
-  factory CoffeeDiseaseIntervention.fromFirestore(DocumentSnapshot<Map<String, dynamic>> snapshot, SnapshotOptions? options) {
+  factory CoffeeDiseaseIntervention.fromFirestore(
+      DocumentSnapshot<Map<String, dynamic>> snapshot,
+      SnapshotOptions? options) {
     final data = snapshot.data()!;
     return CoffeeDiseaseIntervention(
       id: snapshot.id,

@@ -36,7 +36,9 @@ class ProduceData {
   }
 
   // Create ProduceData from Firestore document and user data
-  factory ProduceData.fromDocument(DocumentSnapshot? doc, Map<String, String?> userData, double latestTotalAmount, [String cooperative = '']) {
+  factory ProduceData.fromDocument(DocumentSnapshot? doc,
+      Map<String, String?> userData, double latestTotalAmount,
+      [String cooperative = '']) {
     final data = doc?.data() as Map<String, dynamic>? ?? {};
     return ProduceData(
       id: doc?.id ?? userData['id']!,
@@ -123,12 +125,16 @@ class _ProduceScreenState extends State<ProduceScreen> {
     try {
       String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
       // Check user role
-      final adminDoc = await FirebaseFirestore.instance.collection('Admins').doc(_userId).get();
+      final adminDoc = await FirebaseFirestore.instance
+          .collection('Admins')
+          .doc(_userId)
+          .get();
       if (adminDoc.exists) {
         setState(() {
           _userRole = 'MainAdmin';
         });
-        final coopSnapshot = await FirebaseFirestore.instance.collection('cooperatives').get();
+        final coopSnapshot =
+            await FirebaseFirestore.instance.collection('cooperatives').get();
         _coopNames = coopSnapshot.docs.map((doc) => doc.id).toList();
         logger.i('MainAdmin detected, Coop names: $_coopNames');
       } else {
@@ -145,7 +151,8 @@ class _ProduceScreenState extends State<ProduceScreen> {
             .doc(_userId)
             .get();
 
-        if (coopAdminDoc.exists && coopAdminDoc.data()?['cooperative'] == formattedCoopName) {
+        if (coopAdminDoc.exists &&
+            coopAdminDoc.data()?['cooperative'] == formattedCoopName) {
           _userRole = 'CoopAdmin';
         } else if (marketManagerDoc.exists) {
           _userRole = 'MarketManager';
@@ -158,7 +165,9 @@ class _ProduceScreenState extends State<ProduceScreen> {
           return;
         }
 
-        if (_userRole == 'Farmer' || _userRole == 'CoopAdmin' || _userRole == 'MarketManager') {
+        if (_userRole == 'Farmer' ||
+            _userRole == 'CoopAdmin' ||
+            _userRole == 'MarketManager') {
           setState(() {
             _farmerName = userDoc.data()?['fullName']?.toString() ?? '-';
             _phoneNumber = userDoc.data()?['phoneNumber']?.toString() ?? '-';
@@ -167,7 +176,9 @@ class _ProduceScreenState extends State<ProduceScreen> {
       }
 
       if (_userRole == 'CoopAdmin' || _userRole == 'MarketManager') {
-        final userSnapshot = await FirebaseFirestore.instance.collection('${formattedCoopName}_users').get();
+        final userSnapshot = await FirebaseFirestore.instance
+            .collection('${formattedCoopName}_users')
+            .get();
         _coopUsers = userSnapshot.docs.map((doc) {
           final data = doc.data();
           return {
@@ -181,14 +192,16 @@ class _ProduceScreenState extends State<ProduceScreen> {
 
       setState(() {});
     } catch (e, stackTrace) {
-      logger.e('Error fetching user details or role: $e\nStack trace: $stackTrace');
+      logger.e(
+          'Error fetching user details or role: $e\nStack trace: $stackTrace');
       setState(() {
         _feedbackMessage = 'Error loading user details: $e';
       });
     }
   }
 
-  Future<void> _addOrEditFarmSize(bool isEdit, [String currentFarmSize = '']) async {
+  Future<void> _addOrEditFarmSize(bool isEdit,
+      [String currentFarmSize = '']) async {
     if (_userId == null || _farmerName == null || _phoneNumber == null) {
       setState(() {
         _feedbackMessage = 'User details not loaded';
@@ -250,21 +263,26 @@ class _ProduceScreenState extends State<ProduceScreen> {
             .doc(_userId)
             .set(produceData.toMap(), SetOptions(merge: true));
 
-        await _logActivity('${isEdit ? 'Updated' : 'Added'} farm size $result for user $_userId in cooperative ${widget.cooperativeName}');
+        await _logActivity(
+            '${isEdit ? 'Updated' : 'Added'} farm size $result for user $_userId in cooperative ${widget.cooperativeName}');
         setState(() {
-          _feedbackMessage = 'Farm size ${isEdit ? 'updated' : 'added'} successfully';
+          _feedbackMessage =
+              'Farm size ${isEdit ? 'updated' : 'added'} successfully';
         });
       } catch (e, stackTrace) {
-        logger.e('Error ${isEdit ? 'updating' : 'adding'} farm size: $e\nStack trace: $stackTrace');
+        logger.e(
+            'Error ${isEdit ? 'updating' : 'adding'} farm size: $e\nStack trace: $stackTrace');
         setState(() {
-          _feedbackMessage = 'Error ${isEdit ? 'updating' : 'adding'} farm size: $e';
+          _feedbackMessage =
+              'Error ${isEdit ? 'updating' : 'adding'} farm size: $e';
         });
       }
     }
     _farmSizeController.clear();
   }
 
-  Future<void> _viewSubmissions(String userId, String farmerName, String coopName) async {
+  Future<void> _viewSubmissions(
+      String userId, String farmerName, String coopName) async {
     final formattedCoopName = coopName.replaceAll(' ', '_');
     await showDialog(
       context: context,
@@ -285,30 +303,40 @@ class _ProduceScreenState extends State<ProduceScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasError) {
-                logger.e('Error loading submissions: ${snapshot.error}\nPath: ${formattedCoopName}_FarmerProduce/$userId/submissions');
+                logger.e(
+                    'Error loading submissions: ${snapshot.error}\nPath: ${formattedCoopName}_FarmerProduce/$userId/submissions');
                 return Text('Error: ${snapshot.error}');
               }
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return const Text('No submissions found.');
               }
 
-              final submissions = snapshot.data!.docs.map((doc) => FarmerProduce.fromDocument(doc)).toList();
-              logger.i('Fetched ${submissions.length} submissions for user $userId');
+              final submissions = snapshot.data!.docs
+                  .map((doc) => FarmerProduce.fromDocument(doc))
+                  .toList();
+              logger.i(
+                  'Fetched ${submissions.length} submissions for user $userId');
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: SingleChildScrollView(
                   child: DataTable(
                     columns: const [
-                      DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text('Amount (kg)', style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(
+                          label: Text('Date',
+                              style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(
+                          label: Text('Amount (kg)',
+                              style: TextStyle(fontWeight: FontWeight.bold))),
                     ],
                     rows: submissions.map((submission) {
                       final formattedDate = submission.submissionDate.isNotEmpty
-                          ? DateFormat('yyyy-MM-dd').format(DateTime.parse(submission.submissionDate))
+                          ? DateFormat('yyyy-MM-dd')
+                              .format(DateTime.parse(submission.submissionDate))
                           : '-';
                       return DataRow(cells: [
                         DataCell(Text(formattedDate)),
-                        DataCell(Text(submission.totalAmount.toStringAsFixed(2))),
+                        DataCell(
+                            Text(submission.totalAmount.toStringAsFixed(2))),
                       ]);
                     }).toList(),
                   ),
@@ -354,7 +382,8 @@ class _ProduceScreenState extends State<ProduceScreen> {
   Widget build(BuildContext context) {
     if (_feedbackMessage != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_feedbackMessage!)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_feedbackMessage!)));
         setState(() => _feedbackMessage = null);
       });
     }
@@ -365,7 +394,8 @@ class _ProduceScreenState extends State<ProduceScreen> {
       appBar: AppBar(
         title: Text(
           'Produce - ${widget.cooperativeName}',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style:
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: coffeeBrown,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -417,36 +447,44 @@ class _ProduceScreenState extends State<ProduceScreen> {
                             .collection('${coopName}_users')
                             .snapshots()
                             .asyncMap((userSnapshot) async {
-                              List<ProduceData> produceList = [];
-                              for (var userDoc in userSnapshot.docs) {
-                                final userData = {
-                                  'id': userDoc.id,
-                                  'fullName': userDoc.data()['fullName']?.toString() ?? '-',
-                                  'phoneNumber': userDoc.data()['phoneNumber']?.toString() ?? '-',
-                                };
-                                final produceDoc = await FirebaseFirestore.instance
-                                    .collection('${coopName}_ProduceData')
-                                    .doc(userDoc.id)
-                                    .get();
-                                final submissionSnapshot = await FirebaseFirestore.instance
-                                    .collection('${coopName}_FarmerProduce')
-                                    .doc(userDoc.id)
-                                    .collection('submissions')
-                                    .orderBy('submissionDate', descending: true)
-                                    .limit(1)
-                                    .get();
-                                double latestTotalAmount = submissionSnapshot.docs.isNotEmpty
-                                    ? (submissionSnapshot.docs.first.data()['totalAmount'] as num?)?.toDouble() ?? 0.0
+                          List<ProduceData> produceList = [];
+                          for (var userDoc in userSnapshot.docs) {
+                            final userData = {
+                              'id': userDoc.id,
+                              'fullName':
+                                  userDoc.data()['fullName']?.toString() ?? '-',
+                              'phoneNumber':
+                                  userDoc.data()['phoneNumber']?.toString() ??
+                                      '-',
+                            };
+                            final produceDoc = await FirebaseFirestore.instance
+                                .collection('${coopName}_ProduceData')
+                                .doc(userDoc.id)
+                                .get();
+                            final submissionSnapshot = await FirebaseFirestore
+                                .instance
+                                .collection('${coopName}_FarmerProduce')
+                                .doc(userDoc.id)
+                                .collection('submissions')
+                                .orderBy('submissionDate', descending: true)
+                                .limit(1)
+                                .get();
+                            double latestTotalAmount =
+                                submissionSnapshot.docs.isNotEmpty
+                                    ? (submissionSnapshot.docs.first
+                                                .data()['totalAmount'] as num?)
+                                            ?.toDouble() ??
+                                        0.0
                                     : 0.0;
-                                produceList.add(ProduceData.fromDocument(
-                                  produceDoc.exists ? produceDoc : null,
-                                  userData,
-                                  latestTotalAmount,
-                                  coopName,
-                                ));
-                              }
-                              return produceList;
-                            });
+                            produceList.add(ProduceData.fromDocument(
+                              produceDoc.exists ? produceDoc : null,
+                              userData,
+                              latestTotalAmount,
+                              coopName,
+                            ));
+                          }
+                          return produceList;
+                        });
                       }).toList(),
                     ).map((lists) => lists.expand((list) => list).toList()),
                     builder: (context, snapshot) {
@@ -454,12 +492,15 @@ class _ProduceScreenState extends State<ProduceScreen> {
                         return const Center(child: CircularProgressIndicator());
                       }
                       if (snapshot.hasError) {
-                        logger.e('Error loading produce data: ${snapshot.error}');
+                        logger
+                            .e('Error loading produce data: ${snapshot.error}');
                         return Center(child: Text('Error: ${snapshot.error}'));
                       }
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
                         return const Center(
-                          child: Text('No produce data available.', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                          child: Text('No produce data available.',
+                              style:
+                                  TextStyle(fontSize: 18, color: Colors.grey)),
                         );
                       }
 
@@ -469,26 +510,54 @@ class _ProduceScreenState extends State<ProduceScreen> {
                         child: SingleChildScrollView(
                           child: DataTable(
                             columns: const [
-                              DataColumn(label: Text('Cooperative', style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Farmer Name', style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Contact', style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Farm Area', style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Produce (kg)', style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(
+                                  label: Text('Cooperative',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold))),
+                              DataColumn(
+                                  label: Text('Farmer Name',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold))),
+                              DataColumn(
+                                  label: Text('Contact',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold))),
+                              DataColumn(
+                                  label: Text('Farm Area',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold))),
+                              DataColumn(
+                                  label: Text('Produce (kg)',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold))),
+                              DataColumn(
+                                  label: Text('Actions',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold))),
                             ],
-                            rows: produceData.map((data) => DataRow(cells: [
-                                  DataCell(Text(data.cooperative)),
-                                  DataCell(Text(data.farmerName)),
-                                  DataCell(Text(data.contact)),
-                                  DataCell(Text(data.farmArea)),
-                                  DataCell(Text(data.latestTotalAmount == 0.0 ? '-' : data.latestTotalAmount.toStringAsFixed(2))),
-                                  DataCell(
-                                    IconButton(
-                                      icon: const Icon(Icons.visibility, color: Colors.blue),
-                                      onPressed: () => _viewSubmissions(data.id, data.farmerName, data.cooperative),
-                                    ),
-                                  ),
-                                ])).toList(),
+                            rows: produceData
+                                .map((data) => DataRow(cells: [
+                                      DataCell(Text(data.cooperative)),
+                                      DataCell(Text(data.farmerName)),
+                                      DataCell(Text(data.contact)),
+                                      DataCell(Text(data.farmArea)),
+                                      DataCell(Text(
+                                          data.latestTotalAmount == 0.0
+                                              ? '-'
+                                              : data.latestTotalAmount
+                                                  .toStringAsFixed(2))),
+                                      DataCell(
+                                        IconButton(
+                                          icon: const Icon(Icons.visibility,
+                                              color: Colors.blue),
+                                          onPressed: () => _viewSubmissions(
+                                              data.id,
+                                              data.farmerName,
+                                              data.cooperative),
+                                        ),
+                                      ),
+                                    ]))
+                                .toList(),
                           ),
                         ),
                       );
@@ -496,37 +565,48 @@ class _ProduceScreenState extends State<ProduceScreen> {
                   )
                 : StreamBuilder<List<ProduceData>>(
                     stream: CombineLatestStream.list(
-                      (_userRole == 'Farmer' ? [_userId!] : _coopUsers.map((u) => u['id']!)).map((userId) {
+                      (_userRole == 'Farmer'
+                              ? [_userId!]
+                              : _coopUsers.map((u) => u['id']!))
+                          .map((userId) {
                         return FirebaseFirestore.instance
                             .collection('${formattedCoopName}_users')
                             .doc(userId)
                             .snapshots()
                             .asyncMap((userDoc) async {
-                              final userData = {
-                                'id': userDoc.id,
-                                'fullName': userDoc.data()?['fullName']?.toString() ?? '-',
-                                'phoneNumber': userDoc.data()?['phoneNumber']?.toString() ?? '-',
-                              };
-                              final produceDoc = await FirebaseFirestore.instance
-                                  .collection('${formattedCoopName}_ProduceData')
-                                  .doc(userDoc.id)
-                                  .get();
-                              final submissionSnapshot = await FirebaseFirestore.instance
-                                  .collection('${formattedCoopName}_FarmerProduce')
-                                  .doc(userDoc.id)
-                                  .collection('submissions')
-                                  .orderBy('submissionDate', descending: true)
-                                  .limit(1)
-                                  .get();
-                              double latestTotalAmount = submissionSnapshot.docs.isNotEmpty
-                                  ? (submissionSnapshot.docs.first.data()['totalAmount'] as num?)?.toDouble() ?? 0.0
+                          final userData = {
+                            'id': userDoc.id,
+                            'fullName':
+                                userDoc.data()?['fullName']?.toString() ?? '-',
+                            'phoneNumber':
+                                userDoc.data()?['phoneNumber']?.toString() ??
+                                    '-',
+                          };
+                          final produceDoc = await FirebaseFirestore.instance
+                              .collection('${formattedCoopName}_ProduceData')
+                              .doc(userDoc.id)
+                              .get();
+                          final submissionSnapshot = await FirebaseFirestore
+                              .instance
+                              .collection('${formattedCoopName}_FarmerProduce')
+                              .doc(userDoc.id)
+                              .collection('submissions')
+                              .orderBy('submissionDate', descending: true)
+                              .limit(1)
+                              .get();
+                          double latestTotalAmount =
+                              submissionSnapshot.docs.isNotEmpty
+                                  ? (submissionSnapshot.docs.first
+                                              .data()['totalAmount'] as num?)
+                                          ?.toDouble() ??
+                                      0.0
                                   : 0.0;
-                              return ProduceData.fromDocument(
-                                produceDoc.exists ? produceDoc : null,
-                                userData,
-                                latestTotalAmount,
-                              );
-                            });
+                          return ProduceData.fromDocument(
+                            produceDoc.exists ? produceDoc : null,
+                            userData,
+                            latestTotalAmount,
+                          );
+                        });
                       }).toList(),
                     ),
                     builder: (context, snapshot) {
@@ -534,12 +614,15 @@ class _ProduceScreenState extends State<ProduceScreen> {
                         return const Center(child: CircularProgressIndicator());
                       }
                       if (snapshot.hasError) {
-                        logger.e('Error loading produce data: ${snapshot.error}');
+                        logger
+                            .e('Error loading produce data: ${snapshot.error}');
                         return Center(child: Text('Error: ${snapshot.error}'));
                       }
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
                         return const Center(
-                          child: Text('No produce data added yet.', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                          child: Text('No produce data added yet.',
+                              style:
+                                  TextStyle(fontSize: 18, color: Colors.grey)),
                         );
                       }
 
@@ -549,31 +632,59 @@ class _ProduceScreenState extends State<ProduceScreen> {
                         child: SingleChildScrollView(
                           child: DataTable(
                             columns: const [
-                              DataColumn(label: Text('Farmer Name', style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Contact', style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Farm Area', style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Produce (kg)', style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(
+                                  label: Text('Farmer Name',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold))),
+                              DataColumn(
+                                  label: Text('Contact',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold))),
+                              DataColumn(
+                                  label: Text('Farm Area',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold))),
+                              DataColumn(
+                                  label: Text('Produce (kg)',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold))),
+                              DataColumn(
+                                  label: Text('Actions',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold))),
                             ],
-                            rows: produceData.map((data) => DataRow(cells: [
-                                  DataCell(Text(data.farmerName)),
-                                  DataCell(Text(data.contact)),
-                                  DataCell(Text(data.farmArea)),
-                                  DataCell(Text(data.latestTotalAmount == 0.0 ? '-' : data.latestTotalAmount.toStringAsFixed(2))),
-                                  DataCell(Row(
-                                    children: [
-                                      if (data.id == _userId)
-                                        IconButton(
-                                          icon: const Icon(Icons.edit, color: Colors.blue),
-                                          onPressed: () => _addOrEditFarmSize(true, data.farmArea),
-                                        ),
-                                      IconButton(
-                                        icon: const Icon(Icons.visibility, color: Colors.blue),
-                                        onPressed: () => _viewSubmissions(data.id, data.farmerName, widget.cooperativeName),
-                                      ),
-                                    ],
-                                  )),
-                                ])).toList(),
+                            rows: produceData
+                                .map((data) => DataRow(cells: [
+                                      DataCell(Text(data.farmerName)),
+                                      DataCell(Text(data.contact)),
+                                      DataCell(Text(data.farmArea)),
+                                      DataCell(Text(
+                                          data.latestTotalAmount == 0.0
+                                              ? '-'
+                                              : data.latestTotalAmount
+                                                  .toStringAsFixed(2))),
+                                      DataCell(Row(
+                                        children: [
+                                          if (data.id == _userId)
+                                            IconButton(
+                                              icon: const Icon(Icons.edit,
+                                                  color: Colors.blue),
+                                              onPressed: () =>
+                                                  _addOrEditFarmSize(
+                                                      true, data.farmArea),
+                                            ),
+                                          IconButton(
+                                            icon: const Icon(Icons.visibility,
+                                                color: Colors.blue),
+                                            onPressed: () => _viewSubmissions(
+                                                data.id,
+                                                data.farmerName,
+                                                widget.cooperativeName),
+                                          ),
+                                        ],
+                                      )),
+                                    ]))
+                                .toList(),
                           ),
                         ),
                       );

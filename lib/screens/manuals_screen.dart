@@ -163,8 +163,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
         return;
       }
 
-      final title = _titleController.text.trim().isEmpty 
-          ? fileName 
+      final title = _titleController.text.trim().isEmpty
+          ? fileName
           : _titleController.text.trim();
 
       if (!mounted) return;
@@ -178,7 +178,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
             children: [
               if (kIsWeb)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.blue[100],
                     borderRadius: BorderRadius.circular(12),
@@ -219,7 +220,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
         builder: (context) => PopScope(
           canPop: false,
           child: AlertDialog(
-            title: Text('Uploading $fileName', style: TextStyle(color: coffeeBrown)),
+            title: Text('Uploading $fileName',
+                style: TextStyle(color: coffeeBrown)),
             content: StatefulBuilder(
               builder: (context, setDialogState) {
                 return Column(
@@ -260,7 +262,10 @@ class _ManualsScreenState extends State<ManualsScreen> {
 
       late UploadTask uploadTask;
 
-      if (kIsWeb || Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      if (kIsWeb ||
+          Platform.isWindows ||
+          Platform.isMacOS ||
+          Platform.isLinux) {
         final fileBytes = await platformFile.readAsBytes();
 
         final metadata = SettableMetadata(
@@ -383,7 +388,10 @@ class _ManualsScreenState extends State<ManualsScreen> {
     );
 
     try {
-      if (kIsWeb || Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      if (kIsWeb ||
+          Platform.isWindows ||
+          Platform.isMacOS ||
+          Platform.isLinux) {
         Navigator.pop(context);
         final uri = Uri.parse(url);
         if (await canLaunchUrl(uri)) {
@@ -448,7 +456,10 @@ class _ManualsScreenState extends State<ManualsScreen> {
     );
 
     try {
-      if (kIsWeb || Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      if (kIsWeb ||
+          Platform.isWindows ||
+          Platform.isMacOS ||
+          Platform.isLinux) {
         Navigator.pop(context);
         final uri = Uri.parse(url);
         if (await canLaunchUrl(uri)) {
@@ -518,7 +529,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
     return true;
   }
 
-  Future<void> _deleteManual(String downloadUrl, String fileName, String docId) async {
+  Future<void> _deleteManual(
+      String downloadUrl, String fileName, String docId) async {
     if (!mounted) return;
 
     final confirm = await showDialog<bool>(
@@ -560,7 +572,10 @@ class _ManualsScreenState extends State<ManualsScreen> {
 
     try {
       await FirebaseStorage.instance.refFromURL(downloadUrl).delete();
-      await FirebaseFirestore.instance.collection('Manuals').doc(docId).delete();
+      await FirebaseFirestore.instance
+          .collection('Manuals')
+          .doc(docId)
+          .delete();
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -647,9 +662,21 @@ class _ManualsScreenState extends State<ManualsScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth <= 600;
     final isTablet = screenWidth > 600 && screenWidth <= 900;
-    final padding = isMobile ? 16.0 : isTablet ? 24.0 : 32.0;
-    final fontSizeTitle = isMobile ? 20.0 : isTablet ? 24.0 : 28.0;
-    final fontSizeSubtitle = isMobile ? 14.0 : isTablet ? 16.0 : 18.0;
+    final padding = isMobile
+        ? 16.0
+        : isTablet
+            ? 24.0
+            : 32.0;
+    final fontSizeTitle = isMobile
+        ? 20.0
+        : isTablet
+            ? 24.0
+            : 28.0;
+    final fontSizeSubtitle = isMobile
+        ? 14.0
+        : isTablet
+            ? 16.0
+            : 18.0;
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(padding),
@@ -669,7 +696,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
               if (kIsWeb) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.blue[100],
                     borderRadius: BorderRadius.circular(12),
@@ -699,7 +727,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
               }
 
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator(color: coffeeBrown));
+                return Center(
+                    child: CircularProgressIndicator(color: coffeeBrown));
               }
 
               final docs = snapshot.data?.docs ?? [];
@@ -707,7 +736,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
               if (docs.isEmpty) {
                 return Card(
                   elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   child: Padding(
                     padding: const EdgeInsets.all(32.0),
                     child: Column(
@@ -749,7 +779,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
                   final manual = Manual.fromSnapshot(docs[index]);
                   return Card(
                     elevation: 2,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     margin: const EdgeInsets.symmetric(vertical: 6),
                     child: ListTile(
                       leading: Icon(
@@ -797,9 +828,11 @@ class _ManualsScreenState extends State<ManualsScreen> {
                           if (value == 'view') {
                             _viewManual(manual.downloadUrl, manual.fileName);
                           } else if (value == 'download') {
-                            _downloadManual(manual.downloadUrl, manual.fileName);
+                            _downloadManual(
+                                manual.downloadUrl, manual.fileName);
                           } else if (value == 'delete') {
-                            _deleteManual(manual.downloadUrl, manual.fileName, manual.id);
+                            _deleteManual(
+                                manual.downloadUrl, manual.fileName, manual.id);
                           }
                         },
                         itemBuilder: (context) => [
@@ -807,7 +840,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
                             value: 'view',
                             child: Row(
                               children: [
-                                Icon(Icons.visibility, color: Colors.blue[700], size: 20),
+                                Icon(Icons.visibility,
+                                    color: Colors.blue[700], size: 20),
                                 const SizedBox(width: 8),
                                 const Text('View'),
                               ],
@@ -817,7 +851,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
                             value: 'download',
                             child: Row(
                               children: [
-                                Icon(Icons.download, color: Colors.green[700], size: 20),
+                                Icon(Icons.download,
+                                    color: Colors.green[700], size: 20),
                                 const SizedBox(width: 8),
                                 const Text('Download'),
                               ],
@@ -828,7 +863,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
                               value: 'delete',
                               child: Row(
                                 children: [
-                                  Icon(Icons.delete, color: Colors.red[700], size: 20),
+                                  Icon(Icons.delete,
+                                      color: Colors.red[700], size: 20),
                                   const SizedBox(width: 8),
                                   const Text('Delete'),
                                 ],
@@ -863,7 +899,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
         ),
         filled: true,
         fillColor: Colors.grey[100],
-        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         labelStyle: TextStyle(color: Colors.grey[600]),
         hintStyle: TextStyle(color: Colors.grey[400]),
       ),
@@ -886,7 +923,8 @@ class _ManualsScreenState extends State<ManualsScreen> {
         ),
         filled: true,
         fillColor: Colors.grey[100],
-        contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         labelStyle: TextStyle(color: Colors.grey[600]),
       ),
       items: manualCategories.entries.map((entry) {

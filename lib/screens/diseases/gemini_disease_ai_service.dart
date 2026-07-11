@@ -20,7 +20,7 @@ class GeminiDiseaseAiService {
 
   // ── In-memory caches ───────────────────────────────────────────────────────
   static final Map<String, Map<String, dynamic>> _managementCache = {};
-  static final Map<String, List<String>>         _stageListCache  = {};
+  static final Map<String, List<String>> _stageListCache = {};
 
   // ══════════════════════════════════════════════════════════════════════════
   // PUBLIC — Generate enriched disease management details (Paths A, B & Custom)
@@ -33,7 +33,8 @@ class GeminiDiseaseAiService {
     final cacheKey = '$diseaseName|$stage';
 
     if (_managementCache.containsKey(cacheKey)) {
-      debugPrint('[GeminiDiseaseAI] ✅ Cache hit — management for "$diseaseName" '
+      debugPrint(
+          '[GeminiDiseaseAI] ✅ Cache hit — management for "$diseaseName" '
           '(stage="$stage")');
       return _managementCache[cacheKey];
     }
@@ -45,7 +46,7 @@ class GeminiDiseaseAiService {
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
-          temperature:     0.3,
+          temperature: 0.3,
           // 2048 tokens gives comfortable headroom for all seven disease fields.
           maxOutputTokens: 4096,
         ),
@@ -67,7 +68,8 @@ class GeminiDiseaseAiService {
         return null;
       }
 
-      final parsed = _parseJsonResponse(rawText, context: 'management("$diseaseName")');
+      final parsed =
+          _parseJsonResponse(rawText, context: 'management("$diseaseName")');
       if (parsed == null) return null;
 
       // ── Validate expected keys ──────────────────────────────────────────
@@ -89,16 +91,17 @@ class GeminiDiseaseAiService {
       }
 
       _managementCache[cacheKey] = parsed;
-      debugPrint('[GeminiDiseaseAI] ✅ Management details cached for "$diseaseName" '
+      debugPrint(
+          '[GeminiDiseaseAI] ✅ Management details cached for "$diseaseName" '
           '(${parsed.keys.length} top-level keys: ${parsed.keys.toList()})');
       return parsed;
-
     } on FirebaseException catch (e) {
       debugPrint('[GeminiDiseaseAI] ❌ Firebase error: code=${e.code} '
           'message="${e.message}".');
       return null;
     } catch (e, stack) {
-      debugPrint('[GeminiDiseaseAI] ❌ Unexpected error generating management: $e');
+      debugPrint(
+          '[GeminiDiseaseAI] ❌ Unexpected error generating management: $e');
       debugPrint('[GeminiDiseaseAI]    Stack trace: $stack');
       return null;
     }
@@ -117,21 +120,23 @@ class GeminiDiseaseAiService {
       return _stageListCache[stage];
     }
 
-    debugPrint('[GeminiDiseaseAI] 🤖 Calling Gemini API — disease list for stage "$stage"');
+    debugPrint(
+        '[GeminiDiseaseAI] 🤖 Calling Gemini API — disease list for stage "$stage"');
 
     try {
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
-          temperature:     0.2,
+          temperature: 0.2,
           maxOutputTokens: 512,
         ),
       );
 
-      debugPrint('[GeminiDiseaseAI] 📤 Sending stage-list prompt for "$stage"…');
+      debugPrint(
+          '[GeminiDiseaseAI] 📤 Sending stage-list prompt for "$stage"…');
 
-      final response = await model.generateContent(
-          [Content.text(_buildStageListPrompt(stage))]);
+      final response = await model
+          .generateContent([Content.text(_buildStageListPrompt(stage))]);
       final rawText = response.text ?? '';
 
       debugPrint('[GeminiDiseaseAI] 📥 Stage-list response: '
@@ -139,11 +144,13 @@ class GeminiDiseaseAiService {
           'Preview: "${rawText.substring(0, rawText.length.clamp(0, 80)).replaceAll('\n', '↵')}"');
 
       if (rawText.isEmpty) {
-        debugPrint('[GeminiDiseaseAI] ❌ Empty stage-list response from Gemini.');
+        debugPrint(
+            '[GeminiDiseaseAI] ❌ Empty stage-list response from Gemini.');
         return null;
       }
 
-      final parsed = _parseJsonResponse(rawText, context: 'stageList("$stage")');
+      final parsed =
+          _parseJsonResponse(rawText, context: 'stageList("$stage")');
       if (parsed == null) return null;
 
       final diseases = List<String>.from(parsed['diseases'] ?? []);
@@ -154,16 +161,17 @@ class GeminiDiseaseAiService {
       }
 
       _stageListCache[stage] = diseases;
-      debugPrint('[GeminiDiseaseAI] ✅ ${diseases.length} diseases listed for "$stage": '
+      debugPrint(
+          '[GeminiDiseaseAI] ✅ ${diseases.length} diseases listed for "$stage": '
           '${diseases.take(3).join(", ")}${diseases.length > 3 ? "…" : ""}');
       return diseases;
-
     } on FirebaseException catch (e) {
       debugPrint('[GeminiDiseaseAI] ❌ Firebase error in listDiseasesForStage: '
           'code=${e.code} message="${e.message}"');
       return null;
     } catch (e) {
-      debugPrint('[GeminiDiseaseAI] ❌ listDiseasesForStage unexpected error: $e');
+      debugPrint(
+          '[GeminiDiseaseAI] ❌ listDiseasesForStage unexpected error: $e');
       return null;
     }
   }
@@ -265,7 +273,8 @@ Rules:
       // ── Step 1: Strip ALL markdown code fences ───────────────────────────
       final hasFences = cleaned.contains('```');
       if (hasFences) {
-        debugPrint('[GeminiDiseaseAI] ⚠️ Response for $context contains markdown '
+        debugPrint(
+            '[GeminiDiseaseAI] ⚠️ Response for $context contains markdown '
             'code fences — stripping them now.');
         cleaned = cleaned.replaceAll(RegExp(r'```(?:json)?'), '').trim();
       }
@@ -286,7 +295,7 @@ Rules:
 
       // ── Step 3: Find the outermost JSON object ───────────────────────────
       final firstBrace = cleaned.indexOf('{');
-      final lastBrace  = cleaned.lastIndexOf('}');
+      final lastBrace = cleaned.lastIndexOf('}');
 
       if (firstBrace == -1) {
         debugPrint('[GeminiDiseaseAI] ❌ No opening "{" found for $context. '
@@ -313,7 +322,8 @@ Rules:
       }
 
       if (firstBrace > 0 || lastBrace < cleaned.length - 1) {
-        debugPrint('[GeminiDiseaseAI] ⚠️ Extracting JSON substring for $context '
+        debugPrint(
+            '[GeminiDiseaseAI] ⚠️ Extracting JSON substring for $context '
             '(extra text found outside braces).');
         cleaned = cleaned.substring(firstBrace, lastBrace + 1);
       }
@@ -323,7 +333,6 @@ Rules:
       debugPrint('[GeminiDiseaseAI] ✅ JSON parsed successfully for $context '
           '(${result.keys.length} keys).');
       return result;
-
     } catch (e) {
       debugPrint('[GeminiDiseaseAI] ❌ JSON parse FAILED for $context: $e\n'
           '   Raw text (first 400 chars): '
@@ -353,7 +362,7 @@ Rules:
       final buf = StringBuffer();
       bool inString = false;
       bool escaped = false;
-      final stack = <String>[];  // '{' or '['
+      final stack = <String>[]; // '{' or '['
 
       for (int i = 0; i < partial.length; i++) {
         final ch = partial[i];

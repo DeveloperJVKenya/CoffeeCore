@@ -32,12 +32,16 @@ class _CoffeeInterventionPageState extends State<CoffeeInterventionPage> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     if (user == null) {
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Please log in')));
+      scaffoldMessenger
+          .showSnackBar(const SnackBar(content: Text('Please log in')));
       return;
     }
 
-    if (_interventionController.text.isEmpty && _amountController.text.isEmpty && _areaController.text.isEmpty) {
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Please fill at least one field')));
+    if (_interventionController.text.isEmpty &&
+        _amountController.text.isEmpty &&
+        _areaController.text.isEmpty) {
+      scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Please fill at least one field')));
       return;
     }
 
@@ -45,7 +49,9 @@ class _CoffeeInterventionPageState extends State<CoffeeInterventionPage> {
       pestName: widget.pestData.name,
       cropStage: widget.cropStage,
       intervention: _interventionController.text,
-      area: _areaController.text.isNotEmpty ? double.tryParse(_areaController.text) : null,
+      area: _areaController.text.isNotEmpty
+          ? double.tryParse(_areaController.text)
+          : null,
       areaUnit: _useSQM ? 'SQM' : 'Acres',
       timestamp: Timestamp.now(),
       userId: user.uid,
@@ -54,7 +60,10 @@ class _CoffeeInterventionPageState extends State<CoffeeInterventionPage> {
     );
 
     try {
-      await FirebaseFirestore.instance.collection('coffee_pest_interventions').doc().set(intervention.toMap());
+      await FirebaseFirestore.instance
+          .collection('coffee_pest_interventions')
+          .doc()
+          .set(intervention.toMap());
 
       await FirebaseFirestore.instance.collection('User_logs').add({
         'userId': user.uid,
@@ -70,9 +79,11 @@ class _CoffeeInterventionPageState extends State<CoffeeInterventionPage> {
         _amountController.clear();
         _areaController.clear();
       });
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Intervention saved successfully')));
+      scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Intervention saved successfully')));
     } catch (e) {
-      scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error saving intervention: $e')));
+      scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Error saving intervention: $e')));
     }
   }
 
@@ -80,7 +91,8 @@ class _CoffeeInterventionPageState extends State<CoffeeInterventionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Pest Intervention', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Manage Pest Intervention',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF6F4E37),
         foregroundColor: Colors.white,
       ),
@@ -91,9 +103,11 @@ class _CoffeeInterventionPageState extends State<CoffeeInterventionPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildTextField('Intervention Used', _interventionController, 'e.g., Chemical control'),
+              _buildTextField('Intervention Used', _interventionController,
+                  'e.g., Chemical control'),
               const SizedBox(height: 16),
-              _buildTextField('Amount Applied', _amountController, 'e.g., 5 ml'),
+              _buildTextField(
+                  'Amount Applied', _amountController, 'e.g., 5 ml'),
               const SizedBox(height: 16),
               _buildTextField(
                 'Total Area Affected',
@@ -103,7 +117,8 @@ class _CoffeeInterventionPageState extends State<CoffeeInterventionPage> {
               ),
               const SizedBox(height: 16),
               SwitchListTile(
-                title: const Text('Use Square Meters (SQM)', style: TextStyle(color: Colors.black87)),
+                title: const Text('Use Square Meters (SQM)',
+                    style: TextStyle(color: Colors.black87)),
                 value: _useSQM,
                 onChanged: (value) => setState(() => _useSQM = value),
                 activeThumbColor: const Color(0xFF6F4E37),
@@ -117,9 +132,11 @@ class _CoffeeInterventionPageState extends State<CoffeeInterventionPage> {
                       backgroundColor: const Color(0xFF6F4E37),
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Save Intervention', style: TextStyle(fontSize: 16)),
+                    child: const Text('Save Intervention',
+                        style: TextStyle(fontSize: 16)),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
@@ -136,9 +153,11 @@ class _CoffeeInterventionPageState extends State<CoffeeInterventionPage> {
                       backgroundColor: const Color(0xFF6F4E37),
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('View Saved Interventions', style: TextStyle(fontSize: 16)),
+                    child: const Text('View Saved Interventions',
+                        style: TextStyle(fontSize: 16)),
                   ),
                 ],
               ),
@@ -149,7 +168,9 @@ class _CoffeeInterventionPageState extends State<CoffeeInterventionPage> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, String hint, {bool isNumber = false}) {
+  Widget _buildTextField(
+      String label, TextEditingController controller, String hint,
+      {bool isNumber = false}) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

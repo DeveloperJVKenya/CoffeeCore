@@ -29,9 +29,9 @@ class AboutCoffeeCoreScreen extends StatelessWidget {
               Text(
                 'About CoffeeCore',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: primaryColor,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 16),
 
@@ -64,37 +64,43 @@ class AboutCoffeeCoreScreen extends StatelessWidget {
                 context,
                 icon: Icons.book,
                 title: 'Coffee Cultivation Tips & Guides',
-                description: 'Learn best practices for growing and maintaining healthy coffee plants from experts in the field.',
+                description:
+                    'Learn best practices for growing and maintaining healthy coffee plants from experts in the field.',
               ),
               _buildFeatureItem(
                 context,
                 icon: Icons.store,
                 title: 'Coffee Market Insights',
-                description: 'Stay informed about current coffee prices, trends, and connect with buyers to sell your produce effectively.',
+                description:
+                    'Stay informed about current coffee prices, trends, and connect with buyers to sell your produce effectively.',
               ),
               _buildFeatureItem(
                 context,
                 icon: Icons.cloud,
                 title: 'Weather Updates',
-                description: 'Get real-time weather forecasts to plan your coffee farming activities and protect your crops from adverse conditions.',
+                description:
+                    'Get real-time weather forecasts to plan your coffee farming activities and protect your crops from adverse conditions.',
               ),
               _buildFeatureItem(
                 context,
                 icon: Icons.spa,
                 title: 'Coffee Field Tracking',
-                description: 'Track the progress of your coffee crops, monitor soil nutrients, and manage interventions efficiently.',
+                description:
+                    'Track the progress of your coffee crops, monitor soil nutrients, and manage interventions efficiently.',
               ),
               _buildFeatureItem(
                 context,
                 icon: Icons.pest_control,
                 title: 'Coffee Pest and Disease Control',
-                description: 'Identify and manage common pests and diseases that affect coffee plants, ensuring the health and productivity of your farm.',
+                description:
+                    'Identify and manage common pests and diseases that affect coffee plants, ensuring the health and productivity of your farm.',
               ),
               _buildFeatureItem(
                 context,
                 icon: Icons.account_balance_wallet,
                 title: 'Coffee Farm Management Tools',
-                description: 'Track your farm\'s activities, costs, revenues, and loans to make informed financial decisions and maximize profitability.',
+                description:
+                    'Track your farm\'s activities, costs, revenues, and loans to make informed financial decisions and maximize profitability.',
               ),
               const SizedBox(height: 24),
 
@@ -128,14 +134,17 @@ class AboutCoffeeCoreScreen extends StatelessWidget {
     return Text(
       title,
       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-        color: primaryColor,
-        fontWeight: FontWeight.bold,
-      ),
+            color: primaryColor,
+            fontWeight: FontWeight.bold,
+          ),
     );
   }
 
   // Helper method for feature items
-  Widget _buildFeatureItem(BuildContext context, {required IconData icon, required String title, required String description}) {
+  Widget _buildFeatureItem(BuildContext context,
+      {required IconData icon,
+      required String title,
+      required String description}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -149,7 +158,10 @@ class AboutCoffeeCoreScreen extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: primaryColor),
                 ),
                 const SizedBox(height: 4),
                 Text(

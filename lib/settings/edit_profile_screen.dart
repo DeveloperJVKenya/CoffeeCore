@@ -22,7 +22,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     final userProfile = Provider.of<UserProfile>(context, listen: false);
-    _profileImage = userProfile.profileImagePath != null ? File(userProfile.profileImagePath!) : null;
+    _profileImage = userProfile.profileImagePath != null
+        ? File(userProfile.profileImagePath!)
+        : null;
   }
 
   Widget _buildIcon(IconData icon) {
@@ -51,7 +53,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       });
       if (mounted) {
         scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text('${source == ImageSource.camera ? "Camera" : "Photo Library"} image selected')),
+          SnackBar(
+              content: Text(
+                  '${source == ImageSource.camera ? "Camera" : "Photo Library"} image selected')),
         );
       }
     } else if (mounted) {
@@ -153,7 +157,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   // ignore: deprecated_member_use
                   RadioListTile<String>(
                     secondary: _buildIcon(Icons.brightness_auto),
-                    title: Text('System', style: TextStyle(color: primaryColor)),
+                    title:
+                        Text('System', style: TextStyle(color: primaryColor)),
                     value: 'System',
                     // ignore: deprecated_member_use
                     groupValue: _appTheme,
@@ -261,7 +266,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   // ignore: deprecated_member_use
                   RadioListTile<String>(
                     secondary: _buildIcon(Icons.straighten),
-                    title: Text('Imperial (acres)', style: TextStyle(color: primaryColor)),
+                    title: Text('Imperial (acres)',
+                        style: TextStyle(color: primaryColor)),
                     value: 'Imperial (acres)',
                     // ignore: deprecated_member_use
                     groupValue: _unitSystem,
@@ -279,7 +285,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   // ignore: deprecated_member_use
                   RadioListTile<String>(
                     secondary: _buildIcon(Icons.square_foot),
-                    title: Text('Metric (sqm)', style: TextStyle(color: primaryColor)),
+                    title: Text('Metric (sqm)',
+                        style: TextStyle(color: primaryColor)),
                     value: 'Metric (sqm)',
                     // ignore: deprecated_member_use
                     groupValue: _unitSystem,
@@ -446,11 +453,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               'Display Name',
                               style: TextStyle(color: primaryColor),
                             ),
-                            trailing: Icon(Icons.arrow_forward_ios, size: 16, color: primaryColor),
+                            trailing: Icon(Icons.arrow_forward_ios,
+                                size: 16, color: primaryColor),
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const EditDisplayNameScreen()),
+                                MaterialPageRoute(
+                                    builder: (context) =>
+                                        const EditDisplayNameScreen()),
                               );
                             },
                           ),
@@ -461,11 +471,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               'About',
                               style: TextStyle(color: primaryColor),
                             ),
-                            trailing: Icon(Icons.arrow_forward_ios, size: 16, color: primaryColor),
+                            trailing: Icon(Icons.arrow_forward_ios,
+                                size: 16, color: primaryColor),
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const AboutScreen()),
+                                MaterialPageRoute(
+                                    builder: (context) => const AboutScreen()),
                               );
                             },
                           ),
@@ -503,11 +515,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           GestureDetector(
                             onTap: () {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Update Location tapped')),
+                                const SnackBar(
+                                    content: Text('Update Location tapped')),
                               );
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 10.0, horizontal: 16.0),
                               decoration: BoxDecoration(
                                 color: primaryColor,
                                 borderRadius: BorderRadius.circular(12.0),
@@ -560,7 +574,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               'App Theme',
                               style: TextStyle(color: primaryColor),
                             ),
-                            trailing: Icon(Icons.arrow_forward_ios, size: 16, color: primaryColor),
+                            trailing: Icon(Icons.arrow_forward_ios,
+                                size: 16, color: primaryColor),
                             onTap: () {
                               _showAppThemeBottomSheet(context);
                             },
@@ -572,7 +587,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               'Unit System',
                               style: TextStyle(color: primaryColor),
                             ),
-                            trailing: Icon(Icons.arrow_forward_ios, size: 16, color: primaryColor),
+                            trailing: Icon(Icons.arrow_forward_ios,
+                                size: 16, color: primaryColor),
                             onTap: () {
                               _showUnitSystemBottomSheet(context);
                             },
@@ -606,7 +622,8 @@ class _EditDisplayNameScreenState extends State<EditDisplayNameScreen> {
   void initState() {
     super.initState();
     final userProfile = Provider.of<UserProfile>(context, listen: false);
-    _displayNameController = TextEditingController(text: userProfile.displayName);
+    _displayNameController =
+        TextEditingController(text: userProfile.displayName);
   }
 
   @override

@@ -43,7 +43,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
       final collections = await _getAllCollections();
       Set<String> suggestions = {};
       for (var collection in collections) {
-        final snapshot = await FirebaseFirestore.instance.collection(collection).get();
+        final snapshot =
+            await FirebaseFirestore.instance.collection(collection).get();
         for (var doc in snapshot.docs) {
           final data = doc.data();
           suggestions.addAll(data.entries
@@ -68,7 +69,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
       'Admins',
       'CoopAdmins',
     ];
-    final coopSnapshot = await FirebaseFirestore.instance.collection('cooperatives').get();
+    final coopSnapshot =
+        await FirebaseFirestore.instance.collection('cooperatives').get();
     for (var doc in coopSnapshot.docs) {
       final coopName = doc.id.replaceAll(' ', '_');
       collections.addAll(['${coopName}_users', '${coopName}_marketmanagers']);
@@ -81,7 +83,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
     Map<String, Map<String, dynamic>> mergedUsers = {};
 
     for (var collection in collections) {
-      final snapshot = await FirebaseFirestore.instance.collection(collection).get();
+      final snapshot =
+          await FirebaseFirestore.instance.collection(collection).get();
       for (var doc in snapshot.docs) {
         final uid = doc.id;
         final data = doc.data();
@@ -128,19 +131,33 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
       Sheet sheet = excel['Users'];
 
       List<String> headers = selectedFields.isEmpty
-          ? ['Full Name', 'Email', 'County', 'Constituency', 'Ward', 'Phone Number', 'Status', 'Role']
+          ? [
+              'Full Name',
+              'Email',
+              'County',
+              'Constituency',
+              'Ward',
+              'Phone Number',
+              'Status',
+              'Role'
+            ]
           : selectedFields;
       sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
 
       for (var user in filteredUsers) {
         List<TextCellValue> row = [];
         for (var header in headers) {
-          row.add(TextCellValue(user[header.toLowerCase()]?.toString() ?? 'N/A'));
+          row.add(
+              TextCellValue(user[header.toLowerCase()]?.toString() ?? 'N/A'));
         }
         sheet.appendRow(row);
       }
 
-      String timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      String timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
       String fileName = 'Filtered_Users_$timestamp.xlsx';
       String fullPath = '$outputPath/$fileName';
 
@@ -218,7 +235,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                   decoration: InputDecoration(
                     labelText: 'Search by any field',
                     prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
                 if (_showSuggestions && _suggestions.isNotEmpty)
@@ -243,7 +261,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                               title: Text(_suggestions[index]),
                               onTap: () {
                                 _searchController.text = _suggestions[index];
-                                _searchQuery = _suggestions[index].toLowerCase();
+                                _searchQuery =
+                                    _suggestions[index].toLowerCase();
                                 _showSuggestions = false;
                                 setState(() {});
                               },
@@ -274,8 +293,10 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
               final filteredUsers = _searchQuery.isEmpty
                   ? allUsers
                   : allUsers.where((user) {
-                      return user.values.any((value) =>
-                          value.toString().toLowerCase().contains(_searchQuery));
+                      return user.values.any((value) => value
+                          .toString()
+                          .toLowerCase()
+                          .contains(_searchQuery));
                     }).toList();
 
               Set<String> allFields = {
@@ -297,24 +318,28 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
               return Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 8.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           'Showing ${filteredUsers.length} user${filteredUsers.length == 1 ? '' : 's'}',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                         ElevatedButton.icon(
                           onPressed: filteredUsers.isEmpty
                               ? null
-                              : () => _showFieldSelectionDialog(fields, filteredUsers),
+                              : () => _showFieldSelectionDialog(
+                                  fields, filteredUsers),
                           icon: const Icon(Icons.download, color: Colors.white),
                           label: const Text('Export to Excel'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.brown[700],
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ],
@@ -324,18 +349,24 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Row(
                       children: [
-                        const Text('Sort by: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text('Sort by: ',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                         DropdownButton<String>(
                           value: _sortField,
                           items: fields
-                              .map((field) => DropdownMenuItem(value: field, child: Text(field)))
+                              .map((field) => DropdownMenuItem(
+                                  value: field, child: Text(field)))
                               .toList(),
-                          onChanged: (value) => setState(() => _sortField = value!),
+                          onChanged: (value) =>
+                              setState(() => _sortField = value!),
                           style: const TextStyle(color: Colors.black),
                         ),
                         IconButton(
-                          icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
-                          onPressed: () => setState(() => _sortAscending = !_sortAscending),
+                          icon: Icon(_sortAscending
+                              ? Icons.arrow_upward
+                              : Icons.arrow_downward),
+                          onPressed: () =>
+                              setState(() => _sortAscending = !_sortAscending),
                         ),
                       ],
                     ),
@@ -351,15 +382,17 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                           columns: [
                             DataColumn(
                                 label: Text('Full Name',
-                                    style: const TextStyle(fontWeight: FontWeight.bold))),
-                            ...fields
-                                .where((field) => field != 'fullName')
-                                .map((field) => DataColumn(
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold))),
+                            ...fields.where((field) => field != 'fullName').map(
+                                (field) => DataColumn(
                                     label: Text(field,
-                                        style: const TextStyle(fontWeight: FontWeight.bold)))),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)))),
                             const DataColumn(
                                 label: Text('Actions',
-                                    style: TextStyle(fontWeight: FontWeight.bold))),
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold))),
                           ],
                           rows: filteredUsers.map((user) {
                             return DataRow(cells: [
@@ -389,7 +422,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                                       value: 'Delete',
                                       child: Row(
                                         children: const [
-                                          Icon(Icons.delete, color: Colors.red, size: 20),
+                                          Icon(Icons.delete,
+                                              color: Colors.red, size: 20),
                                           SizedBox(width: 8),
                                           Text('Delete User'),
                                         ],
@@ -399,7 +433,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                                       value: 'Reset Password',
                                       child: Row(
                                         children: const [
-                                          Icon(Icons.lock_reset, color: Colors.orange, size: 20),
+                                          Icon(Icons.lock_reset,
+                                              color: Colors.orange, size: 20),
                                           SizedBox(width: 8),
                                           Text('Reset Password'),
                                         ],
@@ -409,7 +444,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                                       value: 'Edit',
                                       child: Row(
                                         children: const [
-                                          Icon(Icons.edit, color: Colors.blue, size: 20),
+                                          Icon(Icons.edit,
+                                              color: Colors.blue, size: 20),
                                           SizedBox(width: 8),
                                           Text('Edit'),
                                         ],
@@ -446,7 +482,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Edit User $uid', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Edit User $uid',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -457,7 +494,8 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
                   controller: entry.value,
                   decoration: InputDecoration(
                     labelText: entry.key,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               );
@@ -470,7 +508,10 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, controllers.map((key, controller) => MapEntry(key, controller.text))),
+            onPressed: () => Navigator.pop(
+                dialogContext,
+                controllers
+                    .map((key, controller) => MapEntry(key, controller.text))),
             child: const Text('Save'),
           ),
         ],
@@ -479,10 +520,15 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
 
     if (result != null && mounted) {
       try {
-        await FirebaseFirestore.instance.collection('Users').doc(uid).update(result);
-        scaffoldMessenger.showSnackBar(const SnackBar(content: Text('User updated successfully!')));
+        await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(uid)
+            .update(result);
+        scaffoldMessenger.showSnackBar(
+            const SnackBar(content: Text('User updated successfully!')));
       } catch (e) {
-        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error updating user: $e')));
+        scaffoldMessenger
+            .showSnackBar(SnackBar(content: Text('Error updating user: $e')));
       }
     }
 
@@ -494,11 +540,13 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
       if (email.isEmpty) throw 'Email is required';
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password reset email sent!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Password reset email sent!')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error sending password reset: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error sending password reset: $e')));
       }
     }
   }
@@ -507,8 +555,10 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Deletion', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to delete this user? This action cannot be undone.'),
+        title: const Text('Confirm Deletion',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text(
+            'Are you sure you want to delete this user? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -530,38 +580,44 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
     try {
       await FirebaseFirestore.instance.collection('Users').doc(uid).delete();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User deleted from Firestore!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('User deleted from Firestore!')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting user: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error deleting user: $e')));
       }
     }
   }
 
-  void _showFieldSelectionDialog(List<String> fields, List<Map<String, dynamic>> filteredUsers) {
+  void _showFieldSelectionDialog(
+      List<String> fields, List<Map<String, dynamic>> filteredUsers) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Fields to Export', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Select Fields to Export',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         content: StatefulBuilder(
           builder: (context, setState) => SizedBox(
             width: double.maxFinite,
             height: 300,
             child: ListView(
-              children: fields.map((field) => CheckboxListTile(
-                    title: Text(field),
-                    value: selectedFields.contains(field),
-                    onChanged: (bool? value) {
-                      setState(() {
-                        if (value == true) {
-                          selectedFields.add(field);
-                        } else {
-                          selectedFields.remove(field);
-                        }
-                      });
-                    },
-                  )).toList(),
+              children: fields
+                  .map((field) => CheckboxListTile(
+                        title: Text(field),
+                        value: selectedFields.contains(field),
+                        onChanged: (bool? value) {
+                          setState(() {
+                            if (value == true) {
+                              selectedFields.add(field);
+                            } else {
+                              selectedFields.remove(field);
+                            }
+                          });
+                        },
+                      ))
+                  .toList(),
             ),
           ),
         ),

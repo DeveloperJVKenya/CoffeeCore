@@ -40,13 +40,13 @@ enum _PageState {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _DiseaseCard {
-  final String      name;
+  final String name;
   final List<String> imageUrls;
-  final bool        imagesLoaded;
+  final bool imagesLoaded;
 
   const _DiseaseCard({
     required this.name,
-    this.imageUrls   = const [],
+    this.imageUrls = const [],
     this.imagesLoaded = false,
   });
 }
@@ -56,17 +56,17 @@ class _DiseaseCard {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class DiseaseResultsPage extends StatefulWidget {
-  final String               selectedStage;
-  final String?              selectedDisease;
+  final String selectedStage;
+  final String? selectedDisease;
   final DiseaseDetectionMode detectionMode;
-  final CoffeeDiseaseData?   localDiseaseData;
+  final CoffeeDiseaseData? localDiseaseData;
 
-  final File?      scannedImageFile;
+  final File? scannedImageFile;
   final Uint8List? scannedImageBytes;
 
   final Map<String, dynamic>? aiManagementData;
-  final String?               aiReasoning;
-  final double?               aiConfidence;
+  final String? aiReasoning;
+  final double? aiConfidence;
   final FlutterLocalNotificationsPlugin notificationsPlugin;
 
   const DiseaseResultsPage({
@@ -90,37 +90,37 @@ class DiseaseResultsPage extends StatefulWidget {
 class _DiseaseResultsPageState extends State<DiseaseResultsPage>
     with TickerProviderStateMixin {
   // ── Theme ──────────────────────────────────────────────────────────────────
-  static const Color _darkBrown    = Color(0xFF3E2723);
-  static const Color _midBrown     = Color(0xFF6D4C41);
-  static const Color _lightBrown   = Color(0xFFA1887F);
-  static const Color _cream        = Color(0xFFFFF8F2);
-  static const Color _amber        = Color(0xFFFFCC80);
+  static const Color _darkBrown = Color(0xFF3E2723);
+  static const Color _midBrown = Color(0xFF6D4C41);
+  static const Color _lightBrown = Color(0xFFA1887F);
+  static const Color _cream = Color(0xFFFFF8F2);
+  static const Color _amber = Color(0xFFFFCC80);
   static const Color _successGreen = Color(0xFF388E3C);
 
   // ── Page state ─────────────────────────────────────────────────────────────
-  _PageState _pageState    = _PageState.loadingImages;
-  String?    _errorMessage;
+  _PageState _pageState = _PageState.loadingImages;
+  String? _errorMessage;
 
   // ── Resolved data ──────────────────────────────────────────────────────────
-  String?               _resolvedDisease;
-  String                _resolvedStage = '';
-  List<String>          _onlineDiseaseImages = [];
+  String? _resolvedDisease;
+  String _resolvedStage = '';
+  List<String> _onlineDiseaseImages = [];
   Map<String, dynamic>? _managementData;
 
   // ── Path B ─────────────────────────────────────────────────────────────────
-  List<_DiseaseCard> _diseaseCards         = [];
+  List<_DiseaseCard> _diseaseCards = [];
 
   // ── Save state ─────────────────────────────────────────────────────────────
-  bool _isSaving  = false;
+  bool _isSaving = false;
   bool _savedToDb = false;
 
   // ── Carousel ───────────────────────────────────────────────────────────────
-  final PageController _carouselController    = PageController();
-  int                  _currentCarouselPage   = 0;
+  final PageController _carouselController = PageController();
+  int _currentCarouselPage = 0;
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _fadeController;
-  late Animation<double>   _fadeAnim;
+  late Animation<double> _fadeAnim;
   late AnimationController _cardStaggerController;
 
   final ScrollController _scrollController = ScrollController();
@@ -132,7 +132,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
   @override
   void initState() {
     super.initState();
-    _resolvedStage   = widget.selectedStage;
+    _resolvedStage = widget.selectedStage;
     _resolvedDisease = widget.selectedDisease;
 
     debugPrint('[DiseaseResultsPage] 🌱 initState — '
@@ -160,7 +160,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
   }
 
   void _initialiseForMode() {
-    debugPrint('[DiseaseResultsPage] 🔀 Routing to ${widget.detectionMode.name} path');
+    debugPrint(
+        '[DiseaseResultsPage] 🔀 Routing to ${widget.detectionMode.name} path');
     switch (widget.detectionMode) {
       case DiseaseDetectionMode.knownBoth:
         _runPathA();
@@ -187,7 +188,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
       if (!mounted) return;
       setState(() {
         _onlineDiseaseImages = urls;
-        _pageState           = _PageState.awaitingConfirmation;
+        _pageState = _PageState.awaitingConfirmation;
       });
       _fadeController.forward(from: 0);
     } catch (e) {
@@ -195,14 +196,15 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
       if (!mounted) return;
       setState(() {
         _onlineDiseaseImages = [];
-        _pageState           = _PageState.awaitingConfirmation;
+        _pageState = _PageState.awaitingConfirmation;
       });
       _fadeController.forward(from: 0);
     }
   }
 
   Future<void> _onConfirmDiseaseA() async {
-    debugPrint('[DiseaseResultsPage] ✅ Path A — farmer confirmed "${_resolvedDisease!}"');
+    debugPrint(
+        '[DiseaseResultsPage] ✅ Path A — farmer confirmed "${_resolvedDisease!}"');
     setState(() => _pageState = _PageState.loadingManagement);
     try {
       Map<String, dynamic>? data;
@@ -210,32 +212,34 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
       // Priority: local data → AI
       if (widget.localDiseaseData != null) {
         data = _diseaseDataToMap(widget.localDiseaseData!);
-        debugPrint('[DiseaseResultsPage] ℹ️ Using local disease data for "${_resolvedDisease!}"');
+        debugPrint(
+            '[DiseaseResultsPage] ℹ️ Using local disease data for "${_resolvedDisease!}"');
       } else {
         data = await GeminiDiseaseAiService.generateManagementDetails(
           diseaseName: _resolvedDisease!,
-          stage:       _resolvedStage,
+          stage: _resolvedStage,
         );
       }
 
       if (!mounted) return;
       if (data == null) {
         setState(() {
-          _errorMessage = 'Could not load management details. Please check your connection.';
-          _pageState    = _PageState.error;
+          _errorMessage =
+              'Could not load management details. Please check your connection.';
+          _pageState = _PageState.error;
         });
         return;
       }
       setState(() {
         _managementData = data;
-        _pageState      = _PageState.showingManagement;
+        _pageState = _PageState.showingManagement;
       });
       _fadeController.forward(from: 0);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _errorMessage = 'An error occurred loading management details: $e';
-        _pageState    = _PageState.error;
+        _pageState = _PageState.error;
       });
     }
   }
@@ -245,7 +249,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> _runPathB() async {
-    debugPrint('[DiseaseResultsPage] 🅱️ Path B started — stage="$_resolvedStage"');
+    debugPrint(
+        '[DiseaseResultsPage] 🅱️ Path B started — stage="$_resolvedStage"');
     setState(() => _pageState = _PageState.loadingImages);
 
     // Use local stage map first, then AI augment
@@ -261,8 +266,9 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
     if (diseaseNames.isEmpty) {
       setState(() {
-        _errorMessage = 'Could not load diseases for this stage. Please try again.';
-        _pageState    = _PageState.error;
+        _errorMessage =
+            'Could not load diseases for this stage. Please try again.';
+        _pageState = _PageState.error;
       });
       return;
     }
@@ -281,9 +287,9 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
         if (!mounted) return;
         setState(() {
           _diseaseCards[i] = _DiseaseCard(
-            name:          name,
-            imageUrls:     urls,
-            imagesLoaded:  true,
+            name: name,
+            imageUrls: urls,
+            imagesLoaded: true,
           );
         });
       });
@@ -291,7 +297,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
   }
 
   Future<void> _onSelectDiseaseB(String selectedDisease) async {
-    debugPrint('[DiseaseResultsPage] 🅱️ Farmer selected "$selectedDisease" from grid');
+    debugPrint(
+        '[DiseaseResultsPage] 🅱️ Farmer selected "$selectedDisease" from grid');
 
     // ── Step 1: Immediately seed images from the card's already-loaded thumbnails.
     // This gives the management carousel something to render with zero extra wait.
@@ -300,16 +307,16 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
       orElse: () => const _DiseaseCard(name: ''),
     );
     setState(() {
-      _resolvedDisease     = selectedDisease;
+      _resolvedDisease = selectedDisease;
       _onlineDiseaseImages = List<String>.from(card.imageUrls); // instant seed
-      _pageState           = _PageState.loadingManagement;
+      _pageState = _PageState.loadingManagement;
     });
 
     // ── Step 2: Fire a full-resolution background fetch (up to 8 images).
     // Once complete it reactively replaces the 3 thumbnail seeds in the carousel.
     DiseaseImageSearchService.searchDiseaseImages(
       diseaseName: selectedDisease,
-      stage:       _resolvedStage,
+      stage: _resolvedStage,
     ).then((urls) {
       if (mounted && urls.isNotEmpty) {
         setState(() => _onlineDiseaseImages = urls);
@@ -327,41 +334,45 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
         // Fast path: use the pre-built local disease data (no network call needed)
         final d = kDiseaseDetails[selectedDisease]!;
         data = {
-          'description'        : d['description'],
-          'symptoms'           : d['symptoms'],
-          'chemical_controls'  : List<String>.from(d['chemicalControls']   as List),
-          'biological_controls': List<String>.from(d['biologicalControls'] as List),
-          'cultural_controls'  : List<String>.from(d['culturalControls']   as List),
-          'possible_causes'    : List<String>.from(d['possibleCauses']     as List),
-          'preventive_measures': List<String>.from(d['preventiveMeasures'] as List),
+          'description': d['description'],
+          'symptoms': d['symptoms'],
+          'chemical_controls': List<String>.from(d['chemicalControls'] as List),
+          'biological_controls':
+              List<String>.from(d['biologicalControls'] as List),
+          'cultural_controls': List<String>.from(d['culturalControls'] as List),
+          'possible_causes': List<String>.from(d['possibleCauses'] as List),
+          'preventive_measures':
+              List<String>.from(d['preventiveMeasures'] as List),
         };
-        debugPrint('[DiseaseResultsPage] ℹ️ Path B — using local data for "$selectedDisease"');
+        debugPrint(
+            '[DiseaseResultsPage] ℹ️ Path B — using local data for "$selectedDisease"');
       } else {
         // Slow path: ask Gemini AI (disease not in local map)
         data = await GeminiDiseaseAiService.generateManagementDetails(
           diseaseName: selectedDisease,
-          stage:       _resolvedStage,
+          stage: _resolvedStage,
         );
       }
 
       if (!mounted) return;
       if (data == null) {
         setState(() {
-          _errorMessage = 'Could not load management details. Please try again.';
-          _pageState    = _PageState.error;
+          _errorMessage =
+              'Could not load management details. Please try again.';
+          _pageState = _PageState.error;
         });
         return;
       }
       setState(() {
         _managementData = data;
-        _pageState      = _PageState.showingManagement;
+        _pageState = _PageState.showingManagement;
       });
       _fadeController.forward(from: 0);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _errorMessage = 'An error occurred: $e';
-        _pageState    = _PageState.error;
+        _pageState = _PageState.error;
       });
     }
   }
@@ -378,7 +389,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
       // Management data came directly from the scan — load images in parallel
       setState(() {
         _managementData = widget.aiManagementData;
-        _pageState      = _PageState.showingManagement;
+        _pageState = _PageState.showingManagement;
       });
       _fadeController.forward(from: 0);
 
@@ -397,14 +408,15 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
       setState(() => _pageState = _PageState.loadingManagement);
       final data = await GeminiDiseaseAiService.generateManagementDetails(
         diseaseName: _resolvedDisease!,
-        stage:       _resolvedStage,
+        stage: _resolvedStage,
       );
       if (!mounted) return;
       setState(() {
         _managementData = data;
-        _pageState      =
+        _pageState =
             data != null ? _PageState.showingManagement : _PageState.error;
-        _errorMessage   = data == null ? 'Could not load management details.' : null;
+        _errorMessage =
+            data == null ? 'Could not load management details.' : null;
       });
       if (data != null) _fadeController.forward(from: 0);
     }
@@ -415,11 +427,12 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> _runPathCustom() async {
-    debugPrint('[DiseaseResultsPage] 🔍 Custom search — disease="$_resolvedDisease"');
+    debugPrint(
+        '[DiseaseResultsPage] 🔍 Custom search — disease="$_resolvedDisease"');
     if (_resolvedDisease == null) {
       setState(() {
         _errorMessage = 'No disease name was provided for search.';
-        _pageState    = _PageState.error;
+        _pageState = _PageState.error;
       });
       return;
     }
@@ -433,7 +446,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
         ? Future<Map<String, dynamic>?>.value(null)
         : GeminiDiseaseAiService.generateManagementDetails(
             diseaseName: _resolvedDisease!,
-            stage:       'General',
+            stage: 'General',
           );
 
     final results = await Future.wait([imagesFuture, managementFuture]);
@@ -449,7 +462,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
     if (finalMgmt == null) {
       setState(() {
-        _errorMessage = 'No management information found for "$_resolvedDisease". '
+        _errorMessage =
+            'No management information found for "$_resolvedDisease". '
             'Please check the disease name and try again.';
         _pageState = _PageState.error;
       });
@@ -458,8 +472,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
     setState(() {
       _onlineDiseaseImages = urls;
-      _managementData      = finalMgmt;
-      _pageState           = _PageState.showingManagement;
+      _managementData = finalMgmt;
+      _pageState = _PageState.showingManagement;
     });
     _fadeController.forward(from: 0);
   }
@@ -473,17 +487,17 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
     setState(() => _isSaving = true);
     try {
       await DiseaseFirestoreService.saveDiagnosis(
-        diseaseName:    _resolvedDisease ?? 'Unknown',
-        stage:          _resolvedStage,
-        detectionMode:  widget.detectionMode.name,
+        diseaseName: _resolvedDisease ?? 'Unknown',
+        stage: _resolvedStage,
+        detectionMode: widget.detectionMode.name,
         managementData: _managementData!,
-        imageUrls:      _onlineDiseaseImages,
-        aiConfidence:   widget.aiConfidence,
-        aiReasoning:    widget.aiReasoning,
+        imageUrls: _onlineDiseaseImages,
+        aiConfidence: widget.aiConfidence,
+        aiReasoning: widget.aiReasoning,
       );
       if (!mounted) return;
       setState(() {
-        _isSaving  = false;
+        _isSaving = false;
         _savedToDb = true;
       });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -535,7 +549,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
         if (_pageState == _PageState.showingManagement && !_savedToDb)
           TextButton.icon(
             onPressed: _isSaving ? null : _saveDiagnosis,
-            icon: const Icon(Icons.bookmark_add_rounded, color: _amber, size: 18),
+            icon:
+                const Icon(Icons.bookmark_add_rounded, color: _amber, size: 18),
             label: Text('Save',
                 style: GoogleFonts.poppins(color: _amber, fontSize: 13)),
           ),
@@ -545,14 +560,19 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
   Widget _buildBodyForState() {
     return switch (_pageState) {
-      _PageState.loadingImages     => _buildLoadingView(key: const ValueKey('loadImg'),
-                                        message: 'Searching for disease images…'),
-      _PageState.awaitingConfirmation => _buildConfirmationView(key: const ValueKey('confirm')),
-      _PageState.diseaseSelection  => _buildDiseaseSelectionView(key: const ValueKey('select')),
-      _PageState.loadingManagement => _buildLoadingView(key: const ValueKey('loadMgmt'),
-                                        message: 'AI is generating management details…'),
-      _PageState.showingManagement => _buildManagementView(key: const ValueKey('management')),
-      _PageState.error             => _buildErrorView(key: const ValueKey('error')),
+      _PageState.loadingImages => _buildLoadingView(
+          key: const ValueKey('loadImg'),
+          message: 'Searching for disease images…'),
+      _PageState.awaitingConfirmation =>
+        _buildConfirmationView(key: const ValueKey('confirm')),
+      _PageState.diseaseSelection =>
+        _buildDiseaseSelectionView(key: const ValueKey('select')),
+      _PageState.loadingManagement => _buildLoadingView(
+          key: const ValueKey('loadMgmt'),
+          message: 'AI is generating management details…'),
+      _PageState.showingManagement =>
+        _buildManagementView(key: const ValueKey('management')),
+      _PageState.error => _buildErrorView(key: const ValueKey('error')),
     };
   }
 
@@ -586,7 +606,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
     final localImages = widget.localDiseaseData?.lifecycleImages ?? [];
 
     return FadeTransition(
-      key:     key,
+      key: key,
       opacity: _fadeAnim,
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -599,8 +619,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
             // Images
             _buildSectionHeader(
-              icon:     Icons.image_search_rounded,
-              title:    'Is this what you see?',
+              icon: Icons.image_search_rounded,
+              title: 'Is this what you see?',
               subtitle: 'Images of $_resolvedDisease on coffee plants',
             ),
             const SizedBox(height: 12),
@@ -624,7 +644,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
                       borderRadius: BorderRadius.circular(14)),
                   elevation: 3,
                 ),
-                icon:  const Icon(Icons.check_circle_rounded, size: 20),
+                icon: const Icon(Icons.check_circle_rounded, size: 20),
                 label: Text('Yes, this is the disease I see',
                     style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w700, fontSize: 14)),
@@ -642,7 +662,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                 ),
-                icon:  const Icon(Icons.arrow_back_rounded, size: 18),
+                icon: const Icon(Icons.arrow_back_rounded, size: 18),
                 label: Text('No, go back and select another',
                     style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w600, fontSize: 13.5)),
@@ -660,7 +680,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
   Widget _buildDiseaseSelectionView({Key? key}) {
     return FadeTransition(
-      key:     key,
+      key: key,
       opacity: _fadeAnim,
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -671,9 +691,10 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
             _buildContextRow(),
             const SizedBox(height: 20),
             _buildSectionHeader(
-              icon:     Icons.grid_view_rounded,
-              title:    'Which disease do you see?',
-              subtitle: 'Diseases known to affect coffee at the $_resolvedStage stage',
+              icon: Icons.grid_view_rounded,
+              title: 'Which disease do you see?',
+              subtitle:
+                  'Diseases known to affect coffee at the $_resolvedStage stage',
             ),
             const SizedBox(height: 14),
             ..._diseaseCards.map(_buildDiseaseCard),
@@ -693,7 +714,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFD7C5BC)),
           boxShadow: const [
-            BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))
+            BoxShadow(
+                color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))
           ],
         ),
         child: Row(
@@ -701,11 +723,11 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
             // Thumbnail
             ClipRRect(
               borderRadius: const BorderRadius.only(
-                topLeft:     Radius.circular(16),
-                bottomLeft:  Radius.circular(16),
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
               ),
               child: SizedBox(
-                width:  90,
+                width: 90,
                 height: 90,
                 child: card.imagesLoaded && card.imageUrls.isNotEmpty
                     ? _netImage(url: card.imageUrls.first)
@@ -760,7 +782,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
     if (data == null) return _buildErrorView(key: key);
 
     return FadeTransition(
-      key:     key,
+      key: key,
       opacity: _fadeAnim,
       child: SingleChildScrollView(
         controller: _scrollController,
@@ -775,7 +797,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
             // Scanned image (AI scan mode only)
             if (widget.detectionMode == DiseaseDetectionMode.aiScan &&
-                (widget.scannedImageBytes != null || widget.scannedImageFile != null))
+                (widget.scannedImageBytes != null ||
+                    widget.scannedImageFile != null))
               _buildScannedImageCard(),
 
             // Confidence badge (AI scan only)
@@ -785,10 +808,11 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
             // Disease images
             if (_onlineDiseaseImages.isNotEmpty ||
-                (widget.localDiseaseData?.lifecycleImages.isNotEmpty ?? false)) ...[
+                (widget.localDiseaseData?.lifecycleImages.isNotEmpty ??
+                    false)) ...[
               _buildSectionHeader(
-                icon:     Icons.photo_library_rounded,
-                title:    'Disease Images',
+                icon: Icons.photo_library_rounded,
+                title: 'Disease Images',
                 subtitle: 'Visual references for $_resolvedDisease',
               ),
               const SizedBox(height: 10),
@@ -802,26 +826,26 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
             // Description
             if (data['description'] != null)
               _buildInfoCard(
-                icon:    Icons.info_outline_rounded,
-                title:   'What Is This Disease?',
+                icon: Icons.info_outline_rounded,
+                title: 'What Is This Disease?',
                 content: data['description'] as String,
-                color:   _darkBrown,
+                color: _darkBrown,
               ),
 
             // Symptoms
             if (data['symptoms'] != null)
               _buildInfoCard(
-                icon:    Icons.visibility_rounded,
-                title:   'Visible Symptoms',
+                icon: Icons.visibility_rounded,
+                title: 'Visible Symptoms',
                 content: data['symptoms'] as String,
-                color:   const Color(0xFFC62828),
+                color: const Color(0xFFC62828),
               ),
 
             // Chemical controls
             if (data['chemical_controls'] is List &&
                 (data['chemical_controls'] as List).isNotEmpty)
               _buildListCard(
-                icon:  Icons.science_rounded,
+                icon: Icons.science_rounded,
                 title: 'Fungicide / Chemical Controls',
                 items: List<String>.from(data['chemical_controls']),
                 color: const Color(0xFF1565C0),
@@ -831,7 +855,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
             if (data['biological_controls'] is List &&
                 (data['biological_controls'] as List).isNotEmpty)
               _buildListCard(
-                icon:  Icons.eco_rounded,
+                icon: Icons.eco_rounded,
                 title: 'Biological Controls',
                 items: List<String>.from(data['biological_controls']),
                 color: _successGreen,
@@ -841,7 +865,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
             if (data['cultural_controls'] is List &&
                 (data['cultural_controls'] as List).isNotEmpty)
               _buildListCard(
-                icon:  Icons.agriculture_rounded,
+                icon: Icons.agriculture_rounded,
                 title: 'Cultural Controls',
                 items: List<String>.from(data['cultural_controls']),
                 color: const Color(0xFF6A1B9A),
@@ -851,7 +875,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
             if (data['possible_causes'] is List &&
                 (data['possible_causes'] as List).isNotEmpty)
               _buildListCard(
-                icon:  Icons.troubleshoot_rounded,
+                icon: Icons.troubleshoot_rounded,
                 title: 'Possible Causes',
                 items: List<String>.from(data['possible_causes']),
                 color: const Color(0xFFE65100),
@@ -861,7 +885,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
             if (data['preventive_measures'] is List &&
                 (data['preventive_measures'] as List).isNotEmpty)
               _buildListCard(
-                icon:  Icons.shield_rounded,
+                icon: Icons.shield_rounded,
                 title: 'Preventive Measures',
                 items: List<String>.from(data['preventive_measures']),
                 color: const Color(0xFF00695C),
@@ -879,11 +903,11 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
   Widget _buildScannedImageCard() {
     Widget imageWidget;
     if (widget.scannedImageBytes != null) {
-      imageWidget = Image.memory(widget.scannedImageBytes!, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _imageFallback());
+      imageWidget = Image.memory(widget.scannedImageBytes!,
+          fit: BoxFit.cover, errorBuilder: (_, __, ___) => _imageFallback());
     } else if (!kIsWeb && widget.scannedImageFile != null) {
-      imageWidget = Image.file(widget.scannedImageFile!, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _imageFallback());
+      imageWidget = Image.file(widget.scannedImageFile!,
+          fit: BoxFit.cover, errorBuilder: (_, __, ___) => _imageFallback());
     } else {
       imageWidget = _imageFallback();
     }
@@ -892,14 +916,15 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionHeader(
-          icon:     Icons.camera_alt_rounded,
-          title:    'Scanned Image',
+          icon: Icons.camera_alt_rounded,
+          title: 'Scanned Image',
           subtitle: 'Photo submitted for AI analysis',
         ),
         const SizedBox(height: 10),
         ClipRRect(
           borderRadius: BorderRadius.circular(14),
-          child: SizedBox(height: 200, width: double.infinity, child: imageWidget),
+          child:
+              SizedBox(height: 200, width: double.infinity, child: imageWidget),
         ),
         const SizedBox(height: 20),
       ],
@@ -909,12 +934,12 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
   Widget _buildConfidenceBadge() {
     final pct = widget.aiConfidence?.toStringAsFixed(0) ?? '—';
     return Container(
-      margin:  const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color:        _amber.withValues(alpha: .15),
+        color: _amber.withValues(alpha: .15),
         borderRadius: BorderRadius.circular(12),
-        border:       Border.all(color: _amber.withValues(alpha: .5)),
+        border: Border.all(color: _amber.withValues(alpha: .5)),
       ),
       child: Row(
         children: [
@@ -926,7 +951,9 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
               children: [
                 Text('AI Confidence: $pct%',
                     style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w700, fontSize: 13, color: _darkBrown)),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: _darkBrown)),
                 if (widget.aiReasoning != null)
                   Text(widget.aiReasoning!,
                       style: GoogleFonts.poppins(
@@ -945,8 +972,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
   }) {
     final combined = <Widget>[
       ...onlineUrls.map((url) => _netImage(url: url)),
-      ...localPaths.map((path) => Image.asset(path, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _imageFallback())),
+      ...localPaths.map((path) => Image.asset(path,
+          fit: BoxFit.cover, errorBuilder: (_, __, ___) => _imageFallback())),
     ];
 
     if (combined.isEmpty) {
@@ -958,10 +985,11 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
         ),
         child: Center(
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.image_not_supported_rounded, color: _lightBrown, size: 32),
+            Icon(Icons.image_not_supported_rounded,
+                color: _lightBrown, size: 32),
             const SizedBox(height: 8),
-            Text('No images found', style: GoogleFonts.poppins(
-                fontSize: 13, color: _lightBrown)),
+            Text('No images found',
+                style: GoogleFonts.poppins(fontSize: 13, color: _lightBrown)),
           ]),
         ),
       );
@@ -975,7 +1003,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
             height: 200,
             child: PageView.builder(
               controller: _carouselController,
-              itemCount:  combined.length,
+              itemCount: combined.length,
               onPageChanged: (i) => setState(() => _currentCarouselPage = i),
               itemBuilder: (_, i) => combined[i],
             ),
@@ -985,15 +1013,19 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(combined.length, (i) => Container(
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width:  _currentCarouselPage == i ? 12 : 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: _currentCarouselPage == i ? _darkBrown : _lightBrown.withValues(alpha: .4),
-                borderRadius: BorderRadius.circular(3),
-              ),
-            )),
+            children: List.generate(
+                combined.length,
+                (i) => Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: _currentCarouselPage == i ? 12 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: _currentCarouselPage == i
+                            ? _darkBrown
+                            : _lightBrown.withValues(alpha: .4),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    )),
           ),
         ],
       ],
@@ -1002,30 +1034,31 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
   Widget _buildInfoCard({
     required IconData icon,
-    required String   title,
-    required String   content,
-    required Color    color,
+    required String title,
+    required String content,
+    required Color color,
   }) {
     return Container(
-      margin:  const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color:        Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border:       Border.all(color: color.withValues(alpha: .2)),
+        border: Border.all(color: color.withValues(alpha: .2)),
         boxShadow: [
           BoxShadow(
-              color:  color.withValues(alpha: .06),
-              blurRadius: 8, offset: const Offset(0, 3))
+              color: color.withValues(alpha: .06),
+              blurRadius: 8,
+              offset: const Offset(0, 3))
         ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding:      const EdgeInsets.all(8),
-            decoration:   BoxDecoration(
-              color:        color.withValues(alpha: .1),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -1037,7 +1070,9 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
               children: [
                 Text(title,
                     style: GoogleFonts.poppins(
-                        fontSize: 13, fontWeight: FontWeight.w700, color: _darkBrown)),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _darkBrown)),
                 const SizedBox(height: 6),
                 Text(content,
                     style: GoogleFonts.poppins(
@@ -1051,22 +1086,23 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
   }
 
   Widget _buildListCard({
-    required IconData      icon,
-    required String        title,
-    required List<String>  items,
-    required Color         color,
+    required IconData icon,
+    required String title,
+    required List<String> items,
+    required Color color,
   }) {
     return Container(
-      margin:  const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color:        Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border:       Border.all(color: color.withValues(alpha: .2)),
+        border: Border.all(color: color.withValues(alpha: .2)),
         boxShadow: [
           BoxShadow(
               color: color.withValues(alpha: .06),
-              blurRadius: 8, offset: const Offset(0, 3))
+              blurRadius: 8,
+              offset: const Offset(0, 3))
         ],
       ),
       child: Column(
@@ -1074,9 +1110,9 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
         children: [
           Row(children: [
             Container(
-              padding:      const EdgeInsets.all(8),
-              decoration:   BoxDecoration(
-                color:        color.withValues(alpha: .1),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: color, size: 20),
@@ -1085,32 +1121,35 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
             Expanded(
               child: Text(title,
                   style: GoogleFonts.poppins(
-                      fontSize: 13, fontWeight: FontWeight.w700, color: _darkBrown)),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: _darkBrown)),
             ),
           ]),
           const SizedBox(height: 10),
           ...items.map((item) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child:   Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 5),
-                  width:  6, height: 6,
-                  decoration: BoxDecoration(
-                    color:  color,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 5),
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(item,
+                          style: GoogleFonts.poppins(
+                              fontSize: 12.5, color: _midBrown, height: 1.5)),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(item,
-                      style: GoogleFonts.poppins(
-                          fontSize: 12.5, color: _midBrown, height: 1.5)),
-                ),
-              ],
-            ),
-          )),
+              )),
         ],
       ),
     );
@@ -1135,9 +1174,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
               disabledForegroundColor: Colors.white,
             ),
             icon: Icon(
-              _savedToDb
-                  ? Icons.check_circle_rounded
-                  : Icons.save_alt_rounded,
+              _savedToDb ? Icons.check_circle_rounded : Icons.save_alt_rounded,
               size: 20,
             ),
             label: Text(
@@ -1156,12 +1193,12 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
             onPressed: () => Navigator.pop(context),
             style: OutlinedButton.styleFrom(
               foregroundColor: _darkBrown,
-              side:    const BorderSide(color: _darkBrown, width: 1.5),
+              side: const BorderSide(color: _darkBrown, width: 1.5),
               padding: const EdgeInsets.symmetric(vertical: 15),
-              shape:   RoundedRectangleBorder(
+              shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),
             ),
-            icon:  const Icon(Icons.arrow_back_rounded, size: 18),
+            icon: const Icon(Icons.arrow_back_rounded, size: 18),
             label: Text('Back to Disease Centre',
                 style: GoogleFonts.poppins(
                     fontWeight: FontWeight.w700, fontSize: 14)),
@@ -1187,7 +1224,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
                 color: Colors.redAccent, size: 48),
             const SizedBox(height: 16),
             Text(
-              _errorMessage ?? 'Something went wrong. Please go back and try again.',
+              _errorMessage ??
+                  'Something went wrong. Please go back and try again.',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                   fontSize: 13.5, color: _midBrown, height: 1.5),
@@ -1196,7 +1234,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _darkBrown, foregroundColor: Colors.white,
+                backgroundColor: _darkBrown,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
@@ -1215,7 +1254,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
   Widget _buildContextRow() {
     return Wrap(
-      spacing: 8, runSpacing: 8,
+      spacing: 8,
+      runSpacing: 8,
       children: [
         _buildChip(Icons.layers_rounded, _resolvedStage),
         if (_resolvedDisease != null)
@@ -1229,7 +1269,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color:  _darkBrown.withValues(alpha: .08),
+        color: _darkBrown.withValues(alpha: .08),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _darkBrown.withValues(alpha: .2)),
       ),
@@ -1245,15 +1285,18 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
   Widget _buildModeChip() {
     final (label, color) = switch (widget.detectionMode) {
-      DiseaseDetectionMode.knownBoth    => ('Manual Selection', _midBrown),
-      DiseaseDetectionMode.knownStage   => ('Stage Guided',     _lightBrown),
-      DiseaseDetectionMode.aiScan       => ('AI Scanned',       _amber),
-      DiseaseDetectionMode.customSearch => ('Custom Search',    const Color(0xFF6A1B9A)),
+      DiseaseDetectionMode.knownBoth => ('Manual Selection', _midBrown),
+      DiseaseDetectionMode.knownStage => ('Stage Guided', _lightBrown),
+      DiseaseDetectionMode.aiScan => ('AI Scanned', _amber),
+      DiseaseDetectionMode.customSearch => (
+          'Custom Search',
+          const Color(0xFF6A1B9A)
+        ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color:  color.withValues(alpha: .15),
+        color: color.withValues(alpha: .15),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withValues(alpha: .4)),
       ),
@@ -1268,7 +1311,9 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
   }
 
   Widget _buildSectionHeader({
-    required IconData icon, required String title, required String subtitle,
+    required IconData icon,
+    required String title,
+    required String subtitle,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1276,10 +1321,13 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
         Icon(icon, color: _darkBrown, size: 20),
         const SizedBox(width: 10),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(title,
                 style: GoogleFonts.poppins(
-                    fontSize: 14, fontWeight: FontWeight.w700, color: _darkBrown)),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: _darkBrown)),
             Text(subtitle,
                 style: GoogleFonts.poppins(fontSize: 11.5, color: _lightBrown)),
           ]),
@@ -1323,12 +1371,12 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
   // ── Convert CoffeeDiseaseData to map for display ──────────────────────────
 
   Map<String, dynamic> _diseaseDataToMap(CoffeeDiseaseData d) => {
-    'description'        : d.description,
-    'symptoms'           : d.symptoms,
-    'chemical_controls'  : d.chemicalControls,
-    'biological_controls': d.biologicalControls,
-    'cultural_controls'  : d.culturalControls,
-    'possible_causes'    : d.possibleCauses,
-    'preventive_measures': d.preventiveMeasures,
-  };
+        'description': d.description,
+        'symptoms': d.symptoms,
+        'chemical_controls': d.chemicalControls,
+        'biological_controls': d.biologicalControls,
+        'cultural_controls': d.culturalControls,
+        'possible_causes': d.possibleCauses,
+        'preventive_measures': d.preventiveMeasures,
+      };
 }

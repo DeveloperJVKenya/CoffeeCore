@@ -48,7 +48,8 @@ class NutrientAnalysisHelper {
     try {
       final ranges = optimalValues[stage]?[nutrient];
       if (ranges == null) {
-        developer.log('No ranges found for $nutrient in stage $stage', name: 'NutrientAnalysisHelper');
+        developer.log('No ranges found for $nutrient in stage $stage',
+            name: 'NutrientAnalysisHelper');
         return 'Unknown';
       }
 
@@ -60,7 +61,8 @@ class NutrientAnalysisHelper {
         return 'Optimal';
       }
     } catch (e) {
-      developer.log('Error determining status for $nutrient: $e', name: 'NutrientAnalysisHelper', error: e);
+      developer.log('Error determining status for $nutrient: $e',
+          name: 'NutrientAnalysisHelper', error: e);
       return 'Unknown';
     }
   }
@@ -70,12 +72,14 @@ class NutrientAnalysisHelper {
     return isPerPlant ? 'mg/plant' : 'kg/acre';
   }
 
-  static double convertToPerPlant(String nutrient, double value, int plantDensity) {
+  static double convertToPerPlant(
+      String nutrient, double value, int plantDensity) {
     if (nutrient == 'pH') return value;
     return value / plantDensity * 1000; // kg/acre to mg/plant
   }
 
-  static double convertToPerAcre(String nutrient, double value, int plantDensity) {
+  static double convertToPerAcre(
+      String nutrient, double value, int plantDensity) {
     if (nutrient == 'pH') return value;
     return value * plantDensity / 1000; // mg/plant to kg/acre
   }
@@ -86,9 +90,8 @@ class NutrientAnalysisHelper {
   /// Google-Search-grounded model via [GeminiSoilAiService.fetchLiveRecommendations].
   /// This stub is kept so existing call sites compile unchanged; it is replaced
   /// by the Gemini result as soon as the async fetch completes.
-  static Map<String, String> getRecommendations(
-      String nutrient, String status, String stage, String? soilType,
-      bool isPerPlant, int plantDensity) {
+  static Map<String, String> getRecommendations(String nutrient, String status,
+      String stage, String? soilType, bool isPerPlant, int plantDensity) {
     // Return an empty map — the form will show a loading indicator and
     // replace this with the live Gemini result once it arrives.
     return {};

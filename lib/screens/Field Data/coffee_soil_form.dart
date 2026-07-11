@@ -70,8 +70,14 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
   bool _isGeneratingPlan = false;
 
   static const List<String> _nutrients = [
-    'pH', 'nitrogen', 'phosphorus', 'potassium',
-    'magnesium', 'calcium', 'zinc', 'boron'
+    'pH',
+    'nitrogen',
+    'phosphorus',
+    'potassium',
+    'magnesium',
+    'calcium',
+    'zinc',
+    'boron'
   ];
 
   static const List<String> _stages = [
@@ -85,10 +91,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     'Volcanic':
         'Dark, crumbly soil, light and mineral-rich, often black or brown.',
     'Red': 'Reddish, sticky clay soil, smooth and heavy when wet.',
-    'Alluvial':
-        'Soft, silty soil near rivers, light brown, easy to dig.',
-    'Forest':
-        'Dark, spongy soil with leaves, soft and moist under trees.',
+    'Alluvial': 'Soft, silty soil near rivers, light brown, easy to dig.',
+    'Forest': 'Dark, spongy soil with leaves, soft and moist under trees.',
     'Laterite':
         'Hard, reddish-brown soil, firm and gravelly in tropical areas.',
   };
@@ -178,8 +182,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
 
   // ── Live research recommendations fetch ───────────────────────────────────
 
-  Future<void> _fetchLiveRecsForNutrient(
-      String nutrient, String status) async {
+  Future<void> _fetchLiveRecsForNutrient(String nutrient, String status) async {
     // Avoid duplicate in-flight requests.
     if (_loadingLiveRecs[nutrient] == true) return;
 
@@ -187,11 +190,11 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
 
     try {
       final recs = await GeminiSoilAiService.fetchLiveRecommendations(
-        nutrient:    nutrient,
-        status:      status,
-        stage:       _selectedStage,
-        soilType:    _selectedSoilType,
-        isPerPlant:  _isPerPlant,
+        nutrient: nutrient,
+        status: status,
+        stage: _selectedStage,
+        soilType: _selectedSoilType,
+        isPerPlant: _isPerPlant,
         plantDensity: _plantDensity,
       );
 
@@ -236,8 +239,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
             onPressed: () => Navigator.pop(ctx, ImageSource.camera),
             style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF4A2C2A)),
-            child: const Text('Camera',
-                style: TextStyle(color: Colors.white)),
+            child: const Text('Camera', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -245,8 +247,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     if (source == null || !mounted) return;
 
     final picker = ImagePicker();
-    final file =
-        await picker.pickImage(source: source, imageQuality: 85);
+    final file = await picker.pickImage(source: source, imageQuality: 85);
     if (file == null || !mounted) return;
 
     setState(() => _isScanningImage = true);
@@ -265,8 +266,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     if (result == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Could not analyse the image. Please try again.'),
+          content: Text('Could not analyse the image. Please try again.'),
           backgroundColor: Color(0xFF4A2C2A),
         ),
       );
@@ -279,7 +279,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
       // all should resolve to the canonical "Alluvial" key.
       final rawType = result.identifiedSoilType!.trim();
       final normalised = _soilTypes.keys.firstWhere(
-        (k) => k.toLowerCase() == rawType.toLowerCase() ||
+        (k) =>
+            k.toLowerCase() == rawType.toLowerCase() ||
             rawType.toLowerCase().startsWith(k.toLowerCase()),
         orElse: () => rawType,
       );
@@ -353,34 +354,33 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
               if (result.reasoning != null) ...[
                 Text(
                   result.reasoning!,
-                  style: const TextStyle(
-                      color: Color(0xFF3A5F0B), fontSize: 13),
+                  style:
+                      const TextStyle(color: Color(0xFF3A5F0B), fontSize: 13),
                 ),
                 const SizedBox(height: 12),
               ],
               const Text(
                 'Most likely candidates:',
                 style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF4A2C2A)),
+                    fontWeight: FontWeight.w600, color: Color(0xFF4A2C2A)),
               ),
               const SizedBox(height: 8),
               RadioGroup<String>(
                 groupValue: selected,
-                onChanged: (v) =>
-                    setDialogState(() => selected = v),
+                onChanged: (v) => setDialogState(() => selected = v),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: result.candidates.map(
-                    (c) => RadioListTile<String>(
-                      dense: true,
-                      title: Text(c,
-                          style: const TextStyle(
-                              color: Color(0xFF4A2C2A))),
-                      value: c,
-                      activeColor: const Color(0xFF3A5F0B),
-                    ),
-                  ).toList(),
+                  children: result.candidates
+                      .map(
+                        (c) => RadioListTile<String>(
+                          dense: true,
+                          title: Text(c,
+                              style: const TextStyle(color: Color(0xFF4A2C2A))),
+                          value: c,
+                          activeColor: const Color(0xFF3A5F0B),
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
             ],
@@ -395,8 +395,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
               onPressed: () => Navigator.pop(ctx, selected),
               style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4A2C2A)),
-              child: const Text('Confirm',
-                  style: TextStyle(color: Colors.white)),
+              child:
+                  const Text('Confirm', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -446,8 +446,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     if (result == null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-              'AI analysis unavailable. Using standard recommendations.'),
+          content:
+              Text('AI analysis unavailable. Using standard recommendations.'),
           backgroundColor: Color(0xFF4A2C2A),
         ),
       );
@@ -467,17 +467,17 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
           .collection('Users')
           .doc(widget.userId)
           .get();
-      final existingPlots = (querySnapshot.data()?['plots']?['plotIds']
-              as List<dynamic>?)
-          ?.cast<String>() ??
-          [];
+      final existingPlots =
+          (querySnapshot.data()?['plots']?['plotIds'] as List<dynamic>?)
+                  ?.cast<String>() ??
+              [];
 
       if (existingPlots.contains(newPlotId)) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                  'Plot ID already exists. Please choose a unique ID.'),
+              content:
+                  Text('Plot ID already exists. Please choose a unique ID.'),
               backgroundColor: Color(0xFF4A2C2A),
             ),
           );
@@ -505,8 +505,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
         interventionFollowUpDate: _interventionFollowUpDate != null
             ? Timestamp.fromDate(_interventionFollowUpDate!)
             : null,
-        recommendations:
-            _saveWithRecommendations ? _allRecommendations : null,
+        recommendations: _saveWithRecommendations ? _allRecommendations : null,
         saveWithRecommendations: _saveWithRecommendations,
         timestamp: Timestamp.now(),
         isDeleted: false,
@@ -561,11 +560,10 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
             final w1 = plan.weeks.first;
             setState(() {
               _interventionMethod = '${w1.action} — ${w1.product}';
-              _interventionQuantity =
-                  w1.quantityKgPerAcre.toStringAsFixed(1);
+              _interventionQuantity = w1.quantityKgPerAcre.toStringAsFixed(1);
               _interventionUnit = 'kg/acre';
-              _interventionFollowUpDate = DateTime.now()
-                  .add(Duration(days: plan.followUpDays));
+              _interventionFollowUpDate =
+                  DateTime.now().add(Duration(days: plan.followUpDays));
             });
 
             // Persist the AI-populated intervention + plan to Firestore.
@@ -576,8 +574,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
               'interventionMethod': _interventionMethod,
               'interventionQuantity': _interventionQuantity,
               'interventionUnit': _interventionUnit,
-              'interventionFollowUpDate': Timestamp.fromDate(
-                  _interventionFollowUpDate!),
+              'interventionFollowUpDate':
+                  Timestamp.fromDate(_interventionFollowUpDate!),
               'fertilizationPlan': plan.weeks
                   .map((w) => {
                         'week': w.week,
@@ -606,8 +604,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
       // ④ Predict intervention outcome.
       if (_interventionMethod != null && mounted) {
         final qty = double.tryParse(_interventionQuantity ?? '0') ?? 0;
-        final prediction =
-            await GeminiSoilAiService.predictInterventionOutcome(
+        final prediction = await GeminiSoilAiService.predictInterventionOutcome(
           currentValues: _currentNutrientValues,
           interventionProduct: _interventionMethod!,
           interventionQuantityKgPerAcre: qty,
@@ -616,8 +613,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
         );
 
         if (prediction != null) {
-          final predsMap = prediction.predictions.map((k, v) =>
-              MapEntry(k, {
+          final predsMap = prediction.predictions.map((k, v) => MapEntry(k, {
                 'current': v.current,
                 'expectedLow': v.expectedLow,
                 'expectedHigh': v.expectedHigh,
@@ -633,8 +629,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
               'predictions': predsMap,
             },
           });
-          developer.log(
-              'Saved AI prediction for $docId', name: 'CoffeeSoilForm');
+          developer.log('Saved AI prediction for $docId',
+              name: 'CoffeeSoilForm');
         }
       }
 
@@ -645,8 +641,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-                'Unable to save soil data. Please check your connection.'),
+            content:
+                Text('Unable to save soil data. Please check your connection.'),
             backgroundColor: Color(0xFF4A2C2A),
           ),
         );
@@ -707,8 +703,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                            color: const Color(0xFF3A5F0B)
-                                .withValues(alpha: 0.3)),
+                            color:
+                                const Color(0xFF3A5F0B).withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -747,8 +743,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                           _planRow('Quantity',
                               '${w.quantityKgPerAcre.toStringAsFixed(1)} kg/acre'),
                           _planRow('Timing', w.timing),
-                          if (w.notes.isNotEmpty)
-                            _planRow('Note', w.notes),
+                          if (w.notes.isNotEmpty) _planRow('Note', w.notes),
                         ],
                       ),
                     )),
@@ -793,8 +788,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
             Expanded(
               child: Text(
                 value,
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xFF3A5F0B)),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF3A5F0B)),
               ),
             ),
           ],
@@ -833,8 +827,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                           const SizedBox(height: 4),
                           Text(entry.value,
                               style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF3A5F0B))),
+                                  fontSize: 14, color: Color(0xFF3A5F0B))),
                         ],
                       ),
                     ))
@@ -844,8 +837,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close',
-                style: TextStyle(color: Color(0xFF4A2C2A))),
+            child:
+                const Text('Close', style: TextStyle(color: Color(0xFF4A2C2A))),
           ),
         ],
       ),
@@ -854,12 +847,10 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
 
   Widget _buildNutrientField(String nutrient) {
     final controller = _controllers[nutrient]!;
-    final unit =
-        NutrientAnalysisHelper.getNutrientUnit(nutrient, _isPerPlant);
+    final unit = NutrientAnalysisHelper.getNutrientUnit(nutrient, _isPerPlant);
     final status = _nutrientStatus[nutrient];
     final recommendations = _allRecommendations[nutrient];
-    final isExpanded =
-        _expandedRecommendations[nutrient] ?? false;
+    final isExpanded = _expandedRecommendations[nutrient] ?? false;
     final isLoadingRecs = _loadingLiveRecs[nutrient] == true;
 
     return Card(
@@ -877,16 +868,12 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                     '${nutrient.toUpperCase()} ${unit.isNotEmpty ? "($unit)" : ""}',
                 border: const OutlineInputBorder(),
                 focusedBorder: const OutlineInputBorder(
-                    borderSide:
-                        BorderSide(color: Color(0xFF3A5F0B))),
-                labelStyle:
-                    const TextStyle(color: Color(0xFF3A5F0B)),
+                    borderSide: BorderSide(color: Color(0xFF3A5F0B))),
+                labelStyle: const TextStyle(color: Color(0xFF3A5F0B)),
                 suffixIcon: nutrient != 'pH'
                     ? IconButton(
                         icon: Icon(
-                          _isPerPlant
-                              ? Icons.person
-                              : Icons.landscape,
+                          _isPerPlant ? Icons.person : Icons.landscape,
                           color: const Color(0xFF3A5F0B),
                         ),
                         onPressed: () {
@@ -906,22 +893,19 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
             ),
             if (controller.text.isNotEmpty && status != null) ...[
               const SizedBox(height: 12),
-              _buildGaugeVisualization(
-                  nutrient, double.parse(controller.text)),
+              _buildGaugeVisualization(nutrient, double.parse(controller.text)),
             ],
             if (status != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(status)
-                          .withValues(alpha: 0.1),
+                      color: _getStatusColor(status).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: _getStatusColor(status)),
+                      border: Border.all(color: _getStatusColor(status)),
                     ),
                     child: Text(
                       'Status: $status',
@@ -950,8 +934,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                             Text(
                               'Loading research...',
                               style: TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF3A5F0B)),
+                                  fontSize: 11, color: Color(0xFF3A5F0B)),
                             ),
                           ],
                         ),
@@ -960,20 +943,16 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                         recommendations.isNotEmpty)
                       TextButton.icon(
                         onPressed: () => setState(() =>
-                            _expandedRecommendations[nutrient] =
-                                !isExpanded),
+                            _expandedRecommendations[nutrient] = !isExpanded),
                         icon: Icon(
-                          isExpanded
-                              ? Icons.expand_less
-                              : Icons.expand_more,
+                          isExpanded ? Icons.expand_less : Icons.expand_more,
                           size: 16,
                           color: const Color(0xFF3A5F0B),
                         ),
                         label: Text(
                           isExpanded ? 'Hide' : 'View Research Guide',
                           style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF3A5F0B)),
+                              fontSize: 12, color: Color(0xFF3A5F0B)),
                         ),
                         style: TextButton.styleFrom(
                           foregroundColor: const Color(0xFF3A5F0B),
@@ -1029,10 +1008,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
           child: Stack(
             children: [
               Positioned(
-                left: position *
-                    (MediaQuery.of(context).size.width - 64),
-                child: Container(
-                    width: 4, height: 20, color: Colors.white),
+                left: position * (MediaQuery.of(context).size.width - 64),
+                child: Container(width: 4, height: 20, color: Colors.white),
               ),
             ],
           ),
@@ -1041,8 +1018,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
         Center(
           child: Text(
             'Optimal: ${optimal.toStringAsFixed(1)}',
-            style: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
         ),
       ],
@@ -1071,7 +1047,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
       decoration: BoxDecoration(
         color: const Color(0xFFEAF4E3),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF3A5F0B).withValues(alpha: 0.35)),
+        border:
+            Border.all(color: const Color(0xFF3A5F0B).withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1143,14 +1120,13 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                   child: TextButton.icon(
                     onPressed: () {
                       widget.onInputInteraction?.call();
-                      _pasteRecommendationToIntervention(
-                          recommendation);
+                      _pasteRecommendationToIntervention(recommendation);
                     },
                     icon: const Icon(Icons.copy,
                         size: 16, color: Color(0xFF4A2C2A)),
                     label: const Text('Use as Intervention',
-                        style: TextStyle(
-                            fontSize: 12, color: Color(0xFF4A2C2A))),
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFF4A2C2A))),
                     style: TextButton.styleFrom(
                         foregroundColor: const Color(0xFF4A2C2A),
                         padding: const EdgeInsets.symmetric(
@@ -1173,7 +1149,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
 
     // Health score colour — all within the app's brown/green palette.
     final scoreColor = r.healthScore >= 70
-        ? const Color(0xFF3A5F0B)   // healthy green
+        ? const Color(0xFF3A5F0B) // healthy green
         : r.healthScore >= 40
             ? const Color(0xFF4A2C2A) // cautionary brown
             : const Color(0xFFB71C1C); // critical deep red
@@ -1181,8 +1157,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     return Card(
       elevation: 3,
       margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
@@ -1217,13 +1192,13 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                   ),
                   // Health score badge
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: scoreColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: scoreColor.withValues(alpha: 0.6)),
+                      border:
+                          Border.all(color: scoreColor.withValues(alpha: 0.6)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1257,9 +1232,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                 child: Text(
                   r.summary,
                   style: const TextStyle(
-                      color: Color(0xFF3A5F0B),
-                      fontSize: 13,
-                      height: 1.4),
+                      color: Color(0xFF3A5F0B), fontSize: 13, height: 1.4),
                 ),
               ),
 
@@ -1285,8 +1258,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                       decoration: BoxDecoration(
                         color: chipColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color: chipColor.withValues(alpha: 0.5)),
+                        border:
+                            Border.all(color: chipColor.withValues(alpha: 0.5)),
                       ),
                       child: Text(
                         '${e.key.toUpperCase()} · ${e.value}',
@@ -1314,7 +1287,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                 ...r.interactions.map((interaction) {
                   // Severity mapped to app palette only — no orange/amber.
                   final color = interaction.severity == 'high'
-                      ? const Color(0xFFB71C1C)   // deep red
+                      ? const Color(0xFFB71C1C) // deep red
                       : interaction.severity == 'medium'
                           ? const Color(0xFF4A2C2A) // app brown
                           : const Color(0xFF5D4037); // warm brown for low
@@ -1327,8 +1300,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                     decoration: BoxDecoration(
                       color: color.withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: color.withValues(alpha: 0.25)),
+                      border: Border.all(color: color.withValues(alpha: 0.25)),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1354,8 +1326,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                                         horizontal: 6, vertical: 1),
                                     decoration: BoxDecoration(
                                       color: color.withValues(alpha: 0.12),
-                                      borderRadius:
-                                          BorderRadius.circular(8),
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
                                       interaction.severity.toUpperCase(),
@@ -1371,8 +1342,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                               Text(
                                 interaction.description,
                                 style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF4A2C2A)),
+                                    fontSize: 12, color: Color(0xFF4A2C2A)),
                               ),
                             ],
                           ),
@@ -1387,8 +1357,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
               if (r.moisture.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1565C0).withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(8),
@@ -1398,15 +1368,13 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                   child: Row(
                     children: [
                       const Icon(Icons.water_drop_outlined,
-                          size: 16,
-                          color: Color(0xFF1565C0)),
+                          size: 16, color: Color(0xFF1565C0)),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           r.moisture,
                           style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF1A237E)),
+                              fontSize: 12, color: Color(0xFF1A237E)),
                         ),
                       ),
                     ],
@@ -1427,8 +1395,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                       fontSize: 14),
                 ),
                 const SizedBox(height: 8),
-                ...r.recommendations.map(
-                    (rec) => _buildAiNutrientRecommendationCard(rec)),
+                ...r.recommendations
+                    .map((rec) => _buildAiNutrientRecommendationCard(rec)),
               ],
             ],
           ),
@@ -1443,33 +1411,55 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     // Priority badge colour — all app palette.
     final priorityColor = switch (rec.priority) {
       'critical' => const Color(0xFFB71C1C),
-      'high'     => const Color(0xFF4A2C2A),
-      'medium'   => const Color(0xFF5D4037),
-      _          => const Color(0xFF757575),
+      'high' => const Color(0xFF4A2C2A),
+      'medium' => const Color(0xFF5D4037),
+      _ => const Color(0xFF757575),
     };
 
     // Build non-empty field rows in display order.
     final sections = <(String label, String icon, String value, Color color)>[];
     if (rec.causes.isNotEmpty) {
-      sections.add(('Possible Causes',       '🔍', rec.causes,             const Color(0xFF4A2C2A)));
+      sections
+          .add(('Possible Causes', '🔍', rec.causes, const Color(0xFF4A2C2A)));
     }
     if (rec.artificial.isNotEmpty) {
-      sections.add(('Chemical Solutions',    '⚗️', rec.artificial,         const Color(0xFF5D4037)));
+      sections.add((
+        'Chemical Solutions',
+        '⚗️',
+        rec.artificial,
+        const Color(0xFF5D4037)
+      ));
     }
     if (rec.natural.isNotEmpty) {
-      sections.add(('Natural Solutions',     '🌱', rec.natural,            const Color(0xFF3A5F0B)));
+      sections.add(
+          ('Natural Solutions', '🌱', rec.natural, const Color(0xFF3A5F0B)));
     }
     if (rec.biological.isNotEmpty) {
-      sections.add(('Biological Solutions',  '🦠', rec.biological,         const Color(0xFF1B5E20)));
+      sections.add((
+        'Biological Solutions',
+        '🦠',
+        rec.biological,
+        const Color(0xFF1B5E20)
+      ));
     }
     if (rec.application.isNotEmpty) {
-      sections.add(('Application Method',   '📋', rec.application,        const Color(0xFF3E2723)));
+      sections.add((
+        'Application Method',
+        '📋',
+        rec.application,
+        const Color(0xFF3E2723)
+      ));
     }
     if (rec.avoid.isNotEmpty) {
-      sections.add(('What to Avoid',         '⚠️', rec.avoid,              const Color(0xFFB71C1C)));
+      sections.add(('What to Avoid', '⚠️', rec.avoid, const Color(0xFFB71C1C)));
     }
     if (rec.futureEnhancements.isNotEmpty) {
-      sections.add(('Future Enhancements',   '🚀', rec.futureEnhancements, const Color(0xFF33691E)));
+      sections.add((
+        'Future Enhancements',
+        '🚀',
+        rec.futureEnhancements,
+        const Color(0xFF33691E)
+      ));
     }
 
     final expansionKey = 'ai_rec_${rec.nutrient}';
@@ -1480,15 +1470,13 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
       elevation: 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: BorderSide(
-            color: priorityColor.withValues(alpha: 0.3), width: 1),
+        side: BorderSide(color: priorityColor.withValues(alpha: 0.3), width: 1),
       ),
       child: ExpansionTile(
         initiallyExpanded: isExpanded,
         onExpansionChanged: (v) =>
             setState(() => _expandedRecommendations[expansionKey] = v),
-        tilePadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         title: Row(
           children: [
             Expanded(
@@ -1501,13 +1489,11 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: priorityColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                    color: priorityColor.withValues(alpha: 0.4)),
+                border: Border.all(color: priorityColor.withValues(alpha: 0.4)),
               ),
               child: Text(
                 rec.priority.toUpperCase(),
@@ -1533,8 +1519,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                     children: [
                       Row(
                         children: [
-                          Text(emoji,
-                              style: const TextStyle(fontSize: 13)),
+                          Text(emoji, style: const TextStyle(fontSize: 13)),
                           const SizedBox(width: 5),
                           Text(
                             label,
@@ -1607,23 +1592,23 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     // so no jarring orange, purple, indigo or bright blue appears anywhere.
     switch (type) {
       case 'causes':
-        return const Color(0xFF4A2C2A);          // app brown
+        return const Color(0xFF4A2C2A); // app brown
       case 'natural':
-        return const Color(0xFF3A5F0B);          // app green
+        return const Color(0xFF3A5F0B); // app green
       case 'biological':
-        return const Color(0xFF1B5E20);          // darker green
+        return const Color(0xFF1B5E20); // darker green
       case 'artificial':
-        return const Color(0xFF5D4037);          // warm dark brown (≠ orange)
+        return const Color(0xFF5D4037); // warm dark brown (≠ orange)
       case 'application':
-        return const Color(0xFF3E2723);          // deep espresso brown
+        return const Color(0xFF3E2723); // deep espresso brown
       case 'avoid':
-        return const Color(0xFFB71C1C);          // deep red — warning only
+        return const Color(0xFFB71C1C); // deep red — warning only
       case 'future_enhancements':
-        return const Color(0xFF33691E);          // olive green
+        return const Color(0xFF33691E); // olive green
       case 'maintain':
-        return const Color(0xFF3A5F0B);          // app green
+        return const Color(0xFF3A5F0B); // app green
       default:
-        return const Color(0xFF757575);          // neutral grey
+        return const Color(0xFF757575); // neutral grey
     }
   }
 
@@ -1669,10 +1654,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     try {
       widget.onInputInteraction?.call();
       String? method = _interventionMethod;
-      DateTime followUpDate =
-          DateTime.now().add(const Duration(days: 30));
-      final methodController =
-          TextEditingController(text: method ?? '');
+      DateTime followUpDate = DateTime.now().add(const Duration(days: 30));
+      final methodController = TextEditingController(text: method ?? '');
       final quantityController = TextEditingController();
       final unitController = TextEditingController();
       final currentContext = context;
@@ -1692,8 +1675,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                     decoration: const InputDecoration(
                       labelText: 'Nutrient',
                       border: OutlineInputBorder(),
-                      labelStyle:
-                          TextStyle(color: Color(0xFF3A5F0B)),
+                      labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
                     ),
                     items: _nutrientStatus.entries
                         .where((e) => e.value != 'Optimal')
@@ -1701,18 +1683,14 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                               value: e.key,
                               child: Text(e.key.toUpperCase(),
                                   style: const TextStyle(
-                                      color:
-                                          Color(0xFF3A5F0B))),
+                                      color: Color(0xFF3A5F0B))),
                             ))
                         .toList(),
                     onChanged: (value) {
                       widget.onInputInteraction?.call();
-                      if (value != null &&
-                          _allRecommendations[value] != null) {
+                      if (value != null && _allRecommendations[value] != null) {
                         methodController.text =
-                            _allRecommendations[value]![
-                                    'artificial'] ??
-                                '';
+                            _allRecommendations[value]!['artificial'] ?? '';
                       }
                     },
                   ),
@@ -1724,8 +1702,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                       border: OutlineInputBorder(),
                       helperText:
                           'Tap "Use as Intervention" from recommendations',
-                      labelStyle:
-                          TextStyle(color: Color(0xFF3A5F0B)),
+                      labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
                     ),
                     maxLines: 3,
                     onTap: widget.onInputInteraction,
@@ -1736,8 +1713,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                     decoration: const InputDecoration(
                       labelText: 'Quantity (Optional)',
                       border: OutlineInputBorder(),
-                      labelStyle:
-                          TextStyle(color: Color(0xFF3A5F0B)),
+                      labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
                     ),
                     keyboardType: TextInputType.number,
                     onTap: widget.onInputInteraction,
@@ -1748,8 +1724,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                     decoration: const InputDecoration(
                       labelText: 'Unit (Optional)',
                       border: OutlineInputBorder(),
-                      labelStyle:
-                          TextStyle(color: Color(0xFF3A5F0B)),
+                      labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
                     ),
                     onTap: widget.onInputInteraction,
                   ),
@@ -1757,8 +1732,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                   ListTile(
                     title: Text(
                       'Follow-up: ${followUpDate.toString().substring(0, 10)}',
-                      style: const TextStyle(
-                          color: Color(0xFF3A5F0B)),
+                      style: const TextStyle(color: Color(0xFF3A5F0B)),
                     ),
                     trailing: const Icon(Icons.calendar_today,
                         color: Color(0xFF3A5F0B)),
@@ -1821,8 +1795,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
     }
   }
 
-  Future<void> _scheduleReminder(
-      DateTime date, String message) async {
+  Future<void> _scheduleReminder(DateTime date, String message) async {
     try {
       const androidDetails = AndroidNotificationDetails(
         'soil_reminder',
@@ -1831,8 +1804,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
         importance: Importance.max,
         priority: Priority.high,
       );
-      const notificationDetails =
-          NotificationDetails(android: androidDetails);
+      const notificationDetails = NotificationDetails(android: androidDetails);
       await widget.notificationsPlugin.zonedSchedule(
         id: (widget.userId + widget.plotId + date.toString()).hashCode,
         title: 'Soil Follow-Up for ${widget.plotId}',
@@ -1860,8 +1832,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
             labelText: 'Plot ID *',
             border: OutlineInputBorder(),
             labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
-            helperText:
-                'Enter a unique identifier (e.g. "Plot-A", "Field-01")',
+            helperText: 'Enter a unique identifier (e.g. "Plot-A", "Field-01")',
           ),
           onChanged: (value) => plotId = value,
         ),
@@ -1877,8 +1848,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                 Navigator.pop(context, plotId.trim());
               }
             },
-            child: const Text('Save',
-                style: TextStyle(color: Color(0xFF4A2C2A))),
+            child:
+                const Text('Save', style: TextStyle(color: Color(0xFF4A2C2A))),
           ),
         ],
       ),
@@ -1947,8 +1918,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                             decoration: InputDecoration(
                               labelText: 'Soil Type (Optional)',
                               border: const OutlineInputBorder(),
-                              labelStyle: const TextStyle(
-                                  color: Color(0xFF3A5F0B)),
+                              labelStyle:
+                                  const TextStyle(color: Color(0xFF3A5F0B)),
                               suffixIcon: IconButton(
                                 icon: const Icon(Icons.help_outline,
                                     color: Color(0xFF3A5F0B)),
@@ -1960,8 +1931,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                               const DropdownMenuItem<String>(
                                 value: null,
                                 child: Text('Select Soil Type',
-                                    style: TextStyle(
-                                        color: Color(0xFF3A5F0B))),
+                                    style: TextStyle(color: Color(0xFF3A5F0B))),
                               ),
                               ..._soilTypes.keys.map(
                                 (soilType) => DropdownMenuItem(
@@ -1974,8 +1944,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                             ],
                             onChanged: (value) {
                               widget.onInputInteraction?.call();
-                              setState(
-                                  () => _selectedSoilType = value);
+                              setState(() => _selectedSoilType = value);
                               _updateAnalysis();
                             },
                           ),
@@ -2000,17 +1969,13 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                                   )
                                 : IconButton(
                                     onPressed: _scanSoilImage,
-                                    icon: const Icon(
-                                        Icons.camera_alt,
-                                        color:
-                                            Color(0xFF3A5F0B)),
+                                    icon: const Icon(Icons.camera_alt,
+                                        color: Color(0xFF3A5F0B)),
                                     style: IconButton.styleFrom(
-                                      backgroundColor:
-                                          const Color(0xFF3A5F0B)
-                                              .withValues(alpha: 0.1),
+                                      backgroundColor: const Color(0xFF3A5F0B)
+                                          .withValues(alpha: 0.1),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8),
+                                        borderRadius: BorderRadius.circular(8),
                                         side: const BorderSide(
                                             color: Color(0xFF3A5F0B)),
                                       ),
@@ -2027,8 +1992,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                       decoration: const InputDecoration(
                         labelText: 'Growth Stage',
                         border: OutlineInputBorder(),
-                        labelStyle:
-                            TextStyle(color: Color(0xFF3A5F0B)),
+                        labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
                       ),
                       items: _stages
                           .map((stage) => DropdownMenuItem(
@@ -2040,8 +2004,8 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                           .toList(),
                       onChanged: (value) {
                         widget.onInputInteraction?.call();
-                        setState(() => _selectedStage =
-                            value ?? 'Establishment/Seedling');
+                        setState(() =>
+                            _selectedStage = value ?? 'Establishment/Seedling');
                         _updateAnalysis();
                       },
                     ),
@@ -2051,8 +2015,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                       decoration: const InputDecoration(
                         labelText: 'Plant Density (plants/acre)',
                         border: OutlineInputBorder(),
-                        labelStyle:
-                            TextStyle(color: Color(0xFF3A5F0B)),
+                        labelStyle: TextStyle(color: Color(0xFF3A5F0B)),
                       ),
                       keyboardType: TextInputType.number,
                       onTap: widget.onInputInteraction,
@@ -2102,8 +2065,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                         selected: {_isPerPlant},
                         onSelectionChanged: (selection) {
                           widget.onInputInteraction?.call();
-                          setState(
-                              () => _isPerPlant = selection.first);
+                          setState(() => _isPerPlant = selection.first);
                           _updateAnalysis();
                         },
                         style: SegmentedButton.styleFrom(
@@ -2140,28 +2102,23 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
             Align(
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
-                onPressed:
-                    _isRunningAiAnalysis ? null : _runAiAnalysis,
+                onPressed: _isRunningAiAnalysis ? null : _runAiAnalysis,
                 icon: _isRunningAiAnalysis
                     ? const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Color(0xFF3A5F0B)),
+                            strokeWidth: 2, color: Color(0xFF3A5F0B)),
                       )
-                    : const Icon(Icons.auto_awesome,
-                        color: Color(0xFF3A5F0B)),
+                    : const Icon(Icons.auto_awesome, color: Color(0xFF3A5F0B)),
                 label: Text(
-                  _isRunningAiAnalysis
-                      ? 'Analysing…'
-                      : 'Analyse with AI',
+                  _isRunningAiAnalysis ? 'Analysing…' : 'Analyse with AI',
                   style: const TextStyle(color: Color(0xFF3A5F0B)),
                 ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Color(0xFF3A5F0B)),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 18, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 ),
               ),
             ),
@@ -2175,17 +2132,17 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
             Align(
               alignment: Alignment.centerLeft,
               child: ElevatedButton.icon(
-                onPressed: _nutrientStatus.values
-                        .any((status) => status != 'Optimal')
-                    ? _addIntervention
-                    : null,
+                onPressed:
+                    _nutrientStatus.values.any((status) => status != 'Optimal')
+                        ? _addIntervention
+                        : null,
                 icon: const Icon(Icons.add_circle, color: Colors.white),
                 label: const Text('Add Intervention'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4A2C2A),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 18, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 ),
               ),
             ),
@@ -2196,8 +2153,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                 elevation: 2,
                 child: ListTile(
                   title: Text('Intervention: $_interventionMethod',
-                      style: const TextStyle(
-                          color: Color(0xFF4A2C2A))),
+                      style: const TextStyle(color: Color(0xFF4A2C2A))),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -2205,13 +2161,11 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                           _interventionUnit != null)
                         Text(
                             'Quantity: $_interventionQuantity $_interventionUnit',
-                            style: const TextStyle(
-                                color: Color(0xFF3A5F0B))),
+                            style: const TextStyle(color: Color(0xFF3A5F0B))),
                       if (_interventionFollowUpDate != null)
                         Text(
                             'Follow-up: ${_interventionFollowUpDate!.toString().substring(0, 10)}',
-                            style: const TextStyle(
-                                color: Color(0xFF3A5F0B))),
+                            style: const TextStyle(color: Color(0xFF3A5F0B))),
                     ],
                   ),
                 ),
@@ -2236,18 +2190,15 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                     const SizedBox(height: 16),
                     CheckboxListTile(
                       title: const Text('Save with recommendations',
-                          style:
-                              TextStyle(color: Color(0xFF4A2C2A))),
+                          style: TextStyle(color: Color(0xFF4A2C2A))),
                       subtitle: const Text(
                           'Include all recommendations in saved data',
-                          style:
-                              TextStyle(color: Color(0xFF3A5F0B))),
+                          style: TextStyle(color: Color(0xFF3A5F0B))),
                       value: _saveWithRecommendations,
                       onChanged: (value) {
                         widget.onInputInteraction?.call();
-                        setState(() =>
-                            _saveWithRecommendations =
-                                value ?? false);
+                        setState(
+                            () => _saveWithRecommendations = value ?? false);
                       },
                       activeColor: const Color(0xFF4A2C2A),
                     ),
@@ -2255,18 +2206,15 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: ElevatedButton.icon(
-                        onPressed:
-                            _isGeneratingPlan ? null : _saveForm,
+                        onPressed: _isGeneratingPlan ? null : _saveForm,
                         icon: _isGeneratingPlan
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white),
+                                    strokeWidth: 2, color: Colors.white),
                               )
-                            : const Icon(Icons.save,
-                                color: Colors.white),
+                            : const Icon(Icons.save, color: Colors.white),
                         label: Text(
                           _isGeneratingPlan
                               ? 'Generating plan…'
@@ -2298,8 +2246,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
                             );
                           }
                         },
-                        icon: const Icon(Icons.history,
-                            color: Colors.white),
+                        icon: const Icon(Icons.history, color: Colors.white),
                         label: const Text('View Soil History',
                             style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(

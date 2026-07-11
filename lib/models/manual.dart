@@ -40,8 +40,8 @@ class Manual {
         title: json['title'] as String,
         fileName: json['fileName'] as String,
         downloadUrl: json['downloadUrl'] as String,
-        uploadedAt: json['uploadedAt'] != null 
-            ? DateTime.parse(json['uploadedAt'] as String) 
+        uploadedAt: json['uploadedAt'] != null
+            ? DateTime.parse(json['uploadedAt'] as String)
             : null,
         category: json['category'] as String? ?? 'General',
         uploadedBy: json['uploadedBy'] as String?,

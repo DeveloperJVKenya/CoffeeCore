@@ -175,8 +175,8 @@ Guidelines:
         Content.text(trimmed),
       );
 
-      final aiText =
-          response.text ?? "I'm sorry, I couldn't process that. Please try again.";
+      final aiText = response.text ??
+          "I'm sorry, I couldn't process that. Please try again.";
 
       setState(() {
         _messages.removeLast(); // remove loading bubble
@@ -333,10 +333,13 @@ Guidelines:
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF3E2723), width: 1.5),
+                  border:
+                      Border.all(color: const Color(0xFF3E2723), width: 1.5),
                   boxShadow: const [
                     BoxShadow(
-                        color: Colors.black12, blurRadius: 3, offset: Offset(0, 1)),
+                        color: Colors.black12,
+                        blurRadius: 3,
+                        offset: Offset(0, 1)),
                   ],
                 ),
                 child: Text(
@@ -363,7 +366,8 @@ Guidelines:
       decoration: const BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, -2)),
+          BoxShadow(
+              color: Colors.black12, blurRadius: 8, offset: Offset(0, -2)),
         ],
       ),
       child: SafeArea(
@@ -375,7 +379,8 @@ Guidelines:
                 decoration: BoxDecoration(
                   color: const Color(0xFFF5E8C7),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFF3E2723), width: 1.5),
+                  border:
+                      Border.all(color: const Color(0xFF3E2723), width: 1.5),
                 ),
                 child: TextField(
                   controller: _inputController,
@@ -407,7 +412,9 @@ Guidelines:
                   borderRadius: BorderRadius.circular(23),
                   boxShadow: const [
                     BoxShadow(
-                        color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                        color: Colors.black26,
+                        blurRadius: 4,
+                        offset: Offset(0, 2)),
                   ],
                 ),
                 child: const Icon(Icons.send_rounded,
@@ -463,7 +470,8 @@ class _MessageBubble extends StatelessWidget {
         color: const Color(0xFF3E2723),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Icon(Icons.smart_toy_rounded, color: Color(0xFFFFCC80), size: 18),
+      child: const Icon(Icons.smart_toy_rounded,
+          color: Color(0xFFFFCC80), size: 18),
     );
   }
 
@@ -548,7 +556,8 @@ class _MessageBubble extends StatelessWidget {
           children: List.generate(3, (i) {
             final delay = i * 0.33;
             final t = ((dotAnimController.value - delay) % 1.0).clamp(0.0, 1.0);
-            final opacity = (0.3 + 0.7 * (1 - (2 * t - 1).abs())).clamp(0.0, 1.0);
+            final opacity =
+                (0.3 + 0.7 * (1 - (2 * t - 1).abs())).clamp(0.0, 1.0);
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 3),
               child: Opacity(

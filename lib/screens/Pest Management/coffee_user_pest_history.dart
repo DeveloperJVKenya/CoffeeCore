@@ -8,7 +8,8 @@ class CoffeeUserPestHistoryPage extends StatefulWidget {
   const CoffeeUserPestHistoryPage({super.key});
 
   @override
-  State<CoffeeUserPestHistoryPage> createState() => _CoffeeUserPestHistoryPageState();
+  State<CoffeeUserPestHistoryPage> createState() =>
+      _CoffeeUserPestHistoryPageState();
 }
 
 class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
@@ -20,7 +21,9 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
     if (user == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('My Pest Management History', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: const Text('My Pest Management History',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color(0xFF6F4E37),
           foregroundColor: Colors.white,
         ),
@@ -30,7 +33,8 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Pest Management History', style: TextStyle(color: Colors.white)),
+        title: const Text('My Pest Management History',
+            style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF6F4E37),
         foregroundColor: Colors.white,
       ),
@@ -50,17 +54,23 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No pest management history available.'));
+            return const Center(
+                child: Text('No pest management history available.'));
           }
 
-          final interventions = snapshot.data!.docs.map((doc) {
-            try {
-              return CoffeePestIntervention.fromFirestore(doc as DocumentSnapshot<Map<String, dynamic>>, null);
-            } catch (e) {
-              _logger.e('Error parsing intervention ${doc.id}: $e');
-              return null;
-            }
-          }).where((item) => item != null).cast<CoffeePestIntervention>().toList();
+          final interventions = snapshot.data!.docs
+              .map((doc) {
+                try {
+                  return CoffeePestIntervention.fromFirestore(
+                      doc as DocumentSnapshot<Map<String, dynamic>>, null);
+                } catch (e) {
+                  _logger.e('Error parsing intervention ${doc.id}: $e');
+                  return null;
+                }
+              })
+              .where((item) => item != null)
+              .cast<CoffeePestIntervention>()
+              .toList();
 
           return Container(
             color: Colors.grey[200],
@@ -77,12 +87,17 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Pest: ${intervention.pestName}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text('Pest: ${intervention.pestName}',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
                         Text('Stage: ${intervention.cropStage}'),
-                        Text('Intervention: ${intervention.intervention.isNotEmpty ? intervention.intervention : "None"}'),
+                        Text(
+                            'Intervention: ${intervention.intervention.isNotEmpty ? intervention.intervention : "None"}'),
                         Text('Amount: ${intervention.amount ?? "N/A"}'),
-                        Text('Area: ${intervention.area ?? "N/A"} ${intervention.areaUnit}'),
-                        Text('Saved: ${intervention.timestamp.toDate().toString()}'),
+                        Text(
+                            'Area: ${intervention.area ?? "N/A"} ${intervention.areaUnit}'),
+                        Text(
+                            'Saved: ${intervention.timestamp.toDate().toString()}'),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -92,7 +107,8 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _deleteIntervention(intervention),
+                              onPressed: () =>
+                                  _deleteIntervention(intervention),
                             ),
                           ],
                         ),
@@ -110,8 +126,10 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
 
   Future<void> _editIntervention(CoffeePestIntervention intervention) async {
     final controller = TextEditingController(text: intervention.intervention);
-    final amountController = TextEditingController(text: intervention.amount ?? '');
-    final areaController = TextEditingController(text: intervention.area?.toString() ?? '');
+    final amountController =
+        TextEditingController(text: intervention.amount ?? '');
+    final areaController =
+        TextEditingController(text: intervention.area?.toString() ?? '');
     bool useSQM = intervention.areaUnit == 'SQM';
 
     final result = await showDialog<bool>(
@@ -123,9 +141,19 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: controller, decoration: const InputDecoration(labelText: 'Intervention Used')),
-                TextField(controller: amountController, decoration: const InputDecoration(labelText: 'Amount Applied')),
-                TextField(controller: areaController, decoration: const InputDecoration(labelText: 'Total Area Affected'), keyboardType: TextInputType.number),
+                TextField(
+                    controller: controller,
+                    decoration:
+                        const InputDecoration(labelText: 'Intervention Used')),
+                TextField(
+                    controller: amountController,
+                    decoration:
+                        const InputDecoration(labelText: 'Amount Applied')),
+                TextField(
+                    controller: areaController,
+                    decoration:
+                        const InputDecoration(labelText: 'Total Area Affected'),
+                    keyboardType: TextInputType.number),
                 SwitchListTile(
                   title: const Text('Use SQM'),
                   value: useSQM,
@@ -135,7 +163,9 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel')),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
               child: const Text('Save'),
@@ -147,10 +177,16 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
 
     if (result == true && mounted) {
       try {
-        await FirebaseFirestore.instance.collection('coffee_pest_interventions').doc(intervention.id).update({
+        await FirebaseFirestore.instance
+            .collection('coffee_pest_interventions')
+            .doc(intervention.id)
+            .update({
           'intervention': controller.text,
-          'amount': amountController.text.isNotEmpty ? amountController.text : null,
-          'area': areaController.text.isNotEmpty ? double.parse(areaController.text) : null,
+          'amount':
+              amountController.text.isNotEmpty ? amountController.text : null,
+          'area': areaController.text.isNotEmpty
+              ? double.parse(areaController.text)
+              : null,
           'areaUnit': useSQM ? 'SQM' : 'Acres',
         });
 
@@ -164,11 +200,13 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Intervention updated successfully')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Intervention updated successfully')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating intervention: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error updating intervention: $e')));
         }
       }
     }
@@ -180,9 +218,12 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Deletion'),
-        content: const Text('Are you sure you want to delete this intervention? It can be restored by an admin.'),
+        content: const Text(
+            'Are you sure you want to delete this intervention? It can be restored by an admin.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -193,7 +234,10 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
 
     if (confirm == true && mounted) {
       try {
-        await FirebaseFirestore.instance.collection('coffee_pest_interventions').doc(intervention.id).update({
+        await FirebaseFirestore.instance
+            .collection('coffee_pest_interventions')
+            .doc(intervention.id)
+            .update({
           'isDeleted': true,
         });
 
@@ -207,11 +251,13 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
         });
 
         if (mounted) {
-          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Intervention deleted successfully')));
+          scaffoldMessenger.showSnackBar(const SnackBar(
+              content: Text('Intervention deleted successfully')));
         }
       } catch (e) {
         if (mounted) {
-          scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error deleting intervention: $e')));
+          scaffoldMessenger.showSnackBar(
+              SnackBar(content: Text('Error deleting intervention: $e')));
         }
       }
     }

@@ -36,7 +36,7 @@ class SoilTypeResult {
 class NutrientInteraction {
   final String nutrient1;
   final String nutrient2;
-  final String type;     // 'antagonism' | 'synergy'
+  final String type; // 'antagonism' | 'synergy'
   final String severity; // 'low' | 'medium' | 'high'
   final String description;
 
@@ -50,10 +50,10 @@ class NutrientInteraction {
 
   factory NutrientInteraction.fromJson(Map<String, dynamic> json) =>
       NutrientInteraction(
-        nutrient1:   json['nutrient1']   as String? ?? '',
-        nutrient2:   json['nutrient2']   as String? ?? '',
-        type:        json['type']        as String? ?? 'antagonism',
-        severity:    json['severity']    as String? ?? 'medium',
+        nutrient1: json['nutrient1'] as String? ?? '',
+        nutrient2: json['nutrient2'] as String? ?? '',
+        type: json['type'] as String? ?? 'antagonism',
+        severity: json['severity'] as String? ?? 'medium',
         description: json['description'] as String? ?? '',
       );
 }
@@ -61,13 +61,13 @@ class NutrientInteraction {
 /// A prioritised AI recommendation for a single nutrient from ②
 class SoilRecommendation {
   final String nutrient;
-  final String priority;         // 'critical' | 'high' | 'medium' | 'low'
-  final String artificial;       // Chemical/fertilizer solution
-  final String natural;          // Organic/natural solution
-  final String biological;       // Biological/microbial solution
-  final String application;      // How & when to apply
-  final String avoid;            // What practices/inputs to avoid
-  final String causes;           // Likely causes of the deficiency/excess
+  final String priority; // 'critical' | 'high' | 'medium' | 'low'
+  final String artificial; // Chemical/fertilizer solution
+  final String natural; // Organic/natural solution
+  final String biological; // Biological/microbial solution
+  final String application; // How & when to apply
+  final String avoid; // What practices/inputs to avoid
+  final String causes; // Likely causes of the deficiency/excess
   final String futureEnhancements; // Long-term improvement strategies
 
   const SoilRecommendation({
@@ -84,26 +84,27 @@ class SoilRecommendation {
 
   factory SoilRecommendation.fromJson(Map<String, dynamic> json) =>
       SoilRecommendation(
-        nutrient:             json['nutrient']              as String? ?? '',
-        priority:             json['priority']              as String? ?? 'medium',
-        artificial:           json['artificial']            as String? ?? '',
-        natural:              json['natural']               as String? ?? '',
-        biological:           json['biological']            as String? ?? '',
-        application:          json['application']           as String? ?? '',
-        avoid:                json['avoid']                 as String? ?? '',
-        causes:               json['causes']                as String? ?? '',
-        futureEnhancements:   json['future_enhancements']  as String? ?? '',
+        nutrient: json['nutrient'] as String? ?? '',
+        priority: json['priority'] as String? ?? 'medium',
+        artificial: json['artificial'] as String? ?? '',
+        natural: json['natural'] as String? ?? '',
+        biological: json['biological'] as String? ?? '',
+        application: json['application'] as String? ?? '',
+        avoid: json['avoid'] as String? ?? '',
+        causes: json['causes'] as String? ?? '',
+        futureEnhancements: json['future_enhancements'] as String? ?? '',
       );
 
   /// Converts to the Map\<String,String> shape used by CoffeeSoilForm
   Map<String, String> toRecommendationMap() => {
-        if (causes.isNotEmpty)              'causes':              causes,
-        if (artificial.isNotEmpty)          'artificial':          artificial,
-        if (natural.isNotEmpty)             'natural':             natural,
-        if (biological.isNotEmpty)          'biological':          biological,
-        if (application.isNotEmpty)         'application':         application,
-        if (avoid.isNotEmpty)               'avoid':               avoid,
-        if (futureEnhancements.isNotEmpty)  'future_enhancements': futureEnhancements,
+        if (causes.isNotEmpty) 'causes': causes,
+        if (artificial.isNotEmpty) 'artificial': artificial,
+        if (natural.isNotEmpty) 'natural': natural,
+        if (biological.isNotEmpty) 'biological': biological,
+        if (application.isNotEmpty) 'application': application,
+        if (avoid.isNotEmpty) 'avoid': avoid,
+        if (futureEnhancements.isNotEmpty)
+          'future_enhancements': futureEnhancements,
       };
 }
 
@@ -127,23 +128,19 @@ class SoilAnalysisResult {
 
   factory SoilAnalysisResult.fromJson(Map<String, dynamic> json) {
     final statusRaw = json['nutrient_status'] as Map<String, dynamic>? ?? {};
-    final interactionsRaw =
-        json['interactions'] as List<dynamic>? ?? [];
-    final recommendationsRaw =
-        json['recommendations'] as List<dynamic>? ?? [];
+    final interactionsRaw = json['interactions'] as List<dynamic>? ?? [];
+    final recommendationsRaw = json['recommendations'] as List<dynamic>? ?? [];
 
     return SoilAnalysisResult(
-      healthScore:    (json['health_score'] as num?)?.toInt() ?? 50,
+      healthScore: (json['health_score'] as num?)?.toInt() ?? 50,
       nutrientStatus: statusRaw.map((k, v) => MapEntry(k, v.toString())),
-      interactions:   interactionsRaw
-          .map((e) =>
-              NutrientInteraction.fromJson(e as Map<String, dynamic>))
+      interactions: interactionsRaw
+          .map((e) => NutrientInteraction.fromJson(e as Map<String, dynamic>))
           .toList(),
       recommendations: recommendationsRaw
-          .map((e) =>
-              SoilRecommendation.fromJson(e as Map<String, dynamic>))
+          .map((e) => SoilRecommendation.fromJson(e as Map<String, dynamic>))
           .toList(),
-      summary:  json['summary']  as String? ?? '',
+      summary: json['summary'] as String? ?? '',
       moisture: json['moisture'] as String? ?? '',
     );
   }
@@ -182,13 +179,15 @@ class FertilizationWeek {
 
   factory FertilizationWeek.fromJson(Map<String, dynamic> json) =>
       FertilizationWeek(
-        week:               (json['week'] as num?)?.toInt() ?? 1,
-        action:             json['action']   as String? ?? '',
-        product:            json['product']  as String? ?? '',
-        quantityKgPerAcre:  (json['quantity_kg_per_acre'] as num?)?.toDouble() ?? 0,
-        quantityGPerPlant:  (json['quantity_g_per_plant']  as num?)?.toDouble() ?? 0,
-        timing:             json['timing']   as String? ?? '',
-        notes:              json['notes']    as String? ?? '',
+        week: (json['week'] as num?)?.toInt() ?? 1,
+        action: json['action'] as String? ?? '',
+        product: json['product'] as String? ?? '',
+        quantityKgPerAcre:
+            (json['quantity_kg_per_acre'] as num?)?.toDouble() ?? 0,
+        quantityGPerPlant:
+            (json['quantity_g_per_plant'] as num?)?.toDouble() ?? 0,
+        timing: json['timing'] as String? ?? '',
+        notes: json['notes'] as String? ?? '',
       );
 }
 
@@ -207,11 +206,11 @@ class FertilizationPlan {
   factory FertilizationPlan.fromJson(Map<String, dynamic> json) {
     final weeksRaw = json['weeks'] as List<dynamic>? ?? [];
     return FertilizationPlan(
-      weeks:         weeksRaw
+      weeks: weeksRaw
           .map((e) => FertilizationWeek.fromJson(e as Map<String, dynamic>))
           .toList(),
-      followUpDays:  (json['follow_up_date_days'] as num?)?.toInt() ?? 90,
-      summary:       json['summary'] as String? ?? '',
+      followUpDays: (json['follow_up_date_days'] as num?)?.toInt() ?? 90,
+      summary: json['summary'] as String? ?? '',
     );
   }
 }
@@ -232,10 +231,10 @@ class NutrientPrediction {
 
   factory NutrientPrediction.fromJson(Map<String, dynamic> json) =>
       NutrientPrediction(
-        current:       (json['current']       as num?)?.toDouble() ?? 0,
-        expectedLow:   (json['expected_low']   as num?)?.toDouble() ?? 0,
-        expectedHigh:  (json['expected_high']  as num?)?.toDouble() ?? 0,
-        confidence:     json['confidence']      as String? ?? 'medium',
+        current: (json['current'] as num?)?.toDouble() ?? 0,
+        expectedLow: (json['expected_low'] as num?)?.toDouble() ?? 0,
+        expectedHigh: (json['expected_high'] as num?)?.toDouble() ?? 0,
+        confidence: json['confidence'] as String? ?? 'medium',
       );
 }
 
@@ -254,8 +253,8 @@ class InterventionPrediction {
   factory InterventionPrediction.fromJson(Map<String, dynamic> json) {
     final predsRaw = json['predictions'] as Map<String, dynamic>? ?? {};
     return InterventionPrediction(
-      predictions: predsRaw.map((k, v) => MapEntry(
-            k, NutrientPrediction.fromJson(v as Map<String, dynamic>))),
+      predictions: predsRaw.map((k, v) =>
+          MapEntry(k, NutrientPrediction.fromJson(v as Map<String, dynamic>))),
       caveats: List<String>.from(json['caveats'] ?? []),
       summary: json['summary'] as String? ?? '',
     );
@@ -280,10 +279,10 @@ class SoilTrendResult {
 
   factory SoilTrendResult.fromJson(Map<String, dynamic> json) =>
       SoilTrendResult(
-        overallDirection:  json['overall_direction']    as String? ?? 'stable',
-        trendSummary:      json['trend_summary']        as String? ?? '',
-        criticalAlerts:    List<String>.from(json['critical_alerts']  ?? []),
-        positiveTrends:    List<String>.from(json['positive_trends']  ?? []),
+        overallDirection: json['overall_direction'] as String? ?? 'stable',
+        trendSummary: json['trend_summary'] as String? ?? '',
+        criticalAlerts: List<String>.from(json['critical_alerts'] ?? []),
+        positiveTrends: List<String>.from(json['positive_trends'] ?? []),
         recommendedAction: json['recommended_next_action'] as String? ?? '',
       );
 }
@@ -317,11 +316,11 @@ class GeminiSoilAiService {
   static const int _advisorMaxTokens = 16384;
 
   // ── In-memory caches ────────────────────────────────────────────────────────
-  static final Map<String, SoilTypeResult>        _soilTypeCache    = {};
-  static final Map<String, SoilAnalysisResult>    _analysisCache    = {};
-  static final Map<String, FertilizationPlan>     _planCache        = {};
+  static final Map<String, SoilTypeResult> _soilTypeCache = {};
+  static final Map<String, SoilAnalysisResult> _analysisCache = {};
+  static final Map<String, FertilizationPlan> _planCache = {};
   static final Map<String, InterventionPrediction> _predictionCache = {};
-  static final Map<String, SoilTrendResult>       _trendCache       = {};
+  static final Map<String, SoilTrendResult> _trendCache = {};
 
   // ════════════════════════════════════════════════════════════════════════════
   // ① SOIL TYPE VISION SCANNER
@@ -329,7 +328,7 @@ class GeminiSoilAiService {
 
   static Future<SoilTypeResult?> identifySoilType({
     required Uint8List imageBytes,
-    required String    mimeType,
+    required String mimeType,
   }) async {
     final cacheKey =
         'soiltype_${imageBytes.length}_${imageBytes.take(8).join("")}';
@@ -345,7 +344,7 @@ class GeminiSoilAiService {
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
-          temperature:     0.2,
+          temperature: 0.2,
           // 2048 ensures Gemini 2.5 Flash has sufficient budget after its
           // internal thinking pass — 512 caused the JSON to be truncated at
           // ~15 tokens, leaving the response without a closing "}" and
@@ -429,10 +428,10 @@ If you are less than 65% confident:
 
   static Future<SoilAnalysisResult?> generateSoilAnalysis({
     required Map<String, double> nutrientValues,
-    required String  stage,
+    required String stage,
     required String? soilType,
-    required int     plantDensity,
-    required bool    isPerPlant,
+    required int plantDensity,
+    required bool isPerPlant,
   }) async {
     final cacheKey =
         '${_mapKey(nutrientValues)}|$stage|${soilType ?? "unknown"}';
@@ -453,7 +452,7 @@ If you are less than 65% confident:
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
-          temperature:     0.3,
+          temperature: 0.3,
           maxOutputTokens: 16384,
         ),
       );
@@ -462,7 +461,7 @@ If you are less than 65% confident:
         Content.text(_buildAnalysisPrompt(
             nutrientValues, stage, soilType, plantDensity, isPerPlant)),
       ]);
-      final rawText      = response.text ?? '';
+      final rawText = response.text ?? '';
       final finishReason = response.candidates.firstOrNull?.finishReason;
 
       debugPrint('[GeminiSoilAI] 📥 Analysis response: '
@@ -509,10 +508,10 @@ If you are less than 65% confident:
   static Future<FertilizationPlan?> generateFertilizationPlan({
     required Map<String, double> nutrientValues,
     required Map<String, String> nutrientStatus,
-    required String  stage,
+    required String stage,
     required String? soilType,
-    required int     plantDensity,
-    required bool    isPerPlant,
+    required int plantDensity,
+    required bool isPerPlant,
   }) async {
     final cacheKey =
         'plan_${_mapKey(nutrientValues)}|$stage|${soilType ?? "unknown"}';
@@ -529,17 +528,16 @@ If you are less than 65% confident:
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
-          temperature:     0.3,
+          temperature: 0.3,
           maxOutputTokens: 8192,
         ),
       );
 
       final response = await model.generateContent([
-        Content.text(_buildFertilizationPrompt(
-            nutrientValues, nutrientStatus, stage, soilType,
-            plantDensity, isPerPlant)),
+        Content.text(_buildFertilizationPrompt(nutrientValues, nutrientStatus,
+            stage, soilType, plantDensity, isPerPlant)),
       ]);
-      final rawText      = response.text ?? '';
+      final rawText = response.text ?? '';
       final finishReason = response.candidates.firstOrNull?.finishReason;
 
       debugPrint('[GeminiSoilAI] 📥 Fertilization plan response: '
@@ -579,13 +577,12 @@ If you are less than 65% confident:
 
   static Future<InterventionPrediction?> predictInterventionOutcome({
     required Map<String, double> currentValues,
-    required String  interventionProduct,
-    required double  interventionQuantityKgPerAcre,
-    required String  stage,
+    required String interventionProduct,
+    required double interventionQuantityKgPerAcre,
+    required String stage,
     required String? soilType,
   }) async {
-    final cacheKey =
-        'pred_${_mapKey(currentValues)}|$interventionProduct|'
+    final cacheKey = 'pred_${_mapKey(currentValues)}|$interventionProduct|'
         '${interventionQuantityKgPerAcre.toStringAsFixed(1)}|$stage';
     if (_predictionCache.containsKey(cacheKey)) {
       debugPrint('[GeminiSoilAI] ✅ Cache hit — intervention prediction');
@@ -601,15 +598,14 @@ If you are less than 65% confident:
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
-          temperature:     0.2,
+          temperature: 0.2,
           maxOutputTokens: 4096,
         ),
       );
 
       final response = await model.generateContent([
-        Content.text(_buildPredictionPrompt(currentValues,
-            interventionProduct, interventionQuantityKgPerAcre,
-            stage, soilType)),
+        Content.text(_buildPredictionPrompt(currentValues, interventionProduct,
+            interventionQuantityKgPerAcre, stage, soilType)),
       ]);
       final rawText = response.text ?? '';
 
@@ -618,8 +614,8 @@ If you are less than 65% confident:
         return null;
       }
 
-      final parsed = _parseJsonResponse(
-          rawText, context: 'predictInterventionOutcome');
+      final parsed =
+          _parseJsonResponse(rawText, context: 'predictInterventionOutcome');
       if (parsed == null) return null;
 
       final result = InterventionPrediction.fromJson(parsed);
@@ -646,7 +642,7 @@ If you are less than 65% confident:
   static Future<SoilTrendResult?> analyzeSoilTrend({
     required List<Map<String, dynamic>> readings,
     required String? soilType,
-    required String  stage,
+    required String stage,
   }) async {
     if (readings.length < 2) {
       debugPrint('[GeminiSoilAI] ⚠️ Not enough readings for trend analysis '
@@ -671,7 +667,7 @@ If you are less than 65% confident:
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
-          temperature:     0.3,
+          temperature: 0.3,
           maxOutputTokens: 4096,
         ),
       );
@@ -686,8 +682,7 @@ If you are less than 65% confident:
         return null;
       }
 
-      final parsed =
-          _parseJsonResponse(rawText, context: 'analyzeSoilTrend');
+      final parsed = _parseJsonResponse(rawText, context: 'analyzeSoilTrend');
       if (parsed == null) return null;
 
       final result = SoilTrendResult.fromJson(parsed);
@@ -701,8 +696,7 @@ If you are less than 65% confident:
           'code=${e.code} message="${e.message}"');
       return null;
     } catch (e, stack) {
-      debugPrint(
-          '[GeminiSoilAI] ❌ Unexpected error in analyzeSoilTrend: $e');
+      debugPrint('[GeminiSoilAI] ❌ Unexpected error in analyzeSoilTrend: $e');
       debugPrint('[GeminiSoilAI]    Stack: $stack');
       return null;
     }
@@ -714,9 +708,9 @@ If you are less than 65% confident:
 
   static Future<String?> askSoilAdvisor({
     required String question,
-    Map<String, double>?     currentNutrients,
-    String?                  stage,
-    String?                  soilType,
+    Map<String, double>? currentNutrients,
+    String? stage,
+    String? soilType,
     List<Map<String, String>> conversationHistory = const [],
   }) async {
     // Log the FULL question — the old 60-char substring was misleading users
@@ -734,7 +728,7 @@ If you are less than 65% confident:
         model: _model,
         systemInstruction: Content.system(contextBlock),
         generationConfig: GenerationConfig(
-          temperature:     0.7,
+          temperature: 0.7,
           maxOutputTokens: _advisorMaxTokens,
         ),
       );
@@ -752,7 +746,7 @@ If you are less than 65% confident:
       contents.add(Content.text(question));
 
       final response = await model.generateContent(contents);
-      final answer   = response.text ?? '';
+      final answer = response.text ?? '';
 
       // Log finish reason — stop = clean completion; MAX_TOKENS = still truncating.
       final finishReason = response.candidates.firstOrNull?.finishReason;
@@ -770,8 +764,7 @@ If you are less than 65% confident:
           'code=${e.code} message="${e.message}"');
       return null;
     } catch (e, stack) {
-      debugPrint(
-          '[GeminiSoilAI] ❌ Unexpected error in askSoilAdvisor: $e');
+      debugPrint('[GeminiSoilAI] ❌ Unexpected error in askSoilAdvisor: $e');
       debugPrint('[GeminiSoilAI]    Stack: $stack');
       return null;
     }
@@ -783,15 +776,14 @@ If you are less than 65% confident:
 
   static String _buildAnalysisPrompt(
     Map<String, double> values,
-    String  stage,
+    String stage,
     String? soilType,
-    int     plantDensity,
-    bool    isPerPlant,
+    int plantDensity,
+    bool isPerPlant,
   ) {
     final unit = isPerPlant ? 'mg/plant' : 'kg/acre';
     final valuesStr = values.entries
-        .map((e) =>
-            '  "${e.key}": ${e.value.toStringAsFixed(2)}'
+        .map((e) => '  "${e.key}": ${e.value.toStringAsFixed(2)}'
             '${e.key == 'pH' ? '' : ' $unit'}')
         .join('\n');
 
@@ -814,10 +806,10 @@ If you are less than 65% confident:
     // Build per-plant threshold note for the prompt
     final densityNote = isPerPlant
         ? 'Plant density $plantDensity plants/acre. '
-          'Scale reference thresholds: divide per-acre benchmark by $plantDensity '
-          'to get mg/plant threshold.'
+            'Scale reference thresholds: divide per-acre benchmark by $plantDensity '
+            'to get mg/plant threshold.'
         : 'Plant density $plantDensity plants/acre. '
-          'For application rates per plant divide kg/acre values by $plantDensity.';
+            'For application rates per plant divide kg/acre values by $plantDensity.';
 
     return '''
 You are a specialist agricultural AI for coffee farming in East Africa (Kenya, Uganda, Tanzania, Ethiopia).
@@ -917,10 +909,10 @@ Rules:
   static String _buildFertilizationPrompt(
     Map<String, double> values,
     Map<String, String> status,
-    String  stage,
+    String stage,
     String? soilType,
-    int     plantDensity,
-    bool    isPerPlant,
+    int plantDensity,
+    bool isPerPlant,
   ) {
     final deficient = status.entries
         .where((e) => e.value == 'Low')
@@ -974,9 +966,9 @@ Rules:
 
   static String _buildPredictionPrompt(
     Map<String, double> values,
-    String  product,
-    double  quantityKgPerAcre,
-    String  stage,
+    String product,
+    double quantityKgPerAcre,
+    String stage,
     String? soilType,
   ) {
     final valuesStr = values.entries
@@ -1028,17 +1020,16 @@ Rules:
   static String _buildTrendPrompt(
     List<Map<String, dynamic>> readings,
     String? soilType,
-    String  stage,
+    String stage,
   ) {
     final readingsStr = readings.asMap().entries.map((entry) {
-      final i    = entry.key + 1;
-      final r    = entry.value;
+      final i = entry.key + 1;
+      final r = entry.value;
       final date = r['timestamp']?.toString().split('T').first ?? 'Reading $i';
-      final nutrients =
-          (r['nutrients'] as Map<String, dynamic>? ?? {})
-              .entries
-              .map((e) => '${e.key}: ${e.value}')
-              .join(', ');
+      final nutrients = (r['nutrients'] as Map<String, dynamic>? ?? {})
+          .entries
+          .map((e) => '${e.key}: ${e.value}')
+          .join(', ');
       return 'Reading $i ($date): $nutrients';
     }).join('\n');
 
@@ -1156,7 +1147,7 @@ Rules:
 
       // Step 3: Extract outermost JSON object
       final firstBrace = cleaned.indexOf('{');
-      final lastBrace  = cleaned.lastIndexOf('}');
+      final lastBrace = cleaned.lastIndexOf('}');
 
       if (firstBrace == -1) {
         debugPrint('[GeminiSoilAI] ❌ No opening "{" for $context. '
@@ -1175,14 +1166,13 @@ Rules:
         // Strategy: close any open string, then close the object.
         final partial = cleaned.substring(firstBrace);
         for (final candidate in [
-          '$partial}',          // plain close
-          '$partial"}',         // close open string then object
-          '$partial"]}',        // close string + array + object
-          '$partial"]}}',       // two levels deep
+          '$partial}', // plain close
+          '$partial"}', // close open string then object
+          '$partial"]}', // close string + array + object
+          '$partial"]}}', // two levels deep
         ]) {
           try {
-            final recovered =
-                jsonDecode(candidate) as Map<String, dynamic>;
+            final recovered = jsonDecode(candidate) as Map<String, dynamic>;
             debugPrint('[GeminiSoilAI] ⚠️ Partial JSON recovered for '
                 '$context (${recovered.keys.length} keys: '
                 '${recovered.keys.toList()})');
@@ -1240,24 +1230,24 @@ Rules:
 
   static Future<Map<String, String>> fetchLiveRecommendations({
     required String nutrient,
-    required String status,     // 'Low' | 'High'
+    required String status, // 'Low' | 'High'
     required String stage,
     required String? soilType,
-    required bool   isPerPlant,
-    required int    plantDensity,
+    required bool isPerPlant,
+    required int plantDensity,
   }) async {
-    final cacheKey =
-        'live_${nutrient}_${status}_${stage}_${soilType ?? "any"}_'
+    final cacheKey = 'live_${nutrient}_${status}_${stage}_${soilType ?? "any"}_'
         '${isPerPlant ? "plant" : "acre"}';
     if (_liveRecCache.containsKey(cacheKey)) {
-      debugPrint('[GeminiSoilAI] ✅ Cache hit — live recs for $nutrient $status');
+      debugPrint(
+          '[GeminiSoilAI] ✅ Cache hit — live recs for $nutrient $status');
       return _liveRecCache[cacheKey]!;
     }
 
     debugPrint('[GeminiSoilAI] 🌐 Fetching live research recs — '
         '$nutrient $status | stage=$stage | soil=${soilType ?? "unknown"}');
 
-    final unit     = isPerPlant ? 'mg/plant' : 'kg/acre';
+    final unit = isPerPlant ? 'mg/plant' : 'kg/acre';
     final soilDesc = soilType != null ? '$soilType soil' : 'unknown soil type';
 
     final prompt = '''
@@ -1308,7 +1298,7 @@ Rules:
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
-          temperature:     0.2,
+          temperature: 0.2,
           maxOutputTokens: 8192,
         ),
         tools: [
@@ -1317,7 +1307,7 @@ Rules:
       );
 
       final response = await model.generateContent([Content.text(prompt)]);
-      final rawText  = response.text ?? '';
+      final rawText = response.text ?? '';
 
       debugPrint('[GeminiSoilAI] 📥 Live recs response: '
           '${rawText.length} chars for $nutrient $status');
@@ -1328,13 +1318,19 @@ Rules:
         return {};
       }
 
-      final parsed = _parseJsonResponse(rawText, context: 'fetchLiveRecommendations[$nutrient]');
+      final parsed = _parseJsonResponse(rawText,
+          context: 'fetchLiveRecommendations[$nutrient]');
       if (parsed == null) return {};
 
       final result = <String, String>{};
       for (final key in [
-        'causes', 'artificial', 'natural', 'biological',
-        'application', 'avoid', 'future_enhancements',
+        'causes',
+        'artificial',
+        'natural',
+        'biological',
+        'application',
+        'avoid',
+        'future_enhancements',
       ]) {
         final v = parsed[key] as String? ?? '';
         if (v.isNotEmpty) result[key] = v;
@@ -1349,7 +1345,8 @@ Rules:
           'code=${e.code} message="${e.message}"');
       return {};
     } catch (e, stack) {
-      debugPrint('[GeminiSoilAI] ❌ Error in fetchLiveRecommendations: $e\n$stack');
+      debugPrint(
+          '[GeminiSoilAI] ❌ Error in fetchLiveRecommendations: $e\n$stack');
       return {};
     }
   }
@@ -1362,7 +1359,6 @@ Rules:
   // ════════════════════════════════════════════════════════════════════════════
   // CACHE MANAGEMENT
   // ════════════════════════════════════════════════════════════════════════════
-
 
   static void clearAllCaches() {
     _soilTypeCache.clear();

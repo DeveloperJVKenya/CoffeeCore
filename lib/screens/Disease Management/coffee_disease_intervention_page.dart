@@ -18,10 +18,12 @@ class CoffeeDiseaseInterventionPage extends StatefulWidget {
   });
 
   @override
-  State<CoffeeDiseaseInterventionPage> createState() => _CoffeeDiseaseInterventionPageState();
+  State<CoffeeDiseaseInterventionPage> createState() =>
+      _CoffeeDiseaseInterventionPageState();
 }
 
-class _CoffeeDiseaseInterventionPageState extends State<CoffeeDiseaseInterventionPage> {
+class _CoffeeDiseaseInterventionPageState
+    extends State<CoffeeDiseaseInterventionPage> {
   final _interventionController = TextEditingController();
   final _amountController = TextEditingController();
   final _areaController = TextEditingController();
@@ -32,12 +34,16 @@ class _CoffeeDiseaseInterventionPageState extends State<CoffeeDiseaseInterventio
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     if (user == null) {
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Please log in')));
+      scaffoldMessenger
+          .showSnackBar(const SnackBar(content: Text('Please log in')));
       return;
     }
 
-    if (_interventionController.text.isEmpty && _amountController.text.isEmpty && _areaController.text.isEmpty) {
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Please fill at least one field')));
+    if (_interventionController.text.isEmpty &&
+        _amountController.text.isEmpty &&
+        _areaController.text.isEmpty) {
+      scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Please fill at least one field')));
       return;
     }
 
@@ -45,7 +51,9 @@ class _CoffeeDiseaseInterventionPageState extends State<CoffeeDiseaseInterventio
       diseaseName: widget.diseaseData.name,
       cropStage: widget.cropStage,
       intervention: _interventionController.text,
-      area: _areaController.text.isNotEmpty ? double.tryParse(_areaController.text) : null,
+      area: _areaController.text.isNotEmpty
+          ? double.tryParse(_areaController.text)
+          : null,
       areaUnit: _useSQM ? 'SQM' : 'Acres',
       timestamp: Timestamp.now(),
       userId: user.uid,
@@ -54,7 +62,10 @@ class _CoffeeDiseaseInterventionPageState extends State<CoffeeDiseaseInterventio
     );
 
     try {
-      await FirebaseFirestore.instance.collection('coffee_disease_interventions').doc().set(intervention.toMap());
+      await FirebaseFirestore.instance
+          .collection('coffee_disease_interventions')
+          .doc()
+          .set(intervention.toMap());
 
       await FirebaseFirestore.instance.collection('User_logs').add({
         'userId': user.uid,
@@ -70,9 +81,11 @@ class _CoffeeDiseaseInterventionPageState extends State<CoffeeDiseaseInterventio
         _amountController.clear();
         _areaController.clear();
       });
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Intervention saved successfully')));
+      scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Intervention saved successfully')));
     } catch (e) {
-      scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error saving intervention: $e')));
+      scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Error saving intervention: $e')));
     }
   }
 
@@ -80,7 +93,8 @@ class _CoffeeDiseaseInterventionPageState extends State<CoffeeDiseaseInterventio
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Disease Intervention', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Manage Disease Intervention',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF6F4E37),
         foregroundColor: Colors.white,
       ),
@@ -91,9 +105,11 @@ class _CoffeeDiseaseInterventionPageState extends State<CoffeeDiseaseInterventio
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildTextField('Intervention Used', _interventionController, 'e.g., Fungicide applied'),
+              _buildTextField('Intervention Used', _interventionController,
+                  'e.g., Fungicide applied'),
               const SizedBox(height: 16),
-              _buildTextField('Amount Applied', _amountController, 'e.g., 10 ml'),
+              _buildTextField(
+                  'Amount Applied', _amountController, 'e.g., 10 ml'),
               const SizedBox(height: 16),
               _buildTextField(
                 'Total Area Affected',
@@ -103,12 +119,12 @@ class _CoffeeDiseaseInterventionPageState extends State<CoffeeDiseaseInterventio
               ),
               const SizedBox(height: 16),
               SwitchListTile(
-                title: const Text('Use Square Meters (SQM)', style: TextStyle(color: Colors.black87)),
+                title: const Text('Use Square Meters (SQM)',
+                    style: TextStyle(color: Colors.black87)),
                 value: _useSQM,
                 onChanged: (value) => setState(() => _useSQM = value),
                 activeThumbColor: const Color(0xFF6F4E37),
               ),
-
               const SizedBox(height: 24),
               Column(
                 children: [
@@ -118,16 +134,19 @@ class _CoffeeDiseaseInterventionPageState extends State<CoffeeDiseaseInterventio
                       backgroundColor: const Color(0xFF6F4E37),
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Save Intervention', style: TextStyle(fontSize: 16)),
+                    child: const Text('Save Intervention',
+                        style: TextStyle(fontSize: 16)),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => CoffeeViewDiseaseInterventionsPage(
+                        builder: (context) =>
+                            CoffeeViewDiseaseInterventionsPage(
                           diseaseData: widget.diseaseData,
                           notificationsPlugin: widget.notificationsPlugin,
                         ),
@@ -137,9 +156,11 @@ class _CoffeeDiseaseInterventionPageState extends State<CoffeeDiseaseInterventio
                       backgroundColor: const Color(0xFF6F4E37),
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('View Saved Interventions', style: TextStyle(fontSize: 16)),
+                    child: const Text('View Saved Interventions',
+                        style: TextStyle(fontSize: 16)),
                   ),
                 ],
               ),
@@ -150,7 +171,9 @@ class _CoffeeDiseaseInterventionPageState extends State<CoffeeDiseaseInterventio
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, String hint, {bool isNumber = false}) {
+  Widget _buildTextField(
+      String label, TextEditingController controller, String hint,
+      {bool isNumber = false}) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

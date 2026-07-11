@@ -21,7 +21,8 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
   static final Color coffeeBrown = Colors.brown[700]!;
 
   Future<List<String>> _fetchCooperatives() async {
-    QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('cooperatives').get();
+    QuerySnapshot snapshot =
+        await FirebaseFirestore.instance.collection('cooperatives').get();
     return snapshot.docs.map((doc) => doc['name'] as String).toList();
   }
 
@@ -31,12 +32,16 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
     QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection('${formattedCoopId}_coffeeprices')
         .get();
-    return snapshot.docs.map((doc) => doc['variety'] as String).toSet().toList();
+    return snapshot.docs
+        .map((doc) => doc['variety'] as String)
+        .toSet()
+        .toList();
   }
 
   Future<bool> _checkIfUserInCooperative() async {
     if (_userId == null) return false;
-    final coopDocs = await FirebaseFirestore.instance.collection('cooperatives').get();
+    final coopDocs =
+        await FirebaseFirestore.instance.collection('cooperatives').get();
     for (var doc in coopDocs.docs) {
       String formattedCoopName = doc['name'].replaceAll(' ', '_');
       final userDoc = await FirebaseFirestore.instance
@@ -69,12 +74,18 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
       return;
     }
     try {
-      final userDoc = await FirebaseFirestore.instance.collection('Users').doc(_userId).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(_userId)
+          .get();
       if (!userDoc.exists) throw 'User not found';
       final userData = userDoc.data() as Map<String, dynamic>;
       String formattedCoopName = cooperative.replaceAll(' ', '_');
 
-      await FirebaseFirestore.instance.collection('${formattedCoopName}_users').doc(_userId).set({
+      await FirebaseFirestore.instance
+          .collection('${formattedCoopName}_users')
+          .doc(_userId)
+          .set({
         'fullName': userData['fullName'] ?? '',
         'county': userData['county'] ?? '',
         'constituency': userData['constituency'] ?? '',
@@ -113,7 +124,8 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
           _isLoading = false;
         });
       } else {
-        _showLogger('No price available for $_selectedCoffeeVariety in $_selectedCooperative.');
+        _showLogger(
+            'No price available for $_selectedCoffeeVariety in $_selectedCooperative.');
         setState(() => _isLoading = false);
       }
     } catch (e) {
@@ -148,19 +160,23 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
         scaffoldBackgroundColor: Colors.brown[50],
         textTheme: TextTheme(
           bodyMedium: const TextStyle(color: Colors.black87),
-          titleLarge: TextStyle(color: coffeeBrown, fontWeight: FontWeight.bold),
+          titleLarge:
+              TextStyle(color: coffeeBrown, fontWeight: FontWeight.bold),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: coffeeBrown,
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ),
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Coffee Prices', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+          title: const Text('Coffee Prices',
+              style:
+                  TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
           elevation: 0,
           backgroundColor: coffeeBrown,
           foregroundColor: Colors.white,
@@ -183,14 +199,16 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
                     return DropdownButtonFormField<String>(
                       initialValue: _selectedCooperative,
                       items: snapshot.data!
-                          .map((coop) => DropdownMenuItem(value: coop, child: Text(coop)))
+                          .map((coop) =>
+                              DropdownMenuItem(value: coop, child: Text(coop)))
                           .toList(),
                       onChanged: _isCoopSelected
                           ? null
                           : (value) {
                               setState(() {
                                 _selectedCooperative = value;
-                                _selectedCoffeeVariety = null; // Reset variety when coop changes
+                                _selectedCoffeeVariety =
+                                    null; // Reset variety when coop changes
                                 _predictedPrice = null; // Reset price
                               });
                               _registerUserToCooperative(value!);
@@ -198,7 +216,8 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
                       decoration: InputDecoration(
                         labelText: 'Select Cooperative',
                         prefixIcon: Icon(Icons.group, color: coffeeBrown),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         filled: true,
                         fillColor: Colors.white,
                         enabled: !_isCoopSelected,
@@ -210,25 +229,31 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
                 FutureBuilder<List<String>>(
                   future: _fetchVarieties(),
                   builder: (context, varietySnapshot) {
-                    if (varietySnapshot.connectionState == ConnectionState.waiting) {
+                    if (varietySnapshot.connectionState ==
+                        ConnectionState.waiting) {
                       return const CircularProgressIndicator();
                     }
-                    if (!varietySnapshot.hasData || varietySnapshot.data!.isEmpty) {
-                      return const Text('No varieties available for this cooperative.');
+                    if (!varietySnapshot.hasData ||
+                        varietySnapshot.data!.isEmpty) {
+                      return const Text(
+                          'No varieties available for this cooperative.');
                     }
                     return DropdownButtonFormField<String>(
                       initialValue: _selectedCoffeeVariety,
                       items: varietySnapshot.data!
-                          .map((variety) => DropdownMenuItem(value: variety, child: Text(variety)))
+                          .map((variety) => DropdownMenuItem(
+                              value: variety, child: Text(variety)))
                           .toList(),
                       onChanged: (value) => setState(() {
                         _selectedCoffeeVariety = value;
-                        _predictedPrice = null; // Reset price when variety changes
+                        _predictedPrice =
+                            null; // Reset price when variety changes
                       }),
                       decoration: InputDecoration(
                         labelText: 'Select Coffee Variety',
                         prefixIcon: Icon(Icons.local_cafe, color: coffeeBrown),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         filled: true,
                         fillColor: Colors.white,
                       ),
@@ -254,7 +279,10 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
                       const SizedBox(width: 8),
                       Text(
                         'Price: Ksh ${_predictedPrice!.toStringAsFixed(2)}/kg',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: coffeeBrown),
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: coffeeBrown),
                       ),
                     ],
                   ),

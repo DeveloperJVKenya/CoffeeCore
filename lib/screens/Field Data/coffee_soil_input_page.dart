@@ -50,7 +50,8 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         setState(() => _userId = user.uid);
-        developer.log('User initialized: $_userId', name: 'CoffeeSoilInputPage');
+        developer.log('User initialized: $_userId',
+            name: 'CoffeeSoilInputPage');
       } else {
         developer.log('No user logged in', name: 'CoffeeSoilInputPage');
         if (mounted) {
@@ -78,19 +79,16 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
           InitializationSettings(android: androidInitSettings);
       await _notificationsPlugin.initialize(settings: initializationSettings);
 
-      final androidPlugin = _notificationsPlugin
-          .resolvePlatformSpecificImplementation<
+      final androidPlugin =
+          _notificationsPlugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
-      final granted =
-          await androidPlugin?.requestNotificationsPermission();
+      final granted = await androidPlugin?.requestNotificationsPermission();
       final prefs = await SharedPreferences.getInstance();
-      final hasPrompted =
-          prefs.getBool('has_prompted_notifications') ?? false;
+      final hasPrompted = prefs.getBool('has_prompted_notifications') ?? false;
 
       setState(() => _hasNotificationPermission = granted ?? false);
 
-      developer.log(
-          'Notification init: permission=$_hasNotificationPermission',
+      developer.log('Notification init: permission=$_hasNotificationPermission',
           name: 'CoffeeSoilInputPage');
 
       if (!_hasNotificationPermission && !hasPrompted) {
@@ -133,11 +131,10 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
       );
 
       if (result == true) {
-        final androidPlugin = _notificationsPlugin
-            .resolvePlatformSpecificImplementation<
+        final androidPlugin =
+            _notificationsPlugin.resolvePlatformSpecificImplementation<
                 AndroidFlutterLocalNotificationsPlugin>();
-        final granted =
-            await androidPlugin?.requestNotificationsPermission();
+        final granted = await androidPlugin?.requestNotificationsPermission();
         setState(() => _hasNotificationPermission = granted ?? false);
         if (_hasNotificationPermission) await _retryPendingNotifications();
       }
@@ -175,8 +172,7 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
     try {
       if (!_hasNotificationPermission) {
         final prefs = await SharedPreferences.getInstance();
-        final pending =
-            prefs.getStringList('pending_notifications') ?? [];
+        final pending = prefs.getStringList('pending_notifications') ?? [];
         pending.add(jsonEncode({
           'date': date.toIso8601String(),
           'message': message,
@@ -193,8 +189,7 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
         importance: Importance.max,
         priority: Priority.high,
       );
-      const notificationDetails =
-          NotificationDetails(android: androidDetails);
+      const notificationDetails = NotificationDetails(android: androidDetails);
       await _notificationsPlugin.zonedSchedule(
         id: (_userId + plotId + date.toString()).hashCode,
         title: 'Soil Follow-Up for $plotId',
@@ -234,33 +229,26 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
             .collection('Users')
             .doc(_userId)
             .get();
-        final plotData =
-            userDoc.data()?['plots'] as Map<String, dynamic>?;
-        final cachedPlots =
-            prefs.getString('cached_plots_$_userId');
+        final plotData = userDoc.data()?['plots'] as Map<String, dynamic>?;
+        final cachedPlots = prefs.getString('cached_plots_$_userId');
 
         if (plotData != null) {
           setState(() {
-            _plotIds =
-                List<String>.from(plotData['plotIds'] ?? []);
-            _selectedPlotId =
-                _plotIds.isNotEmpty ? _plotIds[0] : null;
+            _plotIds = List<String>.from(plotData['plotIds'] ?? []);
+            _selectedPlotId = _plotIds.isNotEmpty ? _plotIds[0] : null;
             if (_plotIds.isEmpty) {
               _plotIds.add('temp_0');
               _selectedPlotId = 'temp_0';
               _tempPlotIds['0'] = 'temp_0';
             }
           });
-          await prefs.setString('cached_plots_$_userId',
-              jsonEncode({'plotIds': _plotIds}));
+          await prefs.setString(
+              'cached_plots_$_userId', jsonEncode({'plotIds': _plotIds}));
         } else if (cachedPlots != null) {
-          final decoded =
-              jsonDecode(cachedPlots) as Map<String, dynamic>;
+          final decoded = jsonDecode(cachedPlots) as Map<String, dynamic>;
           setState(() {
-            _plotIds =
-                List<String>.from(decoded['plotIds'] ?? []);
-            _selectedPlotId =
-                _plotIds.isNotEmpty ? _plotIds[0] : null;
+            _plotIds = List<String>.from(decoded['plotIds'] ?? []);
+            _selectedPlotId = _plotIds.isNotEmpty ? _plotIds[0] : null;
             if (_plotIds.isEmpty) {
               _plotIds.add('temp_0');
               _selectedPlotId = 'temp_0';
@@ -275,16 +263,12 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
           });
         }
       } else {
-        final cachedPlots =
-            prefs.getString('cached_plots_$_userId');
+        final cachedPlots = prefs.getString('cached_plots_$_userId');
         if (cachedPlots != null) {
-          final decoded =
-              jsonDecode(cachedPlots) as Map<String, dynamic>;
+          final decoded = jsonDecode(cachedPlots) as Map<String, dynamic>;
           setState(() {
-            _plotIds =
-                List<String>.from(decoded['plotIds'] ?? []);
-            _selectedPlotId =
-                _plotIds.isNotEmpty ? _plotIds[0] : null;
+            _plotIds = List<String>.from(decoded['plotIds'] ?? []);
+            _selectedPlotId = _plotIds.isNotEmpty ? _plotIds[0] : null;
             if (_plotIds.isEmpty) {
               _plotIds.add('temp_0');
               _selectedPlotId = 'temp_0';
@@ -321,19 +305,15 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
       final isOnline = await _isConnected();
       if (!isOnline || _userId.isEmpty) return;
 
-      await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(_userId)
-          .set({
+      await FirebaseFirestore.instance.collection('Users').doc(_userId).set({
         'plots': {
-          'plotIds':
-              _plotIds.where((id) => !id.startsWith('temp_')).toList(),
+          'plotIds': _plotIds.where((id) => !id.startsWith('temp_')).toList(),
         },
       }, SetOptions(merge: true));
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('cached_plots_$_userId',
-          jsonEncode({'plotIds': _plotIds}));
+      await prefs.setString(
+          'cached_plots_$_userId', jsonEncode({'plotIds': _plotIds}));
     } catch (e, stackTrace) {
       developer.log('Error syncing plots: $e',
           name: 'CoffeeSoilInputPage', error: e, stackTrace: stackTrace);
@@ -406,9 +386,7 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
         title: const Text(
           'Enhanced Soil Analysis',
           style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold),
+              color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4.0),
@@ -421,9 +399,8 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => SoilAdvisorChatSheet.show(
           context,
-          currentNutrients: _currentNutrients.isNotEmpty
-              ? _currentNutrients
-              : null,
+          currentNutrients:
+              _currentNutrients.isNotEmpty ? _currentNutrients : null,
           stage: _currentStage,
           soilType: _currentSoilType,
         ),
@@ -449,8 +426,8 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
                 // Plot Selection
                 Container(
                   color: const Color(0xFFF0E4D7),
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 8, horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                   child: DropdownButton<String>(
                     value: _selectedPlotId,
                     isExpanded: true,
@@ -463,8 +440,8 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
                                 plotId.startsWith('temp_')
                                     ? 'New Plot'
                                     : plotId,
-                                style: const TextStyle(
-                                    color: Color(0xFF4A2C2A)),
+                                style:
+                                    const TextStyle(color: Color(0xFF4A2C2A)),
                               ),
                             ))
                         .toList(),
@@ -472,8 +449,8 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
                         setState(() => _selectedPlotId = value),
                     style: const TextStyle(color: Color(0xFF4A2C2A)),
                     dropdownColor: const Color(0xFFF0E4D7),
-                    underline: Container(
-                        height: 2, color: const Color(0xFF3A5F0B)),
+                    underline:
+                        Container(height: 2, color: const Color(0xFF3A5F0B)),
                   ),
                 ),
                 // Form
@@ -494,8 +471,7 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
                   decoration: const BoxDecoration(
                     color: Color(0xFFF0E4D7),
                     border: Border(
-                        top: BorderSide(
-                            color: Color(0xFF3A5F0B), width: 2)),
+                        top: BorderSide(color: Color(0xFF3A5F0B), width: 2)),
                   ),
                   child: SizedBox(
                     width: double.infinity,
@@ -507,8 +483,7 @@ class _CoffeeSoilInputPageState extends State<CoffeeSoilInputPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4A2C2A),
                         foregroundColor: Colors.white,
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
                   ),

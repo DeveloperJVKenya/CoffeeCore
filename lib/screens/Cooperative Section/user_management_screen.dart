@@ -41,7 +41,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             .limit(1)
             .get();
       } catch (e) {
-        logger.w('Index needed for ${formattedCoopName}_users.$field (Ascending): $e');
+        logger.w(
+            'Index needed for ${formattedCoopName}_users.$field (Ascending): $e');
       }
       try {
         await FirebaseFirestore.instance
@@ -50,7 +51,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             .limit(1)
             .get();
       } catch (e) {
-        logger.w('Index needed for ${formattedCoopName}_users.$field (Descending): $e');
+        logger.w(
+            'Index needed for ${formattedCoopName}_users.$field (Descending): $e');
       }
     }
   }
@@ -67,9 +69,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
     try {
       final snapshots = await Future.wait([
-        FirebaseFirestore.instance.collection('${formattedCoopName}_users').get(),
-        FirebaseFirestore.instance.collection('${formattedCoopName}_marketmanagers').get(),
-        FirebaseFirestore.instance.collection('${formattedCoopName}_loanmanagers').get(),
+        FirebaseFirestore.instance
+            .collection('${formattedCoopName}_users')
+            .get(),
+        FirebaseFirestore.instance
+            .collection('${formattedCoopName}_marketmanagers')
+            .get(),
+        FirebaseFirestore.instance
+            .collection('${formattedCoopName}_loanmanagers')
+            .get(),
       ]);
 
       Set<String> suggestions = {};
@@ -131,7 +139,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       }).toList();
 
       // Generate file name with timestamp
-      String timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+      String timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
       String fileName = 'Users_$timestamp.xlsx';
 
       // Call ExcelUtils to generate and share the Excel file, but only if mounted
@@ -166,9 +178,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       'fullName': TextEditingController(text: currentData['fullName'] ?? ''),
       'email': TextEditingController(text: currentData['email'] ?? ''),
       'county': TextEditingController(text: currentData['county'] ?? ''),
-      'constituency': TextEditingController(text: currentData['constituency'] ?? ''),
+      'constituency':
+          TextEditingController(text: currentData['constituency'] ?? ''),
       'ward': TextEditingController(text: currentData['ward'] ?? ''),
-      'phoneNumber': TextEditingController(text: currentData['phoneNumber'] ?? ''),
+      'phoneNumber':
+          TextEditingController(text: currentData['phoneNumber'] ?? ''),
     };
 
     final result = await showDialog<Map<String, String>>(
@@ -178,17 +192,22 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: controllers.entries.map((entry) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: TextField(
-                controller: entry.value,
-                decoration: InputDecoration(
-                  labelText: entry.key,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                keyboardType: entry.key == 'phoneNumber' ? TextInputType.phone : TextInputType.text,
-              ),
-            )).toList(),
+            children: controllers.entries
+                .map((entry) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: TextField(
+                        controller: entry.value,
+                        decoration: InputDecoration(
+                          labelText: entry.key,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        keyboardType: entry.key == 'phoneNumber'
+                            ? TextInputType.phone
+                            : TextInputType.text,
+                      ),
+                    ))
+                .toList(),
           ),
         ),
         actions: [
@@ -198,7 +217,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           ),
           TextButton(
             onPressed: () {
-              final updatedData = controllers.map((key, controller) => MapEntry(key, controller.text));
+              final updatedData = controllers
+                  .map((key, controller) => MapEntry(key, controller.text));
               Navigator.pop(dialogContext, updatedData);
             },
             child: const Text('Save'),
@@ -218,7 +238,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             .collection('${formattedCoopName}_users')
             .doc(uid)
             .update(updateData);
-        await _logActivity('Updated user $uid in cooperative ${widget.cooperativeName}');
+        await _logActivity(
+            'Updated user $uid in cooperative ${widget.cooperativeName}');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('User updated successfully!')),
@@ -263,7 +284,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             .collection('${formattedCoopName}_users')
             .doc(uid)
             .delete();
-        await _logActivity('Deleted user $uid from cooperative ${widget.cooperativeName}');
+        await _logActivity(
+            'Deleted user $uid from cooperative ${widget.cooperativeName}');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('User removed successfully!')),
@@ -284,7 +306,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     try {
       if (email.isEmpty) throw 'Email is required';
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      await _logActivity('Sent password reset email to $email in cooperative ${widget.cooperativeName}');
+      await _logActivity(
+          'Sent password reset email to $email in cooperative ${widget.cooperativeName}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Password reset email sent!')),
@@ -347,7 +370,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   decoration: InputDecoration(
                     labelText: 'Search by any field (e.g., Name, Ward)',
                     prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
                 if (_showSuggestions && _suggestions.isNotEmpty)
@@ -372,7 +396,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               title: Text(_suggestions[index]),
                               onTap: () {
                                 _searchController.text = _suggestions[index];
-                                _searchQuery = _suggestions[index].toLowerCase();
+                                _searchQuery =
+                                    _suggestions[index].toLowerCase();
                                 _showSuggestions = false;
                                 setState(() {});
                               },
@@ -408,12 +433,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       .collection('${formattedCoopName}_marketmanagers')
                       .snapshots(),
                   builder: (context, marketManagerSnapshot) {
-                    if (marketManagerSnapshot.connectionState == ConnectionState.waiting) {
+                    if (marketManagerSnapshot.connectionState ==
+                        ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (marketManagerSnapshot.hasError) {
-                      logger.e('Error in market manager snapshot: ${marketManagerSnapshot.error}');
-                      return Center(child: Text('Error: ${marketManagerSnapshot.error}'));
+                      logger.e(
+                          'Error in market manager snapshot: ${marketManagerSnapshot.error}');
+                      return Center(
+                          child: Text('Error: ${marketManagerSnapshot.error}'));
                     }
 
                     return StreamBuilder<QuerySnapshot>(
@@ -421,12 +449,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           .collection('${formattedCoopName}_loanmanagers')
                           .snapshots(),
                       builder: (context, loanManagerSnapshot) {
-                        if (loanManagerSnapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (loanManagerSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
                         }
                         if (loanManagerSnapshot.hasError) {
-                          logger.e('Error in loan manager snapshot: ${loanManagerSnapshot.error}');
-                          return Center(child: Text('Error: ${loanManagerSnapshot.error}'));
+                          logger.e(
+                              'Error in loan manager snapshot: ${loanManagerSnapshot.error}');
+                          return Center(
+                              child:
+                                  Text('Error: ${loanManagerSnapshot.error}'));
                         }
 
                         return FutureBuilder<List<Map<String, dynamic>>>(
@@ -436,74 +469,116 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                             loanManagerSnapshot.data,
                           ),
                           builder: (context, futureSnapshot) {
-                            if (futureSnapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(child: CircularProgressIndicator());
+                            if (futureSnapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                  child: CircularProgressIndicator());
                             }
                             if (futureSnapshot.hasError) {
-                              logger.e('Error in future snapshot: ${futureSnapshot.error}');
-                              return Center(child: Text('Error: ${futureSnapshot.error}'));
+                              logger.e(
+                                  'Error in future snapshot: ${futureSnapshot.error}');
+                              return Center(
+                                  child:
+                                      Text('Error: ${futureSnapshot.error}'));
                             }
-                            if (!futureSnapshot.hasData || futureSnapshot.data!.isEmpty) {
-                              return const Center(child: Text('No users found.'));
+                            if (!futureSnapshot.hasData ||
+                                futureSnapshot.data!.isEmpty) {
+                              return const Center(
+                                  child: Text('No users found.'));
                             }
 
                             final users = futureSnapshot.data!;
                             final filteredUsers = _searchQuery.isEmpty
                                 ? users
-                                : users.where((user) => user.values.any(
-                                    (value) => value.toString().toLowerCase().contains(_searchQuery))).toList();
+                                : users
+                                    .where((user) => user.values.any((value) =>
+                                        value
+                                            .toString()
+                                            .toLowerCase()
+                                            .contains(_searchQuery)))
+                                    .toList();
 
                             return Column(
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0, vertical: 8.0),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         'Showing ${filteredUsers.length} user${filteredUsers.length == 1 ? '' : 's'}',
-                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                        style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
                                       ),
                                       ElevatedButton.icon(
-                                        onPressed: filteredUsers.isEmpty ? null : () => _downloadExcel(filteredUsers),
-                                        icon: const Icon(Icons.download, color: Colors.white),
+                                        onPressed: filteredUsers.isEmpty
+                                            ? null
+                                            : () =>
+                                                _downloadExcel(filteredUsers),
+                                        icon: const Icon(Icons.download,
+                                            color: Colors.white),
                                         label: const Text('Export to Excel'),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.brown[700],
                                           foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12)),
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0),
                                   child: Row(
                                     children: [
-                                      const Text('Sort by: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      const Text('Sort by: ',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold)),
                                       DropdownButton<String>(
                                         value: _sortField,
                                         items: const [
-                                          DropdownMenuItem(value: 'fullName', child: Text('Full Name')),
-                                          DropdownMenuItem(value: 'email', child: Text('Email')),
-                                          DropdownMenuItem(value: 'county', child: Text('County')),
-                                          DropdownMenuItem(value: 'constituency', child: Text('Constituency')),
-                                          DropdownMenuItem(value: 'ward', child: Text('Ward')),
+                                          DropdownMenuItem(
+                                              value: 'fullName',
+                                              child: Text('Full Name')),
+                                          DropdownMenuItem(
+                                              value: 'email',
+                                              child: Text('Email')),
+                                          DropdownMenuItem(
+                                              value: 'county',
+                                              child: Text('County')),
+                                          DropdownMenuItem(
+                                              value: 'constituency',
+                                              child: Text('Constituency')),
+                                          DropdownMenuItem(
+                                              value: 'ward',
+                                              child: Text('Ward')),
                                         ],
-                                        onChanged: (value) => setState(() => _sortField = value!),
-                                        style: const TextStyle(color: Colors.black),
+                                        onChanged: (value) =>
+                                            setState(() => _sortField = value!),
+                                        style: const TextStyle(
+                                            color: Colors.black),
                                       ),
                                       IconButton(
-                                        icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
-                                        onPressed: () => setState(() => _sortAscending = !_sortAscending),
+                                        icon: Icon(_sortAscending
+                                            ? Icons.arrow_upward
+                                            : Icons.arrow_downward),
+                                        onPressed: () => setState(() =>
+                                            _sortAscending = !_sortAscending),
                                       ),
                                     ],
                                   ),
                                 ),
                                 Expanded(
                                   child: filteredUsers.isEmpty
-                                      ? const Center(child: Text('No users match your search.'))
+                                      ? const Center(
+                                          child: Text(
+                                              'No users match your search.'))
                                       : SingleChildScrollView(
                                           scrollDirection: Axis.horizontal,
                                           child: SingleChildScrollView(
@@ -519,95 +594,170 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                               sortAscending: _sortAscending,
                                               columns: const [
                                                 DataColumn(
-                                                  label: Text('Full Name', style: TextStyle(fontWeight: FontWeight.bold)),
+                                                  label: Text('Full Name',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold)),
                                                 ),
                                                 DataColumn(
-                                                  label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold)),
+                                                  label: Text('Email',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold)),
                                                 ),
                                                 DataColumn(
-                                                  label: Text('County', style: TextStyle(fontWeight: FontWeight.bold)),
+                                                  label: Text('County',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold)),
                                                 ),
                                                 DataColumn(
-                                                  label: Text('Constituency', style: TextStyle(fontWeight: FontWeight.bold)),
+                                                  label: Text('Constituency',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold)),
                                                 ),
                                                 DataColumn(
-                                                  label: Text('Ward', style: TextStyle(fontWeight: FontWeight.bold)),
+                                                  label: Text('Ward',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold)),
                                                 ),
                                                 DataColumn(
-                                                  label: Text('Phone Number', style: TextStyle(fontWeight: FontWeight.bold)),
+                                                  label: Text('Phone Number',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold)),
                                                 ),
                                                 DataColumn(
-                                                  label: Text('Role', style: TextStyle(fontWeight: FontWeight.bold)),
+                                                  label: Text('Role',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold)),
                                                 ),
                                                 DataColumn(
-                                                  label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold)),
+                                                  label: Text('Status',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold)),
                                                 ),
                                                 DataColumn(
-                                                  label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+                                                  label: Text('Actions',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold)),
                                                 ),
                                               ],
-                                              rows: filteredUsers.map((user) => DataRow(cells: [
-                                                    DataCell(Text(user['fullName'])),
-                                                    DataCell(Text(user['email'])),
-                                                    DataCell(Text(user['county'])),
-                                                    DataCell(Text(user['constituency'])),
-                                                    DataCell(Text(user['ward'])),
-                                                    DataCell(Text(user['phoneNumber'])),
-                                                    DataCell(Text(user['role'])),
-                                                    DataCell(Text(user['isDisabled'] ? 'Disabled' : 'Active')),
-                                                    DataCell(
-                                                      PopupMenuButton<String>(
-                                                        icon: const Icon(Icons.more_vert),
-                                                        onSelected: (value) {
-                                                          switch (value) {
-                                                            case 'edit':
-                                                              _editUser(user['uid'], user);
-                                                              break;
-                                                            case 'delete':
-                                                              _deleteUser(user['uid']);
-                                                              break;
-                                                            case 'reset':
-                                                              if (user['email'] != null) {
-                                                                _resetPassword(user['email']);
+                                              rows: filteredUsers
+                                                  .map((user) =>
+                                                      DataRow(cells: [
+                                                        DataCell(Text(
+                                                            user['fullName'])),
+                                                        DataCell(Text(
+                                                            user['email'])),
+                                                        DataCell(Text(
+                                                            user['county'])),
+                                                        DataCell(Text(user[
+                                                            'constituency'])),
+                                                        DataCell(
+                                                            Text(user['ward'])),
+                                                        DataCell(Text(user[
+                                                            'phoneNumber'])),
+                                                        DataCell(
+                                                            Text(user['role'])),
+                                                        DataCell(Text(
+                                                            user['isDisabled']
+                                                                ? 'Disabled'
+                                                                : 'Active')),
+                                                        DataCell(
+                                                          PopupMenuButton<
+                                                              String>(
+                                                            icon: const Icon(
+                                                                Icons
+                                                                    .more_vert),
+                                                            onSelected:
+                                                                (value) {
+                                                              switch (value) {
+                                                                case 'edit':
+                                                                  _editUser(
+                                                                      user[
+                                                                          'uid'],
+                                                                      user);
+                                                                  break;
+                                                                case 'delete':
+                                                                  _deleteUser(
+                                                                      user[
+                                                                          'uid']);
+                                                                  break;
+                                                                case 'reset':
+                                                                  if (user[
+                                                                          'email'] !=
+                                                                      null) {
+                                                                    _resetPassword(
+                                                                        user[
+                                                                            'email']);
+                                                                  }
+                                                                  break;
                                                               }
-                                                              break;
-                                                          }
-                                                        },
-                                                        itemBuilder: (context) => [
-                                                          const PopupMenuItem(
-                                                            value: 'edit',
-                                                            child: Row(
-                                                              children: [
-                                                                Icon(Icons.edit, color: Colors.blue),
-                                                                SizedBox(width: 8),
-                                                                Text('Edit'),
-                                                              ],
-                                                            ),
+                                                            },
+                                                            itemBuilder:
+                                                                (context) => [
+                                                              const PopupMenuItem(
+                                                                value: 'edit',
+                                                                child: Row(
+                                                                  children: [
+                                                                    Icon(
+                                                                        Icons
+                                                                            .edit,
+                                                                        color: Colors
+                                                                            .blue),
+                                                                    SizedBox(
+                                                                        width:
+                                                                            8),
+                                                                    Text(
+                                                                        'Edit'),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                              const PopupMenuItem(
+                                                                value: 'delete',
+                                                                child: Row(
+                                                                  children: [
+                                                                    Icon(
+                                                                        Icons
+                                                                            .delete,
+                                                                        color: Colors
+                                                                            .red),
+                                                                    SizedBox(
+                                                                        width:
+                                                                            8),
+                                                                    Text(
+                                                                        'Delete'),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                              const PopupMenuItem(
+                                                                value: 'reset',
+                                                                child: Row(
+                                                                  children: [
+                                                                    Icon(
+                                                                        Icons
+                                                                            .lock_reset,
+                                                                        color: Colors
+                                                                            .green),
+                                                                    SizedBox(
+                                                                        width:
+                                                                            8),
+                                                                    Text(
+                                                                        'Reset Password'),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                            ],
                                                           ),
-                                                          const PopupMenuItem(
-                                                            value: 'delete',
-                                                            child: Row(
-                                                              children: [
-                                                                Icon(Icons.delete, color: Colors.red),
-                                                                SizedBox(width: 8),
-                                                                Text('Delete'),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                          const PopupMenuItem(
-                                                            value: 'reset',
-                                                            child: Row(
-                                                              children: [
-                                                                Icon(Icons.lock_reset, color: Colors.green),
-                                                                SizedBox(width: 8),
-                                                                Text('Reset Password'),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ])).toList(),
+                                                        ),
+                                                      ]))
+                                                  .toList(),
                                             ),
                                           ),
                                         ),
@@ -635,8 +785,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   ) async {
     List<Map<String, dynamic>> users = [];
 
-    Set<String> marketManagerUids = marketManagerSnapshot?.docs.map((doc) => doc.id).toSet() ?? {};
-    Set<String> loanManagerUids = loanManagerSnapshot?.docs.map((doc) => doc.id).toSet() ?? {};
+    Set<String> marketManagerUids =
+        marketManagerSnapshot?.docs.map((doc) => doc.id).toSet() ?? {};
+    Set<String> loanManagerUids =
+        loanManagerSnapshot?.docs.map((doc) => doc.id).toSet() ?? {};
 
     for (var doc in userDocs) {
       final data = doc.data() as Map<String, dynamic>;
@@ -648,7 +800,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         role = 'Loan Manager';
       } else {
         try {
-          String fetchedRole = await RoleUtils.getUserRole(doc.id, widget.cooperativeName);
+          String fetchedRole =
+              await RoleUtils.getUserRole(doc.id, widget.cooperativeName);
           if (fetchedRole == 'Coop Admin' || fetchedRole == 'Main Admin') {
             role = fetchedRole;
           }

@@ -17,10 +17,12 @@ class CoopCollectionManagementScreen extends StatefulWidget {
   });
 
   @override
-  State<CoopCollectionManagementScreen> createState() => _CoopCollectionManagementScreenState();
+  State<CoopCollectionManagementScreen> createState() =>
+      _CoopCollectionManagementScreenState();
 }
 
-class _CoopCollectionManagementScreenState extends State<CoopCollectionManagementScreen> {
+class _CoopCollectionManagementScreenState
+    extends State<CoopCollectionManagementScreen> {
   final Logger logger = Logger(printer: PrettyPrinter());
   String _sortField = 'fullName';
   bool _sortAscending = true;
@@ -74,17 +76,22 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
       );
 
       if (confirmed == true && mounted) {
-        String collectionPath = _globalCollections.contains(widget.collectionName)
+        String collectionPath = _globalCollections
+                .contains(widget.collectionName)
             ? widget.collectionName
             : '${widget.cooperativeName.replaceAll(' ', '_')}_${widget.collectionName}';
-        await FirebaseFirestore.instance.collection(collectionPath).doc(docId).delete();
+        await FirebaseFirestore.instance
+            .collection(collectionPath)
+            .doc(docId)
+            .delete();
         await _logActivity(
           'Removed ${_collectionDisplayNames[widget.collectionName]!.toLowerCase().replaceAll(' data', '')} $docId from cooperative ${widget.cooperativeName}',
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${_collectionDisplayNames[widget.collectionName]} removed successfully!'),
+              content: Text(
+                  '${_collectionDisplayNames[widget.collectionName]} removed successfully!'),
             ),
           );
         }
@@ -92,12 +99,14 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
     } catch (e) {
       logger.e('Error deleting document: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error removing: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error removing: $e')));
       }
     }
   }
 
-  Future<void> _editDocument(String docId, Map<String, dynamic> currentData) async {
+  Future<void> _editDocument(
+      String docId, Map<String, dynamic> currentData) async {
     final Map<String, TextEditingController> controllers = {};
     DateTime? interventionDate;
 
@@ -128,43 +137,60 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
           ? (currentData['interventionFollowUpDate'] as Timestamp).toDate()
           : null;
       fields = fieldsMap['coffee_soil_data']!;
-    } else if (['coffee_disease_interventions', 'coffee_pest_interventions'].contains(widget.collectionName)) {
+    } else if (['coffee_disease_interventions', 'coffee_pest_interventions']
+        .contains(widget.collectionName)) {
       interventionDate = currentData['interventionFollowUpDate'] != null
           ? (currentData['interventionFollowUpDate'] as Timestamp).toDate()
           : null;
       fields = currentData.keys
-          .where((key) => !_excludedFields.contains(key) && key != 'fullName' && key != 'timestamp' && key != 'interventionFollowUpDate')
+          .where((key) =>
+              !_excludedFields.contains(key) &&
+              key != 'fullName' &&
+              key != 'timestamp' &&
+              key != 'interventionFollowUpDate')
           .toList();
     } else {
       fields = currentData.keys
-          .where((key) => !_excludedFields.contains(key) && key != 'fullName' && key != 'timestamp')
+          .where((key) =>
+              !_excludedFields.contains(key) &&
+              key != 'fullName' &&
+              key != 'timestamp')
           .toList();
     }
 
     for (var field in fields) {
-      controllers[field] = TextEditingController(text: currentData[field]?.toString() ?? '');
+      controllers[field] =
+          TextEditingController(text: currentData[field]?.toString() ?? '');
     }
 
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Edit ${_collectionDisplayNames[widget.collectionName]!.replaceAll(' Data', '')}'),
+        title: Text(
+            'Edit ${_collectionDisplayNames[widget.collectionName]!.replaceAll(' Data', '')}'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ...fields.map((field) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: TextField(
-                  controller: controllers[field]!,
-                  decoration: InputDecoration(
-                    labelText: field,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  keyboardType: numericFields.contains(field) ? TextInputType.number : TextInputType.text,
-                ),
-              )),
-              if (['coffee_soil_data', 'coffee_disease_interventions', 'coffee_pest_interventions'].contains(widget.collectionName))
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: TextField(
+                      controller: controllers[field]!,
+                      decoration: InputDecoration(
+                        labelText: field,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      keyboardType: numericFields.contains(field)
+                          ? TextInputType.number
+                          : TextInputType.text,
+                    ),
+                  )),
+              if ([
+                'coffee_soil_data',
+                'coffee_disease_interventions',
+                'coffee_pest_interventions'
+              ].contains(widget.collectionName))
                 ListTile(
                   title: Text(
                     'Intervention Follow-Up: ${interventionDate?.toString().substring(0, 10) ?? '-'}',
@@ -192,7 +218,8 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
           ),
           TextButton(
             onPressed: () {
-              final updatedData = controllers.map((key, controller) => MapEntry(key, controller.text));
+              final updatedData = controllers
+                  .map((key, controller) => MapEntry(key, controller.text));
               Navigator.pop(dialogContext, updatedData);
             },
             child: const Text('Save'),
@@ -203,7 +230,8 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
 
     if (result != null && mounted) {
       try {
-        String collectionPath = _globalCollections.contains(widget.collectionName)
+        String collectionPath = _globalCollections
+                .contains(widget.collectionName)
             ? widget.collectionName
             : '${widget.cooperativeName.replaceAll(' ', '_')}_${widget.collectionName}';
         final updateData = <String, dynamic>{};
@@ -218,24 +246,35 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
             updateData[key] = value.isNotEmpty ? value : null;
           }
         });
-        if (['coffee_soil_data', 'coffee_disease_interventions', 'coffee_pest_interventions'].contains(widget.collectionName) && interventionDate != null) {
-          updateData['interventionFollowUpDate'] = Timestamp.fromDate(interventionDate!);
+        if ([
+              'coffee_soil_data',
+              'coffee_disease_interventions',
+              'coffee_pest_interventions'
+            ].contains(widget.collectionName) &&
+            interventionDate != null) {
+          updateData['interventionFollowUpDate'] =
+              Timestamp.fromDate(interventionDate!);
         }
-        await FirebaseFirestore.instance.collection(collectionPath).doc(docId).update(updateData);
+        await FirebaseFirestore.instance
+            .collection(collectionPath)
+            .doc(docId)
+            .update(updateData);
         await _logActivity(
           'Updated ${_collectionDisplayNames[widget.collectionName]!.toLowerCase().replaceAll(' data', '')} $docId in cooperative ${widget.cooperativeName}',
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${_collectionDisplayNames[widget.collectionName]} updated successfully!'),
+              content: Text(
+                  '${_collectionDisplayNames[widget.collectionName]} updated successfully!'),
             ),
           );
         }
       } catch (e) {
         logger.e('Error updating document: $e');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating: $e')));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Error updating: $e')));
         }
       }
     }
@@ -247,14 +286,17 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
     try {
       if (email.isEmpty) throw 'Email is required';
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      await _logActivity('Sent password reset email to $email in cooperative ${widget.cooperativeName}');
+      await _logActivity(
+          'Sent password reset email to $email in cooperative ${widget.cooperativeName}');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password reset email sent!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Password reset email sent!')));
       }
     } catch (e) {
       logger.e('Error sending password reset: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error sending password reset: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error sending password reset: $e')));
       }
     }
   }
@@ -293,7 +335,9 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
   Future<List<String>> _fetchCoopUserIds() async {
     String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('${formattedCoopName}_users').get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('${formattedCoopName}_users')
+          .get();
       return snapshot.docs.map((doc) => doc.id).toList();
     } catch (e) {
       logger.e('Error fetching cooperative user IDs: $e');
@@ -304,7 +348,8 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
   Future<void> _exportToExcel(List<QueryDocumentSnapshot> docs) async {
     try {
       // Define fields
-      final firstDocData = docs.isNotEmpty ? docs.first.data() as Map<String, dynamic> : {};
+      final firstDocData =
+          docs.isNotEmpty ? docs.first.data() as Map<String, dynamic> : {};
       List<String> fields = [];
 
       if (widget.collectionName == 'coffee_soil_data') {
@@ -324,7 +369,8 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
           'interventionFollowUpDate',
           'timestamp',
         ];
-      } else if (['coffee_disease_interventions', 'coffee_pest_interventions'].contains(widget.collectionName)) {
+      } else if (['coffee_disease_interventions', 'coffee_pest_interventions']
+          .contains(widget.collectionName)) {
         fields = firstDocData.keys
             .where((key) => !_excludedFields.contains(key) && key != 'fullName')
             .toList()
@@ -385,8 +431,13 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
       }
 
       // Generate file name with timestamp
-      String timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
-      String fileName = '${_collectionDisplayNames[widget.collectionName]}_$timestamp.xlsx';
+      String timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
+      String fileName =
+          '${_collectionDisplayNames[widget.collectionName]}_$timestamp.xlsx';
 
       // Call ExcelUtils to generate and share the Excel file, but only if mounted
       if (mounted) {
@@ -395,7 +446,8 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
           data: exportData,
           headers: headers,
           fileName: fileName,
-          shareText: '${_collectionDisplayNames[widget.collectionName]} Export: $fileName',
+          shareText:
+              '${_collectionDisplayNames[widget.collectionName]} Export: $fileName',
           logger: logger,
         );
       }
@@ -419,45 +471,59 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
     String collectionPath = _globalCollections.contains(widget.collectionName)
         ? widget.collectionName
         : '${widget.cooperativeName.replaceAll(' ', '_')}_${widget.collectionName}';
-    String title = _collectionDisplayNames[widget.collectionName] ?? widget.collectionName;
+    String title =
+        _collectionDisplayNames[widget.collectionName] ?? widget.collectionName;
     return Scaffold(
       appBar: AppBar(
         title: Text(
           title,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style:
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.brown[700],
         foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
-          if (!['coffeeprices', 'coffee_disease_interventions', 'coffee_pest_interventions', 'coffee_soil_data'].contains(widget.collectionName))
+          if (![
+            'coffeeprices',
+            'coffee_disease_interventions',
+            'coffee_pest_interventions',
+            'coffee_soil_data'
+          ].contains(widget.collectionName))
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  const Text('Sort by: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Sort by: ',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   DropdownButton<String>(
                     value: _sortField,
                     items: const [
-                      DropdownMenuItem(value: 'fullName', child: Text('Full Name')),
+                      DropdownMenuItem(
+                          value: 'fullName', child: Text('Full Name')),
                       DropdownMenuItem(value: 'county', child: Text('County')),
-                      DropdownMenuItem(value: 'constituency', child: Text('Constituency')),
+                      DropdownMenuItem(
+                          value: 'constituency', child: Text('Constituency')),
                       DropdownMenuItem(value: 'ward', child: Text('Ward')),
                     ],
                     onChanged: (value) => setState(() => _sortField = value!),
                     style: const TextStyle(color: Colors.black),
                   ),
                   IconButton(
-                    icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
-                    onPressed: () => setState(() => _sortAscending = !_sortAscending),
+                    icon: Icon(_sortAscending
+                        ? Icons.arrow_upward
+                        : Icons.arrow_downward),
+                    onPressed: () =>
+                        setState(() => _sortAscending = !_sortAscending),
                   ),
                 ],
               ),
             ),
           if (_globalCollections.contains(widget.collectionName))
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.download),
                 label: Text('Export $title to Excel'),
@@ -466,7 +532,8 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () async {
-                  String collectionPath = _globalCollections.contains(widget.collectionName)
+                  String collectionPath = _globalCollections
+                          .contains(widget.collectionName)
                       ? widget.collectionName
                       : '${widget.cooperativeName.replaceAll(' ', '_')}_${widget.collectionName}';
                   final snapshot = await FirebaseFirestore.instance
@@ -483,7 +550,8 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
                   ? _fetchCoopUserIds()
                   : Future.value([]),
               builder: (context, userIdsSnapshot) {
-                if (userIdsSnapshot.connectionState == ConnectionState.waiting) {
+                if (userIdsSnapshot.connectionState ==
+                    ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (userIdsSnapshot.hasError) {
@@ -491,15 +559,20 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
                   return Center(child: Text('Error: ${userIdsSnapshot.error}'));
                 }
                 final coopUserIds = userIdsSnapshot.data ?? [];
-                if (_globalCollections.contains(widget.collectionName) && coopUserIds.isNotEmpty) {
+                if (_globalCollections.contains(widget.collectionName) &&
+                    coopUserIds.isNotEmpty) {
                   const batchSize = 10;
                   final batches = <List<String>>[];
                   for (var i = 0; i < coopUserIds.length; i += batchSize) {
                     batches.add(coopUserIds.sublist(
-                        i, i + batchSize > coopUserIds.length ? coopUserIds.length : i + batchSize));
+                        i,
+                        i + batchSize > coopUserIds.length
+                            ? coopUserIds.length
+                            : i + batchSize));
                   }
 
-                  final streams = batches.map((batch) => FirebaseFirestore.instance
+                  final streams = batches.map((batch) => FirebaseFirestore
+                      .instance
                       .collection(collectionPath)
                       .where('userId', whereIn: batch)
                       .orderBy('timestamp', descending: !_sortAscending)
@@ -512,14 +585,19 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
                         return const Center(child: CircularProgressIndicator());
                       }
                       if (snapshot.hasError) {
-                        logger.e('Error in batch query for ${widget.collectionName}: ${snapshot.error}');
+                        logger.e(
+                            'Error in batch query for ${widget.collectionName}: ${snapshot.error}');
                         return Center(child: Text('Error: ${snapshot.error}'));
                       }
                       if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return Center(child: Text('No ${_collectionDisplayNames[widget.collectionName]!.toLowerCase()} found.'));
+                        return Center(
+                            child: Text(
+                                'No ${_collectionDisplayNames[widget.collectionName]!.toLowerCase()} found.'));
                       }
 
-                      final docs = snapshot.data!.expand((querySnapshot) => querySnapshot.docs).toList();
+                      final docs = snapshot.data!
+                          .expand((querySnapshot) => querySnapshot.docs)
+                          .toList();
                       return _buildDataTable(docs);
                     },
                   );
@@ -528,7 +606,9 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
                     stream: FirebaseFirestore.instance
                         .collection(collectionPath)
                         .orderBy(
-                            widget.collectionName == 'coffeeprices' ? 'variety' : _sortField,
+                            widget.collectionName == 'coffeeprices'
+                                ? 'variety'
+                                : _sortField,
                             descending: !_sortAscending)
                         .snapshots(),
                     builder: (context, snapshot) {
@@ -536,11 +616,14 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
                         return const Center(child: CircularProgressIndicator());
                       }
                       if (snapshot.hasError) {
-                        logger.e('Error in collection ${widget.collectionName}: ${snapshot.error}');
+                        logger.e(
+                            'Error in collection ${widget.collectionName}: ${snapshot.error}');
                         return Center(child: Text('Error: ${snapshot.error}'));
                       }
                       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return Center(child: Text('No ${_collectionDisplayNames[widget.collectionName]!.toLowerCase()} found.'));
+                        return Center(
+                            child: Text(
+                                'No ${_collectionDisplayNames[widget.collectionName]!.toLowerCase()} found.'));
                       }
 
                       final docs = snapshot.data!.docs;
@@ -557,7 +640,8 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
   }
 
   Widget _buildDataTable(List<QueryDocumentSnapshot> docs) {
-    final firstDocData = docs.isNotEmpty ? docs.first.data() as Map<String, dynamic> : {};
+    final firstDocData =
+        docs.isNotEmpty ? docs.first.data() as Map<String, dynamic> : {};
     List<String> fields = [];
 
     if (widget.collectionName == 'coffee_soil_data') {
@@ -577,7 +661,8 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
         'interventionFollowUpDate',
         'timestamp',
       ];
-    } else if (['coffee_disease_interventions', 'coffee_pest_interventions'].contains(widget.collectionName)) {
+    } else if (['coffee_disease_interventions', 'coffee_pest_interventions']
+        .contains(widget.collectionName)) {
       fields = firstDocData.keys
           .where((key) => !_excludedFields.contains(key) && key != 'fullName')
           .toList()
@@ -609,19 +694,24 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
           columns: [
             DataColumn(
               label: Text(
-                widget.collectionName == 'coffeeprices' ? 'Variety' : 'Full Name',
+                widget.collectionName == 'coffeeprices'
+                    ? 'Variety'
+                    : 'Full Name',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             ...fields.map((field) => DataColumn(
-              label: Text(field, style: const TextStyle(fontWeight: FontWeight.bold)),
-            )),
+                  label: Text(field,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                )),
             if (widget.collectionName == 'coffeeprices')
               const DataColumn(
-                label: Text('Updated By', style: TextStyle(fontWeight: FontWeight.bold)),
+                label: Text('Updated By',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             const DataColumn(
-              label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold)),
+              label: Text('Actions',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
           rows: docs.map((doc) {
@@ -641,14 +731,15 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
                   },
                 )),
               ...fields.map((field) => DataCell(Text(
-                field == 'timestamp' || field == 'interventionFollowUpDate'
-                    ? data[field] != null
-                        ? _dateFormat.format((data[field] as Timestamp).toDate())
-                        : '-'
-                    : field == 'price'
-                        ? (data[field] as num?)?.toStringAsFixed(2) ?? '-'
-                        : data[field]?.toString() ?? '-',
-              ))),
+                    field == 'timestamp' || field == 'interventionFollowUpDate'
+                        ? data[field] != null
+                            ? _dateFormat
+                                .format((data[field] as Timestamp).toDate())
+                            : '-'
+                        : field == 'price'
+                            ? (data[field] as num?)?.toStringAsFixed(2) ?? '-'
+                            : data[field]?.toString() ?? '-',
+                  ))),
               if (widget.collectionName == 'coffeeprices')
                 DataCell(FutureBuilder<String>(
                   future: _fetchUserName(data['updatedBy'] ?? ''),
@@ -698,7 +789,8 @@ class _CoopCollectionManagementScreenState extends State<CoopCollectionManagemen
                         ],
                       ),
                     ),
-                    if (['marketmanagers', 'loanmanagers'].contains(widget.collectionName))
+                    if (['marketmanagers', 'loanmanagers']
+                        .contains(widget.collectionName))
                       const PopupMenuItem(
                         value: 'reset',
                         child: Row(

@@ -3,19 +3,18 @@ import 'package:coffeecore/screens/Cooperative%20Section/coffee_prices.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/coop_admin_management_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/market_manager_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/produce_screen.dart';
-import 'package:coffeecore/screens/Farm%20Management/coffee_management_screen.dart';
-import 'package:coffeecore/screens/Farm%20Mapping/farm_map_screen.dart';
+import 'package:coffeecore/screens/Farm%20Management/screens/farm_management_home_screen.dart';
 import 'package:coffeecore/screens/Field%20Data/coffee_soil_home_page.dart';
 import 'package:coffeecore/screens/admin/admin_management_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:coffeecore/models/user_model.dart';
+import 'package:coffeecore/screens/journal_screen.dart';
 import 'package:coffeecore/screens/learn_coffee_farming.dart';
 import 'package:coffeecore/screens/manuals_screen.dart';
 import 'package:coffeecore/screens/pests_diseases_home.dart';
 import 'package:coffeecore/screens/user_profile.dart';
 import 'package:coffeecore/screens/weather_screen.dart';
-//import 'package:coffeecore/screens/coffee_satellite_dashboard.dart';
 import 'package:coffeecore/authentication/login.dart';
 import 'package:coffeecore/settings/notifications_settings_screen.dart';
 import 'package:coffeecore/settings/settings_screen.dart';
@@ -712,7 +711,7 @@ class _HomePageState extends State<HomePage> {
               int index = _carouselImages.indexOf(image);
               List<String> labels = [
                 'Get Weather Forecasts',
-                'Record Coffee Field Data',
+                'Record Coffee Farm Activities',
                 'Manage Pests & Diseases',
                 'Manage Coffee Farming',
                 'Coffee Farming Manuals',
@@ -733,7 +732,8 @@ class _HomePageState extends State<HomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const CoffeeManagementScreen()),
+                          builder: (context) =>
+                              const FarmManagementHomeScreen()),
                     );
                     break;
                   case 2:
@@ -747,7 +747,8 @@ class _HomePageState extends State<HomePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const CoffeeManagementScreen()),
+                          builder: (context) =>
+                              const FarmManagementHomeScreen()),
                     );
                     break;
                   case 4:
@@ -891,8 +892,10 @@ class _HomePageState extends State<HomePage> {
         BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Manuals'),
         BottomNavigationBarItem(
             icon: Icon(Icons.supervisor_account), label: 'F-Management'),
-        BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Tips'),
+        BottomNavigationBarItem(icon: Icon(Icons.menu_book), label: 'Journal'),
       ],
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: Colors.white,
       currentIndex: _selectedIndex,
       selectedItemColor: Colors.brown[700],
       unselectedItemColor: Colors.grey,
@@ -917,14 +920,13 @@ class _HomePageState extends State<HomePage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (context) => const CoffeeManagementScreen()),
+                  builder: (context) => const FarmManagementHomeScreen()),
             );
             break;
           case 3:
             Navigator.push(
               context,
-              MaterialPageRoute(
-                  builder: (context) => const LearnCoffeeFarming()),
+              MaterialPageRoute(builder: (context) => const JournalScreen()),
             );
             break;
         }
@@ -977,18 +979,6 @@ class _HomePageState extends State<HomePage> {
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => const WeatherScreen()));
       }),
-      _buildDrawerItem(Icons.map, 'Farm Mapping', () {
-        logger.i('Navigating to FarmMapScreen');
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => const FarmMapScreen()));
-      }),
-      /*_buildDrawerItem(Icons.satellite_alt, 'Coffee Satellite Advisor', () {
-        logger.i('Navigating to Coffee Satellite Advisor');
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => const CoffeeSatelliteDashboard()));
-      }),*/
       _buildDrawerItem(Icons.input, 'Field Data (Soil)', () {
         logger.i('Navigating to CoffeeSoilHomePage, userId: $_userId');
         if (_userId != null) {
@@ -1040,7 +1030,7 @@ class _HomePageState extends State<HomePage> {
         Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) => const CoffeeManagementScreen()));
+                builder: (context) => const FarmManagementHomeScreen()));
       }),
       _buildDrawerItem(Icons.book, 'Coffee Manuals', () {
         Navigator.push(context,

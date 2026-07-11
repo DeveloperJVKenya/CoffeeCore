@@ -31,7 +31,7 @@ import 'package:http/http.dart' as http;
 
 const String _kINatBaseUrl = 'https://api.inaturalist.org/v1';
 const String _kWikiBaseUrl = 'https://en.wikipedia.org/w/api.php';
-const String _kUserAgent   =
+const String _kUserAgent =
     'CoffeeCore/1.0 (Flutter; East Africa coffee disease management)';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -48,8 +48,8 @@ const String _kUserAgent   =
 
 class _DiseaseConfig {
   final List<String> taxonNames;
-  final String?      wikipediaTitle;
-  final String?      symptomQuery;
+  final String? wikipediaTitle;
+  final String? symptomQuery;
 
   const _DiseaseConfig({
     required this.taxonNames,
@@ -59,119 +59,118 @@ class _DiseaseConfig {
 }
 
 const Map<String, _DiseaseConfig> _diseaseConfig = {
-
   // ── Vegetative / All-Stage Diseases ─────────────────────────────────────────
 
   'Coffee Leaf Rust': _DiseaseConfig(
     taxonNames: [
-      'Hemileia vastatrix',  // coffee leaf rust — the specific pathogen
-      'Hemileia',            // genus — all Hemileia are rusts on coffee
+      'Hemileia vastatrix', // coffee leaf rust — the specific pathogen
+      'Hemileia', // genus — all Hemileia are rusts on coffee
     ],
     wikipediaTitle: 'Coffee leaf rust',
-    symptomQuery:  'coffee leaf rust orange spots Coffea arabica',
+    symptomQuery: 'coffee leaf rust orange spots Coffea arabica',
   ),
 
   'Coffee Berry Disease': _DiseaseConfig(
     taxonNames: [
-      'Colletotrichum kahawae',       // CBD pathogen — specific to coffee berries
+      'Colletotrichum kahawae', // CBD pathogen — specific to coffee berries
       'Colletotrichum gloeosporioides', // broad Colletotrichum — anthracnose group
     ],
     wikipediaTitle: 'Coffee berry disease',
-    symptomQuery:  'Colletotrichum kahawae coffee berry black',
+    symptomQuery: 'Colletotrichum kahawae coffee berry black',
   ),
 
   'Coffee Wilt Disease': _DiseaseConfig(
     taxonNames: [
-      'Gibberella xylarioides',  // coffee wilt perfect stage
-      'Fusarium xylarioides',    // anamorph — same fungus
-      'Fusarium',                // genus — wilt fusaria
+      'Gibberella xylarioides', // coffee wilt perfect stage
+      'Fusarium xylarioides', // anamorph — same fungus
+      'Fusarium', // genus — wilt fusaria
     ],
     wikipediaTitle: 'Coffee wilt disease',
   ),
 
   'Coffee Root Rot': _DiseaseConfig(
     taxonNames: [
-      'Phytophthora cinnamomi',  // root rot of coffee
-      'Pythium',                 // damping-off / root rot genus
-      'Fusarium solani',         // fusarium root rot
+      'Phytophthora cinnamomi', // root rot of coffee
+      'Pythium', // damping-off / root rot genus
+      'Fusarium solani', // fusarium root rot
     ],
     wikipediaTitle: 'Phytophthora cinnamomi',
-    symptomQuery:  'Phytophthora root rot coffee',
+    symptomQuery: 'Phytophthora root rot coffee',
   ),
 
   'Coffee Brown Eye Spot': _DiseaseConfig(
     taxonNames: [
-      'Cercospora coffeicola',  // brown eye spot pathogen — specific
-      'Cercospora',             // genus — all produce leaf spots
+      'Cercospora coffeicola', // brown eye spot pathogen — specific
+      'Cercospora', // genus — all produce leaf spots
     ],
     wikipediaTitle: 'Cercospora coffeicola',
-    symptomQuery:  'Cercospora coffee leaf spot brown',
+    symptomQuery: 'Cercospora coffee leaf spot brown',
   ),
 
   'Coffee Damping Off': _DiseaseConfig(
     taxonNames: [
-      'Pythium',          // primary damping-off genus
+      'Pythium', // primary damping-off genus
       'Rhizoctonia solani', // secondary damping-off fungus
     ],
     wikipediaTitle: 'Damping off',
-    symptomQuery:  'coffee seedling damping off nursery Pythium',
+    symptomQuery: 'coffee seedling damping off nursery Pythium',
   ),
 
   'Coffee Sooty Mold': _DiseaseConfig(
     taxonNames: [
-      'Capnodium coffeae',  // coffee sooty mold — specific species
-      'Cladosporium',       // broad sooty mold genus
-      'Capnodiales',        // sooty mold order — all are sooty molds
+      'Capnodium coffeae', // coffee sooty mold — specific species
+      'Cladosporium', // broad sooty mold genus
+      'Capnodiales', // sooty mold order — all are sooty molds
     ],
     wikipediaTitle: 'Sooty mold',
-    symptomQuery:  'sooty mold coffee black coating leaves',
+    symptomQuery: 'sooty mold coffee black coating leaves',
   ),
 
   'Coffee Bacterial Blight': _DiseaseConfig(
     taxonNames: [
-      'Pseudomonas syringae',  // bacterial blight pathogen group
+      'Pseudomonas syringae', // bacterial blight pathogen group
     ],
     wikipediaTitle: 'Pseudomonas syringae',
-    symptomQuery:  'Pseudomonas coffee bacterial blight leaf spot',
+    symptomQuery: 'Pseudomonas coffee bacterial blight leaf spot',
   ),
 
   'Coffee Anthracnose': _DiseaseConfig(
     taxonNames: [
       'Colletotrichum gloeosporioides', // primary anthracnose species
-      'Colletotrichum',                 // genus — all cause anthracnose
+      'Colletotrichum', // genus — all cause anthracnose
     ],
     wikipediaTitle: 'Anthracnose',
-    symptomQuery:  'Colletotrichum anthracnose coffee berry lesion',
+    symptomQuery: 'Colletotrichum anthracnose coffee berry lesion',
   ),
 
   'Coffee Nursery Blight': _DiseaseConfig(
     taxonNames: [
-      'Rhizoctonia solani',  // primary nursery blight pathogen
-      'Pythium',             // secondary damping-off pathogen
+      'Rhizoctonia solani', // primary nursery blight pathogen
+      'Pythium', // secondary damping-off pathogen
     ],
     wikipediaTitle: 'Rhizoctonia solani',
-    symptomQuery:  'Rhizoctonia seedling blight nursery',
+    symptomQuery: 'Rhizoctonia seedling blight nursery',
   ),
 
   // ── Post-harvest / Storage Diseases ─────────────────────────────────────────
 
   'Coffee Green Mold': _DiseaseConfig(
     taxonNames: [
-      'Penicillium',   // green/blue mold genus — primary coffee storage mold
-      'Aspergillus',   // co-occurrence in storage
+      'Penicillium', // green/blue mold genus — primary coffee storage mold
+      'Aspergillus', // co-occurrence in storage
     ],
     wikipediaTitle: 'Penicillium',
-    symptomQuery:  'Penicillium mold green stored coffee beans',
+    symptomQuery: 'Penicillium mold green stored coffee beans',
   ),
 
   'Coffee Ochratoxin A Contamination': _DiseaseConfig(
     taxonNames: [
-      'Aspergillus carbonarius',  // primary OTA producer on coffee
-      'Aspergillus ochraceus',    // secondary OTA producer
-      'Aspergillus',              // genus fallback
+      'Aspergillus carbonarius', // primary OTA producer on coffee
+      'Aspergillus ochraceus', // secondary OTA producer
+      'Aspergillus', // genus fallback
     ],
     wikipediaTitle: 'Ochratoxin A',
-    symptomQuery:  'Aspergillus coffee beans mold storage',
+    symptomQuery: 'Aspergillus coffee beans mold storage',
   ),
 };
 
@@ -181,7 +180,7 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
 
 class _CacheEntry {
   final List<String> urls;
-  final DateTime     cachedAt;
+  final DateTime cachedAt;
   const _CacheEntry(this.urls, this.cachedAt);
 }
 
@@ -192,9 +191,9 @@ class _CacheEntry {
 class DiseaseImageSearchService {
   DiseaseImageSearchService._();
 
-  static final http.Client _client        = http.Client();
+  static final http.Client _client = http.Client();
   static final Map<String, _CacheEntry> _cache = {};
-  static const Duration _cacheDuration    = Duration(hours: 12);
+  static const Duration _cacheDuration = Duration(hours: 12);
 
   // ══════════════════════════════════════════════════════════════════════════
   // PUBLIC — Search images for a given disease name
@@ -218,7 +217,7 @@ class DiseaseImageSearchService {
 
     debugPrint('[DiseaseImageSearch] 🔍 Searching images for "$diseaseName"…');
     final config = _diseaseConfig[diseaseName];
-    final urls   = <String>[];
+    final urls = <String>[];
 
     if (config != null) {
       // ── Source 1: iNaturalist Observations ──────────────────────────────
@@ -278,27 +277,25 @@ class DiseaseImageSearchService {
 
   static Future<List<String>> _iNatObservations({
     required String taxonName,
-    required int    maxResults,
+    required int maxResults,
   }) async {
     try {
       final uri = Uri.parse('$_kINatBaseUrl/observations').replace(
         queryParameters: {
-          'taxon_name'    : taxonName,
-          'quality_grade' : 'research',
-          'photos'        : 'true',
-          'per_page'      : maxResults.clamp(1, 20).toString(),
-          'order_by'      : 'votes',
-          'order'         : 'desc',
+          'taxon_name': taxonName,
+          'quality_grade': 'research',
+          'photos': 'true',
+          'per_page': maxResults.clamp(1, 20).toString(),
+          'order_by': 'votes',
+          'order': 'desc',
           'photo_licensed': 'true',
         },
       );
 
-      final response = await _client
-          .get(uri, headers: {
-            'Accept'    : 'application/json',
-            'User-Agent': _kUserAgent,
-          })
-          .timeout(const Duration(seconds: 14));
+      final response = await _client.get(uri, headers: {
+        'Accept': 'application/json',
+        'User-Agent': _kUserAgent,
+      }).timeout(const Duration(seconds: 14));
 
       if (response.statusCode != 200) {
         debugPrint('[DiseaseImageSearch] iNat obs HTTP ${response.statusCode} '
@@ -306,9 +303,9 @@ class DiseaseImageSearchService {
         return [];
       }
 
-      final json    = jsonDecode(response.body) as Map<String, dynamic>;
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
       final results = (json['results'] as List<dynamic>?) ?? [];
-      final urls    = <String>[];
+      final urls = <String>[];
 
       for (final obs in results) {
         if (urls.length >= maxResults) break;
@@ -326,7 +323,6 @@ class DiseaseImageSearchService {
 
       debugPrint('[DiseaseImageSearch] iNat obs "$taxonName" → ${urls.length}');
       return urls;
-
     } catch (e) {
       debugPrint('[DiseaseImageSearch] iNat obs error "$taxonName": $e');
       return [];
@@ -339,27 +335,25 @@ class DiseaseImageSearchService {
 
   static Future<List<String>> _iNatObservationsByText({
     required String query,
-    required int    maxResults,
+    required int maxResults,
   }) async {
     try {
       final uri = Uri.parse('$_kINatBaseUrl/observations').replace(
         queryParameters: {
-          'q'             : query,
-          'quality_grade' : 'research',
-          'photos'        : 'true',
-          'per_page'      : maxResults.clamp(1, 10).toString(),
-          'order_by'      : 'votes',
-          'order'         : 'desc',
+          'q': query,
+          'quality_grade': 'research',
+          'photos': 'true',
+          'per_page': maxResults.clamp(1, 10).toString(),
+          'order_by': 'votes',
+          'order': 'desc',
           'photo_licensed': 'true',
         },
       );
 
-      final response = await _client
-          .get(uri, headers: {
-            'Accept'    : 'application/json',
-            'User-Agent': _kUserAgent,
-          })
-          .timeout(const Duration(seconds: 14));
+      final response = await _client.get(uri, headers: {
+        'Accept': 'application/json',
+        'User-Agent': _kUserAgent,
+      }).timeout(const Duration(seconds: 14));
 
       if (response.statusCode != 200) {
         debugPrint('[DiseaseImageSearch] iNat text HTTP ${response.statusCode} '
@@ -367,9 +361,9 @@ class DiseaseImageSearchService {
         return [];
       }
 
-      final json    = jsonDecode(response.body) as Map<String, dynamic>;
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
       final results = (json['results'] as List<dynamic>?) ?? [];
-      final urls    = <String>[];
+      final urls = <String>[];
 
       for (final obs in results) {
         if (urls.length >= maxResults) break;
@@ -387,7 +381,6 @@ class DiseaseImageSearchService {
 
       debugPrint('[DiseaseImageSearch] iNat text "$query" → ${urls.length}');
       return urls;
-
     } catch (e) {
       debugPrint('[DiseaseImageSearch] iNat text error "$query": $e');
       return [];
@@ -400,23 +393,21 @@ class DiseaseImageSearchService {
 
   static Future<List<String>> _iNatTaxa({
     required String query,
-    required int    maxResults,
+    required int maxResults,
   }) async {
     try {
       final uri = Uri.parse('$_kINatBaseUrl/taxa').replace(
         queryParameters: {
-          'q'       : query,
-          'photos'  : 'true',
+          'q': query,
+          'photos': 'true',
           'per_page': maxResults.clamp(1, 5).toString(),
         },
       );
 
-      final response = await _client
-          .get(uri, headers: {
-            'Accept'    : 'application/json',
-            'User-Agent': _kUserAgent,
-          })
-          .timeout(const Duration(seconds: 12));
+      final response = await _client.get(uri, headers: {
+        'Accept': 'application/json',
+        'User-Agent': _kUserAgent,
+      }).timeout(const Duration(seconds: 12));
 
       if (response.statusCode != 200) {
         debugPrint('[DiseaseImageSearch] iNat taxa HTTP ${response.statusCode} '
@@ -424,9 +415,9 @@ class DiseaseImageSearchService {
         return [];
       }
 
-      final json    = jsonDecode(response.body) as Map<String, dynamic>;
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
       final results = (json['results'] as List<dynamic>?) ?? [];
-      final urls    = <String>[];
+      final urls = <String>[];
 
       for (final taxon in results) {
         if (urls.length >= maxResults) break;
@@ -442,7 +433,6 @@ class DiseaseImageSearchService {
 
       debugPrint('[DiseaseImageSearch] iNat taxa "$query" → ${urls.length}');
       return urls;
-
     } catch (e) {
       debugPrint('[DiseaseImageSearch] iNat taxa error "$query": $e');
       return [];
@@ -457,22 +447,20 @@ class DiseaseImageSearchService {
     try {
       final uri = Uri.parse(_kWikiBaseUrl).replace(
         queryParameters: {
-          'action'     : 'query',
-          'titles'     : articleTitle,
-          'prop'       : 'pageimages',
-          'format'     : 'json',
+          'action': 'query',
+          'titles': articleTitle,
+          'prop': 'pageimages',
+          'format': 'json',
           'pithumbsize': '640',
-          'pilicense'  : 'any',
-          'redirects'  : '1',
+          'pilicense': 'any',
+          'redirects': '1',
         },
       );
 
-      final response = await _client
-          .get(uri, headers: {
-            'Accept'    : 'application/json',
-            'User-Agent': _kUserAgent,
-          })
-          .timeout(const Duration(seconds: 12));
+      final response = await _client.get(uri, headers: {
+        'Accept': 'application/json',
+        'User-Agent': _kUserAgent,
+      }).timeout(const Duration(seconds: 12));
 
       if (response.statusCode != 200) {
         debugPrint('[DiseaseImageSearch] Wikipedia HTTP ${response.statusCode} '
@@ -480,20 +468,20 @@ class DiseaseImageSearchService {
         return null;
       }
 
-      final json  = jsonDecode(response.body) as Map<String, dynamic>;
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
       final pages = (json['query']?['pages'] as Map<String, dynamic>?) ?? {};
 
       for (final page in pages.values) {
         final source = page['thumbnail']?['source'] as String?;
         if (source == null || source.isEmpty) continue;
         if (!source.startsWith('https://')) continue;
-        final larger = source.replaceAllMapped(
-            RegExp(r'/(\d+)px-'), (_) => '/800px-');
-        debugPrint('[DiseaseImageSearch] Wikipedia ✅ image found for "$articleTitle"');
+        final larger =
+            source.replaceAllMapped(RegExp(r'/(\d+)px-'), (_) => '/800px-');
+        debugPrint(
+            '[DiseaseImageSearch] Wikipedia ✅ image found for "$articleTitle"');
         return larger;
       }
       return null;
-
     } catch (e) {
       debugPrint('[DiseaseImageSearch] Wikipedia error "$articleTitle": $e');
       return null;
@@ -523,7 +511,7 @@ class DiseaseImageSearchService {
     required String stage,
     int maxResults = 8,
   }) {
-    final key   = '$diseaseName|$stage|$maxResults';
+    final key = '$diseaseName|$stage|$maxResults';
     final entry = _cache[key];
     if (entry == null) return false;
     return DateTime.now().difference(entry.cachedAt) < _cacheDuration;

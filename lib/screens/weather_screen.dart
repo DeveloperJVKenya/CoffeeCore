@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:coffeecore/config.dart';
-import 'package:coffeecore/screens/Farm%20Mapping/service_exceptions.dart';
+import 'package:coffeecore/screens/Farm%20Management/services/service_exceptions.dart';
 
 class WeatherScreen extends StatefulWidget {
   const WeatherScreen({super.key});

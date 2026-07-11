@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 class TermsAndConditionsScreen extends StatelessWidget {
   const TermsAndConditionsScreen({super.key});
 
-  static final Color coffeeBrown = Colors.brown[700]!; // Consistent with CoffeeCore theme
+  static final Color coffeeBrown =
+      Colors.brown[700]!; // Consistent with CoffeeCore theme
 
   @override
   Widget build(BuildContext context) {
@@ -11,7 +12,9 @@ class TermsAndConditionsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           'Terms and Conditions',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold), // Bold to match HomePage
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold), // Bold to match HomePage
         ),
         backgroundColor: coffeeBrown,
         leading: IconButton(
@@ -29,9 +32,9 @@ class TermsAndConditionsScreen extends StatelessWidget {
               Text(
                 'Terms and Conditions',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: coffeeBrown,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: coffeeBrown,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               const SizedBox(height: 16),
 
@@ -145,13 +148,14 @@ class TermsAndConditionsScreen extends StatelessWidget {
   // Helper method for section titles
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0), // Fixed typo: should be 'bottom'
+      padding:
+          const EdgeInsets.only(bottom: 8.0), // Fixed typo: should be 'bottom'
       child: Text(
         title,
         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-          color: coffeeBrown,
-          fontWeight: FontWeight.bold,
-        ),
+              color: coffeeBrown,
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }

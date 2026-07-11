@@ -8,7 +8,8 @@ class AdminPestManagementPage extends StatefulWidget {
   const AdminPestManagementPage({super.key});
 
   @override
-  State<AdminPestManagementPage> createState() => _AdminPestManagementPageState();
+  State<AdminPestManagementPage> createState() =>
+      _AdminPestManagementPageState();
 }
 
 class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
@@ -18,7 +19,8 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Pest Management', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Admin Pest Management',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: const Color.fromARGB(255, 3, 39, 4),
         foregroundColor: Colors.white,
       ),
@@ -39,14 +41,19 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
             return const Center(child: Text('No interventions found.'));
           }
 
-          final interventions = snapshot.data!.docs.map((doc) {
-            try {
-              return PestIntervention.fromFirestore(doc as DocumentSnapshot<Map<String, dynamic>>, null);
-            } catch (e) {
-              _logger.e('Error parsing intervention ${doc.id}: $e');
-              return null;
-            }
-          }).where((item) => item != null).cast<PestIntervention>().toList();
+          final interventions = snapshot.data!.docs
+              .map((doc) {
+                try {
+                  return PestIntervention.fromFirestore(
+                      doc as DocumentSnapshot<Map<String, dynamic>>, null);
+                } catch (e) {
+                  _logger.e('Error parsing intervention ${doc.id}: $e');
+                  return null;
+                }
+              })
+              .where((item) => item != null)
+              .cast<PestIntervention>()
+              .toList();
 
           return Container(
             color: Colors.grey[200],
@@ -64,26 +71,37 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('User: ${intervention.userId}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text('User: ${intervention.userId}',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
                         Text('Pest: ${intervention.pestName}'),
                         Text('Crop: ${intervention.cropType}'),
                         Text('Stage: ${intervention.cropStage}'),
-                        Text('Intervention: ${intervention.intervention.isNotEmpty ? intervention.intervention : "None"}'),
+                        Text(
+                            'Intervention: ${intervention.intervention.isNotEmpty ? intervention.intervention : "None"}'),
                         Text('Amount: ${intervention.amount ?? "N/A"}'),
-                        Text('Area: ${intervention.area ?? "N/A"} ${intervention.areaUnit}'),
-                        Text('Saved: ${intervention.timestamp.toDate().toString()}'),
-                        Text('Deleted: $isDeleted', style: TextStyle(color: isDeleted ? Colors.red : Colors.green)),
+                        Text(
+                            'Area: ${intervention.area ?? "N/A"} ${intervention.areaUnit}'),
+                        Text(
+                            'Saved: ${intervention.timestamp.toDate().toString()}'),
+                        Text('Deleted: $isDeleted',
+                            style: TextStyle(
+                                color: isDeleted ? Colors.red : Colors.green)),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             if (isDeleted)
                               IconButton(
-                                icon: const Icon(Icons.restore, color: Colors.green),
-                                onPressed: () => _restoreIntervention(intervention),
+                                icon: const Icon(Icons.restore,
+                                    color: Colors.green),
+                                onPressed: () =>
+                                    _restoreIntervention(intervention),
                               ),
                             IconButton(
-                              icon: const Icon(Icons.delete_forever, color: Colors.red),
-                              onPressed: () => _hardDeleteIntervention(intervention),
+                              icon: const Icon(Icons.delete_forever,
+                                  color: Colors.red),
+                              onPressed: () =>
+                                  _hardDeleteIntervention(intervention),
                             ),
                           ],
                         ),
@@ -102,7 +120,10 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
   Future<void> _restoreIntervention(PestIntervention intervention) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
-      await FirebaseFirestore.instance.collection('pestinterventiondata').doc(intervention.id).update({
+      await FirebaseFirestore.instance
+          .collection('pestinterventiondata')
+          .doc(intervention.id)
+          .update({
         'isDeleted': false,
       });
 
@@ -116,11 +137,13 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
       });
 
       if (mounted) {
-        scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Intervention restored')));
+        scaffoldMessenger.showSnackBar(
+            const SnackBar(content: Text('Intervention restored')));
       }
     } catch (e) {
       if (mounted) {
-        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error restoring intervention: $e')));
+        scaffoldMessenger.showSnackBar(
+            SnackBar(content: Text('Error restoring intervention: $e')));
       }
     }
   }
@@ -131,9 +154,12 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Hard Deletion'),
-        content: const Text('This will permanently delete the intervention. Proceed?'),
+        content: const Text(
+            'This will permanently delete the intervention. Proceed?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -144,7 +170,10 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
 
     if (confirm == true && mounted) {
       try {
-        await FirebaseFirestore.instance.collection('pestinterventiondata').doc(intervention.id).delete();
+        await FirebaseFirestore.instance
+            .collection('pestinterventiondata')
+            .doc(intervention.id)
+            .delete();
 
         await FirebaseFirestore.instance.collection('User_logs').add({
           'userId': FirebaseAuth.instance.currentUser!.uid,
@@ -152,14 +181,17 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
           'collection': 'pestinterventiondata',
           'documentId': intervention.id,
           'timestamp': Timestamp.now(),
-          'details': 'Hard-deleted intervention for user ${intervention.userId}',
+          'details':
+              'Hard-deleted intervention for user ${intervention.userId}',
         });
         if (mounted) {
-          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Intervention permanently deleted')));
+          scaffoldMessenger.showSnackBar(const SnackBar(
+              content: Text('Intervention permanently deleted')));
         }
       } catch (e) {
         if (mounted) {
-          scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error deleting intervention: $e')));
+          scaffoldMessenger.showSnackBar(
+              SnackBar(content: Text('Error deleting intervention: $e')));
         }
       }
     }

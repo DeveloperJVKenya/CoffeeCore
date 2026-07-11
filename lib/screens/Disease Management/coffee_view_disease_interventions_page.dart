@@ -17,10 +17,12 @@ class CoffeeViewDiseaseInterventionsPage extends StatefulWidget {
   });
 
   @override
-  State<CoffeeViewDiseaseInterventionsPage> createState() => _CoffeeViewDiseaseInterventionsPageState();
+  State<CoffeeViewDiseaseInterventionsPage> createState() =>
+      _CoffeeViewDiseaseInterventionsPageState();
 }
 
-class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseInterventionsPage> {
+class _CoffeeViewDiseaseInterventionsPageState
+    extends State<CoffeeViewDiseaseInterventionsPage> {
   final _logger = Logger();
 
   @override
@@ -29,7 +31,9 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
     if (user == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Saved Disease Interventions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: const Text('Saved Disease Interventions',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color(0xFF6F4E37),
           foregroundColor: Colors.white,
         ),
@@ -39,7 +43,8 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Saved Disease Interventions', style: TextStyle(color: Colors.white)),
+        title: const Text('Saved Disease Interventions',
+            style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF6F4E37),
         foregroundColor: Colors.white,
       ),
@@ -63,14 +68,19 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
             return const Center(child: Text('No interventions saved yet.'));
           }
 
-          final interventions = snapshot.data!.docs.map((doc) {
-            try {
-              return CoffeeDiseaseIntervention.fromFirestore(doc as DocumentSnapshot<Map<String, dynamic>>, null);
-            } catch (e) {
-              _logger.e('Error parsing intervention ${doc.id}: $e');
-              return null;
-            }
-          }).where((item) => item != null).cast<CoffeeDiseaseIntervention>().toList();
+          final interventions = snapshot.data!.docs
+              .map((doc) {
+                try {
+                  return CoffeeDiseaseIntervention.fromFirestore(
+                      doc as DocumentSnapshot<Map<String, dynamic>>, null);
+                } catch (e) {
+                  _logger.e('Error parsing intervention ${doc.id}: $e');
+                  return null;
+                }
+              })
+              .where((item) => item != null)
+              .cast<CoffeeDiseaseIntervention>()
+              .toList();
 
           return Container(
             color: Colors.grey[200],
@@ -87,12 +97,17 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Disease: ${intervention.diseaseName}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text('Disease: ${intervention.diseaseName}',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
                         Text('Stage: ${intervention.cropStage}'),
-                        Text('Intervention: ${intervention.intervention.isNotEmpty ? intervention.intervention : "None"}'),
+                        Text(
+                            'Intervention: ${intervention.intervention.isNotEmpty ? intervention.intervention : "None"}'),
                         Text('Amount: ${intervention.amount ?? "N/A"}'),
-                        Text('Area: ${intervention.area ?? "N/A"} ${intervention.areaUnit}'),
-                        Text('Saved: ${intervention.timestamp.toDate().toString()}'),
+                        Text(
+                            'Area: ${intervention.area ?? "N/A"} ${intervention.areaUnit}'),
+                        Text(
+                            'Saved: ${intervention.timestamp.toDate().toString()}'),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -102,10 +117,12 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _deleteIntervention(intervention),
+                              onPressed: () =>
+                                  _deleteIntervention(intervention),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.notifications, color: Colors.green),
+                              icon: const Icon(Icons.notifications,
+                                  color: Colors.green),
                               onPressed: () => _scheduleFollowUp(intervention),
                             ),
                           ],
@@ -124,8 +141,10 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
 
   Future<void> _editIntervention(CoffeeDiseaseIntervention intervention) async {
     final controller = TextEditingController(text: intervention.intervention);
-    final amountController = TextEditingController(text: intervention.amount ?? '');
-    final areaController = TextEditingController(text: intervention.area?.toString() ?? '');
+    final amountController =
+        TextEditingController(text: intervention.amount ?? '');
+    final areaController =
+        TextEditingController(text: intervention.area?.toString() ?? '');
     bool useSQM = intervention.areaUnit == 'SQM';
 
     final result = await showDialog<bool>(
@@ -137,9 +156,19 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: controller, decoration: const InputDecoration(labelText: 'Intervention Used')),
-                TextField(controller: amountController, decoration: const InputDecoration(labelText: 'Amount Applied')),
-                TextField(controller: areaController, decoration: const InputDecoration(labelText: 'Total Area Affected'), keyboardType: TextInputType.number),
+                TextField(
+                    controller: controller,
+                    decoration:
+                        const InputDecoration(labelText: 'Intervention Used')),
+                TextField(
+                    controller: amountController,
+                    decoration:
+                        const InputDecoration(labelText: 'Amount Applied')),
+                TextField(
+                    controller: areaController,
+                    decoration:
+                        const InputDecoration(labelText: 'Total Area Affected'),
+                    keyboardType: TextInputType.number),
                 SwitchListTile(
                   title: const Text('Use SQM'),
                   value: useSQM,
@@ -149,7 +178,9 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel')),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
               child: const Text('Save'),
@@ -161,10 +192,16 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
 
     if (result == true && mounted) {
       try {
-        await FirebaseFirestore.instance.collection('coffee_disease_interventions').doc(intervention.id).update({
+        await FirebaseFirestore.instance
+            .collection('coffee_disease_interventions')
+            .doc(intervention.id)
+            .update({
           'intervention': controller.text,
-          'amount': amountController.text.isNotEmpty ? amountController.text : null,
-          'area': areaController.text.isNotEmpty ? double.parse(areaController.text) : null,
+          'amount':
+              amountController.text.isNotEmpty ? amountController.text : null,
+          'area': areaController.text.isNotEmpty
+              ? double.parse(areaController.text)
+              : null,
           'areaUnit': useSQM ? 'SQM' : 'Acres',
         });
 
@@ -178,25 +215,31 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Intervention updated successfully')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Intervention updated successfully')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating intervention: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error updating intervention: $e')));
         }
       }
     }
   }
 
-  Future<void> _deleteIntervention(CoffeeDiseaseIntervention intervention) async {
+  Future<void> _deleteIntervention(
+      CoffeeDiseaseIntervention intervention) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Deletion'),
-        content: const Text('Are you sure you want to delete this intervention? It can be restored by an admin.'),
+        content: const Text(
+            'Are you sure you want to delete this intervention? It can be restored by an admin.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -207,7 +250,10 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
 
     if (confirm == true && mounted) {
       try {
-        await FirebaseFirestore.instance.collection('coffee_disease_interventions').doc(intervention.id).update({
+        await FirebaseFirestore.instance
+            .collection('coffee_disease_interventions')
+            .doc(intervention.id)
+            .update({
           'isDeleted': true,
         });
 
@@ -217,15 +263,18 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
           'collection': 'coffee_disease_interventions',
           'documentId': intervention.id,
           'timestamp': Timestamp.now(),
-          'details': 'Soft-deleted intervention for ${intervention.diseaseName}',
+          'details':
+              'Soft-deleted intervention for ${intervention.diseaseName}',
         });
 
         if (mounted) {
-          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Intervention deleted successfully')));
+          scaffoldMessenger.showSnackBar(const SnackBar(
+              content: Text('Intervention deleted successfully')));
         }
       } catch (e) {
         if (mounted) {
-          scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error deleting intervention: $e')));
+          scaffoldMessenger.showSnackBar(
+              SnackBar(content: Text('Error deleting intervention: $e')));
         }
       }
     }
@@ -260,7 +309,9 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, {'date': date}),
             child: const Text('OK'),
@@ -270,11 +321,13 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
     );
 
     if (result != null && mounted) {
-      final tzDateTime = tz.TZDateTime.from(result['date'] as DateTime, tz.local);
+      final tzDateTime =
+          tz.TZDateTime.from(result['date'] as DateTime, tz.local);
       const androidDetails = AndroidNotificationDetails(
         'coffee_disease_followup_channel',
         'Coffee Disease Follow-Up Reminders',
-        channelDescription: 'Reminders for coffee disease intervention follow-ups',
+        channelDescription:
+            'Reminders for coffee disease intervention follow-ups',
         importance: Importance.max,
         priority: Priority.high,
       );
@@ -290,11 +343,13 @@ class _CoffeeViewDiseaseInterventionsPageState extends State<CoffeeViewDiseaseIn
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         );
         if (mounted) {
-          scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Follow-up reminder scheduled')));
+          scaffoldMessenger.showSnackBar(
+              const SnackBar(content: Text('Follow-up reminder scheduled')));
         }
       } catch (e) {
         if (mounted) {
-          scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error scheduling reminder: $e')));
+          scaffoldMessenger.showSnackBar(
+              SnackBar(content: Text('Error scheduling reminder: $e')));
         }
       }
     }

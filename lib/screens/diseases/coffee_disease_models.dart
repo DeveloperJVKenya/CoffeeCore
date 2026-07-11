@@ -8,9 +8,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 class CoffeeDiseaseData {
-  final String       name;
-  final String       description;
-  final String       symptoms;
+  final String name;
+  final String description;
+  final String symptoms;
   final List<String> chemicalControls;
   final List<String> biologicalControls;
   final List<String> culturalControls;
@@ -27,27 +27,28 @@ class CoffeeDiseaseData {
     required this.culturalControls,
     required this.possibleCauses,
     required this.preventiveMeasures,
-    required this.lifecycleImages, required List<dynamic> mechanicalControls,
+    required this.lifecycleImages,
+    required List<dynamic> mechanicalControls,
   });
 
   /// Converts the local data into the same map format returned by Gemini AI
   /// so that DiseaseResultsPage can render it identically regardless of source.
   Map<String, dynamic> toAiFormatMap() => {
-    'description'        : description,
-    'symptoms'           : symptoms,
-    'chemical_controls'  : chemicalControls,
-    'biological_controls': biologicalControls,
-    'cultural_controls'  : culturalControls,
-    'possible_causes'    : possibleCauses,
-    'preventive_measures': preventiveMeasures,
-  };
+        'description': description,
+        'symptoms': symptoms,
+        'chemical_controls': chemicalControls,
+        'biological_controls': biologicalControls,
+        'cultural_controls': culturalControls,
+        'possible_causes': possibleCauses,
+        'preventive_measures': preventiveMeasures,
+      };
 
   /// Creates a copy with optional field overrides — useful for merging
   /// local data with AI-enriched details returned from Gemini.
   CoffeeDiseaseData copyWith({
-    String?       name,
-    String?       description,
-    String?       symptoms,
+    String? name,
+    String? description,
+    String? symptoms,
     List<String>? chemicalControls,
     List<String>? biologicalControls,
     List<String>? culturalControls,
@@ -56,15 +57,16 @@ class CoffeeDiseaseData {
     List<String>? lifecycleImages,
   }) {
     return CoffeeDiseaseData(
-      name:               name               ?? this.name,
-      description:        description        ?? this.description,
-      symptoms:           symptoms           ?? this.symptoms,
-      chemicalControls:   chemicalControls   ?? this.chemicalControls,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      symptoms: symptoms ?? this.symptoms,
+      chemicalControls: chemicalControls ?? this.chemicalControls,
       biologicalControls: biologicalControls ?? this.biologicalControls,
-      culturalControls:   culturalControls   ?? this.culturalControls,
-      possibleCauses:     possibleCauses     ?? this.possibleCauses,
+      culturalControls: culturalControls ?? this.culturalControls,
+      possibleCauses: possibleCauses ?? this.possibleCauses,
       preventiveMeasures: preventiveMeasures ?? this.preventiveMeasures,
-      lifecycleImages:    lifecycleImages    ?? this.lifecycleImages, mechanicalControls: [],
+      lifecycleImages: lifecycleImages ?? this.lifecycleImages,
+      mechanicalControls: [],
     );
   }
 

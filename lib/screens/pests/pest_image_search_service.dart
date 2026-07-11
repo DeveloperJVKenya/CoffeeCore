@@ -40,13 +40,13 @@ import 'package:http/http.dart' as http;
 
 const String _kINatBaseUrl = 'https://api.inaturalist.org/v1';
 const String _kWikiBaseUrl = 'https://en.wikipedia.org/w/api.php';
-const String _kUserAgent   =
+const String _kUserAgent =
     'CoffeeCore/4.0 (Flutter; East Africa coffee pest management)';
 
 // iNaturalist controlled-term IDs for life-stage annotation filtering.
 // Source: https://www.inaturalist.org/controlled_terms
-const String _kTermLifeStage = '1';  // term_id      = "Life Stage"
-const String _kValueLarva    = '6';  // term_value_id = "Larva" / caterpillar
+const String _kTermLifeStage = '1'; // term_id      = "Life Stage"
+const String _kValueLarva = '6'; // term_value_id = "Larva" / caterpillar
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PER-PEST CONFIGURATION
@@ -64,8 +64,8 @@ const String _kValueLarva    = '6';  // term_value_id = "Larva" / caterpillar
 
 class _PestConfig {
   final List<String> taxonNames;
-  final String?      wikipediaTitle;
-  final bool         filterToLarva;
+  final String? wikipediaTitle;
+  final bool filterToLarva;
 
   const _PestConfig({
     required this.taxonNames,
@@ -75,13 +75,12 @@ class _PestConfig {
 }
 
 const Map<String, _PestConfig> _pestConfig = {
-
   // ── Vegetative Stage ────────────────────────────────────────────────────────
 
   'Coffee Leaf Miner': _PestConfig(
     taxonNames: [
-      'Leucoptera coffeella',  // coffee leaf miner — primary East Africa species
-      'Leucoptera',            // genus — all Leucoptera are leaf miners
+      'Leucoptera coffeella', // coffee leaf miner — primary East Africa species
+      'Leucoptera', // genus — all Leucoptera are leaf miners
     ],
     wikipediaTitle: 'Leucoptera coffeella',
   ),
@@ -89,8 +88,8 @@ const Map<String, _PestConfig> _pestConfig = {
   'Coffee Stem Borer': _PestConfig(
     taxonNames: [
       'Xylotrechus quadripes', // Kenya highland coffee stem borer beetle
-      'Xylotrechus',           // genus — all are bark/stem borers
-      'Cerambycidae',          // longhorn beetle family — all bore into wood
+      'Xylotrechus', // genus — all are bark/stem borers
+      'Cerambycidae', // longhorn beetle family — all bore into wood
     ],
     wikipediaTitle: 'Xylotrechus quadripes',
   ),
@@ -98,24 +97,24 @@ const Map<String, _PestConfig> _pestConfig = {
   'Root-Knot Nematodes': _PestConfig(
     taxonNames: [
       'Meloidogyne incognita', // most common coffee root-knot nematode species
-      'Meloidogyne',           // genus — all produce characteristic root galls
+      'Meloidogyne', // genus — all produce characteristic root galls
     ],
     wikipediaTitle: 'Root-knot nematode',
   ),
 
   'White Flies': _PestConfig(
     taxonNames: [
-      'Bemisia tabaci',             // silverleaf whitefly — primary coffee pest
-      'Trialeurodes vaporariorum',  // greenhouse whitefly — common secondary
-      'Aleyrodidae',                // whitefly family — all species are whiteflies
+      'Bemisia tabaci', // silverleaf whitefly — primary coffee pest
+      'Trialeurodes vaporariorum', // greenhouse whitefly — common secondary
+      'Aleyrodidae', // whitefly family — all species are whiteflies
     ],
     wikipediaTitle: 'Whitefly',
   ),
 
   'Coffee Mealybug': _PestConfig(
     taxonNames: [
-      'Planococcus citri',  // coffee/citrus mealybug — primary species
-      'Pseudococcidae',     // mealybug family — all have the waxy coating
+      'Planococcus citri', // coffee/citrus mealybug — primary species
+      'Pseudococcidae', // mealybug family — all have the waxy coating
     ],
     wikipediaTitle: 'Mealybug',
   ),
@@ -140,38 +139,38 @@ const Map<String, _PestConfig> _pestConfig = {
     //   ruling out any adult moth observations of the same species.
     // ═══════════════════════════════════════════════════════════════════════
     taxonNames: [
-      'Spodoptera exigua',      // beet armyworm caterpillar — East Africa coffee
-      'Spodoptera frugiperda',  // fall armyworm caterpillar — East Africa
-      'Achaea janata',          // castor looper caterpillar — coffee defoliator
-      'Helicoverpa armigera',   // cotton bollworm larva — polyphagous pest
+      'Spodoptera exigua', // beet armyworm caterpillar — East Africa coffee
+      'Spodoptera frugiperda', // fall armyworm caterpillar — East Africa
+      'Achaea janata', // castor looper caterpillar — coffee defoliator
+      'Helicoverpa armigera', // cotton bollworm larva — polyphagous pest
     ],
     filterToLarva: true,
-    wikipediaTitle: 'Spodoptera exigua',  // armyworm article shows larval photos
+    wikipediaTitle: 'Spodoptera exigua', // armyworm article shows larval photos
   ),
 
   'Ants': _PestConfig(
     taxonNames: [
-      'Anoplolepis gracilipes',  // crazy ant — invasive, farms mealybugs on coffee
-      'Solenopsis',              // fire ants — attack coffee roots and stem base
-      'Formicidae',              // ant family — all life stages are ants
+      'Anoplolepis gracilipes', // crazy ant — invasive, farms mealybugs on coffee
+      'Solenopsis', // fire ants — attack coffee roots and stem base
+      'Formicidae', // ant family — all life stages are ants
     ],
     wikipediaTitle: 'Ant',
   ),
 
   'Scale Insects': _PestConfig(
     taxonNames: [
-      'Diaspididae',  // armored scale insects — hard flat waxy cover on bark
-      'Coccidae',     // soft scale insects — common on coffee branches
-      'Coccoidea',    // scale insect superfamily — broadest safe fallback
+      'Diaspididae', // armored scale insects — hard flat waxy cover on bark
+      'Coccidae', // soft scale insects — common on coffee branches
+      'Coccoidea', // scale insect superfamily — broadest safe fallback
     ],
     wikipediaTitle: 'Scale insect',
   ),
 
   'Thrips': _PestConfig(
     taxonNames: [
-      'Frankliniella occidentalis',  // most-photographed thrips species globally
-      'Thrips tabaci',               // coffee/onion thrips — primary East Africa
-      'Thysanoptera',                // thrips ORDER — contains ONLY thrips species
+      'Frankliniella occidentalis', // most-photographed thrips species globally
+      'Thrips tabaci', // coffee/onion thrips — primary East Africa
+      'Thysanoptera', // thrips ORDER — contains ONLY thrips species
     ],
     wikipediaTitle: 'Thrips',
   ),
@@ -180,17 +179,17 @@ const Map<String, _PestConfig> _pestConfig = {
 
   'Coffee Berry Borer': _PestConfig(
     taxonNames: [
-      'Hypothenemus hampei',  // coffee berry borer — globally documented
-      'Scolytinae',           // bark and ambrosia beetle subfamily
+      'Hypothenemus hampei', // coffee berry borer — globally documented
+      'Scolytinae', // bark and ambrosia beetle subfamily
     ],
     wikipediaTitle: 'Coffee berry borer',
   ),
 
   'Coffee Antestia Bug': _PestConfig(
     taxonNames: [
-      'Antestiopsis orbitalis',  // primary East Africa coffee antestia species
-      'Antestiopsis',            // genus — all species attack coffee berries
-      'Pentatomidae',            // stink/shield bug family — correct body shape
+      'Antestiopsis orbitalis', // primary East Africa coffee antestia species
+      'Antestiopsis', // genus — all species attack coffee berries
+      'Pentatomidae', // stink/shield bug family — correct body shape
     ],
     wikipediaTitle: 'Antestiopsis',
   ),
@@ -199,9 +198,9 @@ const Map<String, _PestConfig> _pestConfig = {
 
   'Coffee Weevil': _PestConfig(
     taxonNames: [
-      'Araecerus fasciculatus',  // coffee bean weevil — primary storage pest
-      'Araecerus',               // genus fallback
-      'Curculionidae',           // weevil family — distinctive snout shape
+      'Araecerus fasciculatus', // coffee bean weevil — primary storage pest
+      'Araecerus', // genus fallback
+      'Curculionidae', // weevil family — distinctive snout shape
     ],
     wikipediaTitle: 'Araecerus fasciculatus',
   ),
@@ -213,7 +212,7 @@ const Map<String, _PestConfig> _pestConfig = {
 
 class _CacheEntry {
   final List<String> urls;
-  final DateTime     cachedAt;
+  final DateTime cachedAt;
   const _CacheEntry(this.urls, this.cachedAt);
 }
 
@@ -225,8 +224,8 @@ class PestImageSearchService {
   PestImageSearchService._();
 
   static final Map<String, _CacheEntry> _cache = {};
-  static const Duration _cacheDuration          = Duration(hours: 6);
-  static final http.Client _client              = http.Client();
+  static const Duration _cacheDuration = Duration(hours: 6);
+  static final http.Client _client = http.Client();
 
   // ══════════════════════════════════════════════════════════════════════════
   // PRIMARY PUBLIC METHOD
@@ -239,7 +238,7 @@ class PestImageSearchService {
     int maxResults = 6,
   }) async {
     final clampedMax = maxResults.clamp(1, 10);
-    final cacheKey   = '$pestName|$stage|$clampedMax';
+    final cacheKey = '$pestName|$stage|$clampedMax';
 
     final cached = _cache[cacheKey];
     if (cached != null &&
@@ -270,8 +269,8 @@ class PestImageSearchService {
       debugPrint('[PestImageSearch] 🌿 iNat obs: "$taxon"'
           '${config.filterToLarva ? " [larva-only]" : ""}');
       final urls = await _iNatObservations(
-        taxonName:   taxon,
-        maxResults:  clampedMax - collected.length,
+        taxonName: taxon,
+        maxResults: clampedMax - collected.length,
         filterLarva: config.filterToLarva,
       );
       _mergeUnique(collected, urls, clampedMax);
@@ -285,7 +284,7 @@ class PestImageSearchService {
         if (collected.length >= clampedMax) break;
         debugPrint('[PestImageSearch] 🌿 iNat taxa: "$taxon"');
         final urls = await _iNatTaxa(
-          query:      taxon,
+          query: taxon,
           maxResults: clampedMax - collected.length,
         );
         _mergeUnique(collected, urls, clampedMax);
@@ -306,10 +305,12 @@ class PestImageSearchService {
       debugPrint('[PestImageSearch] ℹ️ All sources: 0 images for "$pestName". '
           'UI will show no-images message.');
     } else {
-      debugPrint('[PestImageSearch] ✅ "$pestName" → ${collected.length} images.');
+      debugPrint(
+          '[PestImageSearch] ✅ "$pestName" → ${collected.length} images.');
     }
 
-    _cache[cacheKey] = _CacheEntry(List.unmodifiable(collected), DateTime.now());
+    _cache[cacheKey] =
+        _CacheEntry(List.unmodifiable(collected), DateTime.now());
     return collected;
   }
 
@@ -326,33 +327,31 @@ class PestImageSearchService {
 
   static Future<List<String>> _iNatObservations({
     required String taxonName,
-    required int    maxResults,
-    bool            filterLarva = false,
+    required int maxResults,
+    bool filterLarva = false,
   }) async {
     try {
       final params = <String, String>{
-        'taxon_name'    : taxonName,
-        'quality_grade' : 'research',
-        'photos'        : 'true',
-        'per_page'      : maxResults.clamp(1, 20).toString(),
-        'order_by'      : 'votes',
-        'order'         : 'desc',
+        'taxon_name': taxonName,
+        'quality_grade': 'research',
+        'photos': 'true',
+        'per_page': maxResults.clamp(1, 20).toString(),
+        'order_by': 'votes',
+        'order': 'desc',
         'photo_licensed': 'true',
       };
       if (filterLarva) {
-        params['term_id']       = _kTermLifeStage;
+        params['term_id'] = _kTermLifeStage;
         params['term_value_id'] = _kValueLarva;
       }
 
       final uri = Uri.parse('$_kINatBaseUrl/observations')
           .replace(queryParameters: params);
 
-      final response = await _client
-          .get(uri, headers: {
-            'Accept'    : 'application/json',
-            'User-Agent': _kUserAgent,
-          })
-          .timeout(const Duration(seconds: 14));
+      final response = await _client.get(uri, headers: {
+        'Accept': 'application/json',
+        'User-Agent': _kUserAgent,
+      }).timeout(const Duration(seconds: 14));
 
       if (response.statusCode != 200) {
         debugPrint('[PestImageSearch] iNat obs HTTP ${response.statusCode} '
@@ -360,9 +359,9 @@ class PestImageSearchService {
         return [];
       }
 
-      final json    = jsonDecode(response.body) as Map<String, dynamic>;
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
       final results = (json['results'] as List<dynamic>?) ?? [];
-      final urls    = <String>[];
+      final urls = <String>[];
 
       for (final obs in results) {
         if (urls.length >= maxResults) break;
@@ -380,7 +379,6 @@ class PestImageSearchService {
 
       debugPrint('[PestImageSearch] iNat obs "$taxonName" → ${urls.length}');
       return urls;
-
     } catch (e) {
       debugPrint('[PestImageSearch] iNat obs error "$taxonName": $e');
       return [];
@@ -396,23 +394,21 @@ class PestImageSearchService {
 
   static Future<List<String>> _iNatTaxa({
     required String query,
-    required int    maxResults,
+    required int maxResults,
   }) async {
     try {
       final uri = Uri.parse('$_kINatBaseUrl/taxa').replace(
         queryParameters: {
-          'q'       : query,
-          'photos'  : 'true',
+          'q': query,
+          'photos': 'true',
           'per_page': maxResults.clamp(1, 5).toString(),
         },
       );
 
-      final response = await _client
-          .get(uri, headers: {
-            'Accept'    : 'application/json',
-            'User-Agent': _kUserAgent,
-          })
-          .timeout(const Duration(seconds: 12));
+      final response = await _client.get(uri, headers: {
+        'Accept': 'application/json',
+        'User-Agent': _kUserAgent,
+      }).timeout(const Duration(seconds: 12));
 
       if (response.statusCode != 200) {
         debugPrint('[PestImageSearch] iNat taxa HTTP ${response.statusCode} '
@@ -420,9 +416,9 @@ class PestImageSearchService {
         return [];
       }
 
-      final json    = jsonDecode(response.body) as Map<String, dynamic>;
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
       final results = (json['results'] as List<dynamic>?) ?? [];
-      final urls    = <String>[];
+      final urls = <String>[];
 
       for (final taxon in results) {
         if (urls.length >= maxResults) break;
@@ -438,7 +434,6 @@ class PestImageSearchService {
 
       debugPrint('[PestImageSearch] iNat taxa "$query" → ${urls.length}');
       return urls;
-
     } catch (e) {
       debugPrint('[PestImageSearch] iNat taxa error "$query": $e');
       return [];
@@ -456,22 +451,20 @@ class PestImageSearchService {
     try {
       final uri = Uri.parse(_kWikiBaseUrl).replace(
         queryParameters: {
-          'action'     : 'query',
-          'titles'     : articleTitle,
-          'prop'       : 'pageimages',
-          'format'     : 'json',
+          'action': 'query',
+          'titles': articleTitle,
+          'prop': 'pageimages',
+          'format': 'json',
           'pithumbsize': '640',
-          'pilicense'  : 'any',
-          'redirects'  : '1',
+          'pilicense': 'any',
+          'redirects': '1',
         },
       );
 
-      final response = await _client
-          .get(uri, headers: {
-            'Accept'    : 'application/json',
-            'User-Agent': _kUserAgent,
-          })
-          .timeout(const Duration(seconds: 12));
+      final response = await _client.get(uri, headers: {
+        'Accept': 'application/json',
+        'User-Agent': _kUserAgent,
+      }).timeout(const Duration(seconds: 12));
 
       if (response.statusCode != 200) {
         debugPrint('[PestImageSearch] Wikipedia HTTP ${response.statusCode} '
@@ -479,20 +472,19 @@ class PestImageSearchService {
         return null;
       }
 
-      final json  = jsonDecode(response.body) as Map<String, dynamic>;
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
       final pages = (json['query']?['pages'] as Map<String, dynamic>?) ?? {};
 
       for (final page in pages.values) {
         final source = page['thumbnail']?['source'] as String?;
         if (source == null || source.isEmpty) continue;
         if (!source.startsWith('https://')) continue;
-        final larger = source.replaceAllMapped(
-          RegExp(r'/(\d+)px-'), (_) => '/800px-');
+        final larger =
+            source.replaceAllMapped(RegExp(r'/(\d+)px-'), (_) => '/800px-');
         debugPrint('[PestImageSearch] Wikipedia ✅ image found');
         return larger;
       }
       return null;
-
     } catch (e) {
       debugPrint('[PestImageSearch] Wikipedia error "$articleTitle": $e');
       return null;
@@ -522,7 +514,7 @@ class PestImageSearchService {
     required String stage,
     int maxResults = 6,
   }) {
-    final key   = '$pestName|$stage|$maxResults';
+    final key = '$pestName|$stage|$maxResults';
     final entry = _cache[key];
     if (entry == null) return false;
     return DateTime.now().difference(entry.cachedAt) < _cacheDuration;

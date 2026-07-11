@@ -70,7 +70,8 @@ class AccountSettingsScreen extends StatelessWidget {
                           ),
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Update Email tapped')),
+                              const SnackBar(
+                                  content: Text('Update Email tapped')),
                             );
                           },
                         ),
@@ -83,7 +84,8 @@ class AccountSettingsScreen extends StatelessWidget {
                           ),
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Change Password tapped')),
+                              const SnackBar(
+                                  content: Text('Change Password tapped')),
                             );
                           },
                         ),
@@ -121,7 +123,8 @@ class AccountSettingsScreen extends StatelessWidget {
                           ),
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Account Type tapped')),
+                              const SnackBar(
+                                  content: Text('Account Type tapped')),
                             );
                           },
                         ),
@@ -134,7 +137,8 @@ class AccountSettingsScreen extends StatelessWidget {
                           ),
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Restore Purchase tapped')),
+                              const SnackBar(
+                                  content: Text('Restore Purchase tapped')),
                             );
                           },
                         ),
@@ -156,7 +160,8 @@ class AccountSettingsScreen extends StatelessWidget {
                   width: cardWidth, // Match card width
                   decoration: BoxDecoration(
                     color: darkRed,
-                    borderRadius: BorderRadius.circular(12.0), // Match card corner radius
+                    borderRadius:
+                        BorderRadius.circular(12.0), // Match card corner radius
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: const Center(

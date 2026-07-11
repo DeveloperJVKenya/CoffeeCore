@@ -36,7 +36,8 @@ class _LoginScreenState extends State<LoginScreen> {
           password: _passwordController.text.trim(),
         );
         if (mounted) {
-          Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => const HomePage()));
+          Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const HomePage()));
         }
       } on FirebaseAuthException catch (e) {
         String message;
@@ -48,7 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
           message = 'Login failed: ${e.message}';
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(message)));
         }
       } finally {
         if (mounted) {
@@ -62,7 +64,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleForgotPassword() async {
     if (_emailController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter your email address')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter your email address')));
       return;
     }
 
@@ -71,12 +74,15 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: _emailController.text.trim());
+      await FirebaseAuth.instance
+          .sendPasswordResetEmail(email: _emailController.text.trim());
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password reset email sent. Check your inbox.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Password reset email sent. Check your inbox.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to send password reset email: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send password reset email: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -95,11 +101,14 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              Image.asset('assets/coffee-plant.png', width: 200.0), 
+              Image.asset('assets/coffee-plant.png', width: 200.0),
               const SizedBox(height: 20.0),
               const Text(
                 'CoffeeCore Login',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.brown),
+                style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.brown),
               ),
               const SizedBox(height: 20.0),
               Form(
@@ -111,7 +120,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       label: 'Email',
                       hintText: 'Enter your email address',
                       validator: (value) {
-                        if (value == null || value.isEmpty || !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                        if (value == null ||
+                            value.isEmpty ||
+                            !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                           return 'Please enter a valid email address';
                         }
                         return null;
@@ -124,7 +135,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       hintText: 'Enter your password',
                       obscureText: _obscureText,
                       suffixIcon: IconButton(
-                        icon: Icon(_obscureText ? Icons.visibility : Icons.visibility_off, color: Colors.brown[700]),
+                        icon: Icon(
+                            _obscureText
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: Colors.brown[700]),
                         onPressed: () {
                           setState(() {
                             _obscureText = !_obscureText;
@@ -143,7 +158,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: _isLoading ? null : _handleForgotPassword,
-                        child: Text('Forgot Password?', style: TextStyle(color: Colors.brown[700])),
+                        child: Text('Forgot Password?',
+                            style: TextStyle(color: Colors.brown[700])),
                       ),
                     ),
                     const SizedBox(height: 20.0),
@@ -162,7 +178,8 @@ class _LoginScreenState extends State<LoginScreen> {
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (context) => const RegistrationScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => const RegistrationScreen()),
                   );
                 },
                 child: Text(
@@ -208,11 +225,13 @@ class _LoginScreenState extends State<LoginScreen> {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: icon ?? const SizedBox.shrink(),
-      label: Text(label, style: const TextStyle(fontSize: 20.0, color: Colors.white)),
+      label: Text(label,
+          style: const TextStyle(fontSize: 20.0, color: Colors.white)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.brown[700], 
+        backgroundColor: Colors.brown[700],
         padding: const EdgeInsets.symmetric(vertical: 15.0),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.0)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.0)),
         elevation: 5,
       ),
     );

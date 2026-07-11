@@ -18,11 +18,13 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
     try {
       await FirebaseFirestore.instance.collection('Users').doc(uid).delete();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User deleted from Firestore!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('User deleted from Firestore!')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting user: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error deleting user: $e')));
       }
     }
   }
@@ -32,18 +34,21 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
       if (email.isEmpty) throw 'Email is required';
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password reset email sent!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Password reset email sent!')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error sending password reset: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error sending password reset: $e')));
       }
     }
   }
 
   Future<void> _messageUser(String uid) async {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Messaging not implemented yet')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Messaging not implemented yet')));
     }
   }
 
@@ -59,7 +64,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Edit User $uid', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Edit User $uid',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -70,7 +76,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                   controller: entry.value,
                   decoration: InputDecoration(
                     labelText: entry.key,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               );
@@ -83,7 +90,10 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext, controllers.map((key, controller) => MapEntry(key, controller.text))),
+            onPressed: () => Navigator.pop(
+                dialogContext,
+                controllers
+                    .map((key, controller) => MapEntry(key, controller.text))),
             child: const Text('Save'),
           ),
         ],
@@ -92,10 +102,15 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
 
     if (result != null && mounted) {
       try {
-        await FirebaseFirestore.instance.collection('Users').doc(uid).update(result);
-        scaffoldMessenger.showSnackBar(const SnackBar(content: Text('User updated successfully!')));
+        await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(uid)
+            .update(result);
+        scaffoldMessenger.showSnackBar(
+            const SnackBar(content: Text('User updated successfully!')));
       } catch (e) {
-        scaffoldMessenger.showSnackBar(SnackBar(content: Text('Error updating user: $e')));
+        scaffoldMessenger
+            .showSnackBar(SnackBar(content: Text('Error updating user: $e')));
       }
     }
 
@@ -106,8 +121,10 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Deletion', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to delete this user? This action cannot be undone.'),
+        title: const Text('Confirm Deletion',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text(
+            'Are you sure you want to delete this user? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -129,7 +146,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Users', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Manage Users',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.brown[700],
         foregroundColor: Colors.white,
         actions: [
@@ -186,14 +204,16 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                 padding: const EdgeInsets.all(8.0),
                 child: Text(
                   'Total Users: ${snapshot.data!.docs.length}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               );
             },
           ),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('Users').snapshots(),
+              stream:
+                  FirebaseFirestore.instance.collection('Users').snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -214,25 +234,36 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                       columns: [
                         if (bulkAction != null)
                           const DataColumn(
-                              label: Text('Select', style: TextStyle(fontWeight: FontWeight.bold))),
+                              label: Text('Select',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold))),
                         const DataColumn(
-                            label: Text('Profile', style: TextStyle(fontWeight: FontWeight.bold))),
+                            label: Text('Profile',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
                         const DataColumn(
-                            label: Text('Full Name', style: TextStyle(fontWeight: FontWeight.bold))),
+                            label: Text('Full Name',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
                         const DataColumn(
-                            label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold))),
+                            label: Text('Email',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
                         const DataColumn(
-                            label: Text('County', style: TextStyle(fontWeight: FontWeight.bold))),
+                            label: Text('County',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
                         const DataColumn(
-                            label: Text('Constituency', style: TextStyle(fontWeight: FontWeight.bold))),
+                            label: Text('Constituency',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
                         const DataColumn(
-                            label: Text('Ward', style: TextStyle(fontWeight: FontWeight.bold))),
+                            label: Text('Ward',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
                         const DataColumn(
-                            label: Text('Phone Number', style: TextStyle(fontWeight: FontWeight.bold))),
+                            label: Text('Phone Number',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
                         const DataColumn(
-                            label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+                            label: Text('Status',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
                         const DataColumn(
-                            label: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold))),
+                            label: Text('Actions',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
                       ],
                       rows: users.map((doc) {
                         final data = doc.data() as Map<String, dynamic>;
@@ -269,7 +300,9 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                           DataCell(Text(data['constituency'] ?? 'N/A')),
                           DataCell(Text(data['ward'] ?? 'N/A')),
                           DataCell(Text(data['phoneNumber'] ?? 'N/A')),
-                          DataCell(Text(data['isDisabled'] == true ? 'Disabled' : 'Active')),
+                          DataCell(Text(data['isDisabled'] == true
+                              ? 'Disabled'
+                              : 'Active')),
                           DataCell(
                             PopupMenuButton<String>(
                               onSelected: (value) {
@@ -286,7 +319,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                                   value: 'Delete',
                                   child: Row(
                                     children: const [
-                                      Icon(Icons.delete, color: Colors.red, size: 20),
+                                      Icon(Icons.delete,
+                                          color: Colors.red, size: 20),
                                       SizedBox(width: 8),
                                       Text('Delete User'),
                                     ],
@@ -296,7 +330,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                                   value: 'Reset Password',
                                   child: Row(
                                     children: const [
-                                      Icon(Icons.lock_reset, color: Colors.orange, size: 20),
+                                      Icon(Icons.lock_reset,
+                                          color: Colors.orange, size: 20),
                                       SizedBox(width: 8),
                                       Text('Reset Password'),
                                     ],
@@ -306,7 +341,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                                   value: 'Edit',
                                   child: Row(
                                     children: const [
-                                      Icon(Icons.edit, color: Colors.blue, size: 20),
+                                      Icon(Icons.edit,
+                                          color: Colors.blue, size: 20),
                                       SizedBox(width: 8),
                                       Text('Edit'),
                                     ],
@@ -335,7 +371,10 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                     }
                   } else if (bulkAction == 'Bulk Reset Password') {
                     for (var uid in selectedUids) {
-                      final doc = await FirebaseFirestore.instance.collection('Users').doc(uid).get();
+                      final doc = await FirebaseFirestore.instance
+                          .collection('Users')
+                          .doc(uid)
+                          .get();
                       await _resetPassword(doc['email'] ?? '');
                     }
                   } else if (bulkAction == 'Bulk Message') {

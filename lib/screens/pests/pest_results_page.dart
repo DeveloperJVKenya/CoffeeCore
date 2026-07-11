@@ -95,29 +95,29 @@ class PestResultsPage extends StatefulWidget {
 class _PestResultsPageState extends State<PestResultsPage>
     with TickerProviderStateMixin {
   // ── Theme ──────────────────────────────────────────────────────────────────
-  static const Color _darkBrown    = Color(0xFF3E2723);
-  static const Color _midBrown     = Color(0xFF6D4C41);
-  static const Color _lightBrown   = Color(0xFFA1887F);
-  static const Color _cream        = Color(0xFFFFF8F2);
-  static const Color _amber        = Color(0xFFFFCC80);
+  static const Color _darkBrown = Color(0xFF3E2723);
+  static const Color _midBrown = Color(0xFF6D4C41);
+  static const Color _lightBrown = Color(0xFFA1887F);
+  static const Color _cream = Color(0xFFFFF8F2);
+  static const Color _amber = Color(0xFFFFCC80);
   static const Color _successGreen = Color(0xFF388E3C);
 
   // ── Page state ─────────────────────────────────────────────────────────────
-  _PageState _pageState   = _PageState.loadingImages;
-  String?    _errorMessage;
+  _PageState _pageState = _PageState.loadingImages;
+  String? _errorMessage;
 
   // ── Resolved data ──────────────────────────────────────────────────────────
-  String?            _resolvedPest;
-  String             _resolvedStage = '';
-  List<String>       _onlinePestImages = [];
+  String? _resolvedPest;
+  String _resolvedStage = '';
+  List<String> _onlinePestImages = [];
   Map<String, dynamic>? _managementData;
 
   // ── Path B ─────────────────────────────────────────────────────────────────
   List<_PestCard> _pestCards = [];
-  String?         _selectedPestInGrid;
+  String? _selectedPestInGrid;
 
   // ── Save state ─────────────────────────────────────────────────────────────
-  bool _isSaving  = false;
+  bool _isSaving = false;
   bool _savedToDb = false;
 
   // ── Carousel ───────────────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ class _PestResultsPageState extends State<PestResultsPage>
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _fadeController;
-  late Animation<double>   _fadeAnim;
+  late Animation<double> _fadeAnim;
   late AnimationController _cardStaggerController;
 
   final ScrollController _scrollController = ScrollController();
@@ -139,7 +139,7 @@ class _PestResultsPageState extends State<PestResultsPage>
   void initState() {
     super.initState();
     _resolvedStage = widget.selectedStage;
-    _resolvedPest  = widget.selectedPest;
+    _resolvedPest = widget.selectedPest;
 
     debugPrint('[PestResultsPage] 🌱 initState — '
         'mode=${widget.detectionMode.name} | '
@@ -196,7 +196,7 @@ class _PestResultsPageState extends State<PestResultsPage>
       if (!mounted) return;
       setState(() {
         _onlinePestImages = urls;
-        _pageState        = _PageState.awaitingConfirmation;
+        _pageState = _PageState.awaitingConfirmation;
       });
       _fadeController.forward(from: 0);
     } catch (e) {
@@ -205,7 +205,7 @@ class _PestResultsPageState extends State<PestResultsPage>
       if (!mounted) return;
       setState(() {
         _onlinePestImages = [];
-        _pageState        = _PageState.awaitingConfirmation;
+        _pageState = _PageState.awaitingConfirmation;
       });
       _fadeController.forward(from: 0);
     }
@@ -251,8 +251,8 @@ class _PestResultsPageState extends State<PestResultsPage>
             '"${card.name}" → ${urls.length} thumbnail images.');
         if (mounted) {
           setState(() {
-            _pestCards[i] = _PestCard(
-                name: card.name, imageUrls: urls, imagesLoaded: true);
+            _pestCards[i] =
+                _PestCard(name: card.name, imageUrls: urls, imagesLoaded: true);
           });
         }
       } catch (e) {
@@ -260,8 +260,8 @@ class _PestResultsPageState extends State<PestResultsPage>
             '"${card.name}" thumbnail failed: $e');
         if (mounted) {
           setState(() {
-            _pestCards[i] = _PestCard(
-                name: card.name, imageUrls: [], imagesLoaded: true);
+            _pestCards[i] =
+                _PestCard(name: card.name, imageUrls: [], imagesLoaded: true);
           });
         }
       }
@@ -275,8 +275,8 @@ class _PestResultsPageState extends State<PestResultsPage>
         'from grid. Loading management details.');
     setState(() {
       _selectedPestInGrid = pestName;
-      _resolvedPest       = pestName;
-      _pageState          = _PageState.loadingManagement;
+      _resolvedPest = pestName;
+      _pageState = _PageState.loadingManagement;
     });
     await _loadManagementDetails(pestName, _resolvedStage);
   }
@@ -315,11 +315,11 @@ class _PestResultsPageState extends State<PestResultsPage>
     if (kPestDetails.containsKey(pestName)) {
       final local = kPestDetails[pestName]!;
       _managementData = {
-        'description':         local['description'],
-        'symptoms':            local['symptoms'],
-        'chemical_controls':   local['chemicalControls'],
+        'description': local['description'],
+        'symptoms': local['symptoms'],
+        'chemical_controls': local['chemicalControls'],
         'biological_controls': local['biologicalControls'],
-        'possible_causes':     local['possibleCauses'],
+        'possible_causes': local['possibleCauses'],
         'preventive_measures': local['preventiveMeasures'],
       };
       debugPrint('[PestResultsPage] 📚 Local data found for "$pestName" — '
@@ -382,12 +382,16 @@ class _PestResultsPageState extends State<PestResultsPage>
 
   Map<String, dynamic> _normaliseMgmtKeys(Map<String, dynamic> raw) {
     return {
-      'description':         raw['description'] ?? '',
-      'symptoms':            raw['symptoms'] ?? '',
-      'chemical_controls':   _toList(raw['chemical_controls'] ?? raw['chemicalControls']),
-      'biological_controls': _toList(raw['biological_controls'] ?? raw['biologicalControls']),
-      'possible_causes':     _toList(raw['possible_causes'] ?? raw['possibleCauses']),
-      'preventive_measures': _toList(raw['preventive_measures'] ?? raw['preventiveMeasures']),
+      'description': raw['description'] ?? '',
+      'symptoms': raw['symptoms'] ?? '',
+      'chemical_controls':
+          _toList(raw['chemical_controls'] ?? raw['chemicalControls']),
+      'biological_controls':
+          _toList(raw['biological_controls'] ?? raw['biologicalControls']),
+      'possible_causes':
+          _toList(raw['possible_causes'] ?? raw['possibleCauses']),
+      'preventive_measures':
+          _toList(raw['preventive_measures'] ?? raw['preventiveMeasures']),
     };
   }
 
@@ -412,23 +416,26 @@ class _PestResultsPageState extends State<PestResultsPage>
     setState(() => _isSaving = true);
     try {
       final docId = await PestFirestoreService.saveDiagnosis(
-        pestName:       _resolvedPest ?? 'Unknown',
-        stage:          _resolvedStage,
-        detectionMode:  widget.detectionMode.name,
+        pestName: _resolvedPest ?? 'Unknown',
+        stage: _resolvedStage,
+        detectionMode: widget.detectionMode.name,
         managementData: _managementData ?? {},
-        imageUrls:      _onlinePestImages,
-        aiConfidence:   widget.aiConfidence,
-        aiReasoning:    widget.aiReasoning,
+        imageUrls: _onlinePestImages,
+        aiConfidence: widget.aiConfidence,
+        aiReasoning: widget.aiReasoning,
       );
       debugPrint('[PestResultsPage] ✅ Diagnosis saved successfully. '
           'Firestore ID: $docId');
       if (!mounted) return;
-      setState(() { _isSaving = false; _savedToDb = true; });
+      setState(() {
+        _isSaving = false;
+        _savedToDb = true;
+      });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Diagnosis saved to your history.',
             style: GoogleFonts.poppins()),
         backgroundColor: _successGreen,
-        behavior:        SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.floating,
       ));
     } catch (e) {
       debugPrint('[PestResultsPage] ❌ _saveDiagnosis failed: $e');
@@ -438,7 +445,7 @@ class _PestResultsPageState extends State<PestResultsPage>
         content: Text('Could not save. Check your connection.',
             style: GoogleFonts.poppins()),
         backgroundColor: Colors.redAccent,
-        behavior:        SnackBarBehavior.floating,
+        behavior: SnackBarBehavior.floating,
       ));
     }
   }
@@ -463,9 +470,9 @@ class _PestResultsPageState extends State<PestResultsPage>
     final title = switch (_pageState) {
       _PageState.loadingImages || _PageState.loadingManagement => 'Loading…',
       _PageState.awaitingConfirmation => 'Confirm the Pest',
-      _PageState.pestSelection        => 'Select the Pest You See',
-      _PageState.showingManagement    => _resolvedPest ?? 'Management Details',
-      _PageState.error                => 'Something went wrong',
+      _PageState.pestSelection => 'Select the Pest You See',
+      _PageState.showingManagement => _resolvedPest ?? 'Management Details',
+      _PageState.error => 'Something went wrong',
     };
 
     return AppBar(
@@ -481,7 +488,8 @@ class _PestResultsPageState extends State<PestResultsPage>
 
   Widget _buildBody() {
     return switch (_pageState) {
-      _PageState.loadingImages || _PageState.loadingManagement =>
+      _PageState.loadingImages ||
+      _PageState.loadingManagement =>
         _buildLoader(key: const ValueKey('loader')),
       _PageState.awaitingConfirmation =>
         _buildConfirmationView(key: const ValueKey('confirm')),
@@ -489,8 +497,7 @@ class _PestResultsPageState extends State<PestResultsPage>
         _buildPestSelectionView(key: const ValueKey('pestsel')),
       _PageState.showingManagement =>
         _buildManagementView(key: const ValueKey('mgmt')),
-      _PageState.error =>
-        _buildErrorView(key: const ValueKey('error')),
+      _PageState.error => _buildErrorView(key: const ValueKey('error')),
     };
   }
 
@@ -511,9 +518,11 @@ class _PestResultsPageState extends State<PestResultsPage>
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 72, height: 72,
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
-                  color: _darkBrown.withValues(alpha: .08), shape: BoxShape.circle),
+                  color: _darkBrown.withValues(alpha: .08),
+                  shape: BoxShape.circle),
               child: const CircularProgressIndicator(
                   color: _darkBrown, strokeWidth: 3),
             ),
@@ -534,7 +543,8 @@ class _PestResultsPageState extends State<PestResultsPage>
 
   Widget _buildConfirmationView({Key? key}) {
     final localImages =
-        kPestDetails[_resolvedPest!]?['lifecycleImages'] as List<dynamic>? ?? [];
+        kPestDetails[_resolvedPest!]?['lifecycleImages'] as List<dynamic>? ??
+            [];
 
     return FadeTransition(
       key: key,
@@ -551,7 +561,8 @@ class _PestResultsPageState extends State<PestResultsPage>
             _buildSectionHeader(
               icon: Icons.image_search_rounded,
               title: 'Online Pest Images',
-              subtitle: 'Images of ${_resolvedPest!} at the $_resolvedStage stage',
+              subtitle:
+                  'Images of ${_resolvedPest!} at the $_resolvedStage stage',
             ),
             const SizedBox(height: 12),
             if (_onlinePestImages.isNotEmpty)
@@ -588,14 +599,17 @@ class _PestResultsPageState extends State<PestResultsPage>
             Expanded(
               child: Text('Is this the pest you are seeing on your crop?',
                   style: GoogleFonts.poppins(
-                      fontSize: 14, fontWeight: FontWeight.w700, color: _darkBrown)),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: _darkBrown)),
             ),
           ]),
           const SizedBox(height: 8),
           Text(
             'Compare the images above with what you see in your field. '
             'Confirm only if you recognise the damage patterns.',
-            style: GoogleFonts.poppins(fontSize: 12.5, color: _midBrown, height: 1.5),
+            style: GoogleFonts.poppins(
+                fontSize: 12.5, color: _midBrown, height: 1.5),
           ),
           const SizedBox(height: 18),
           Row(children: [
@@ -625,11 +639,13 @@ class _PestResultsPageState extends State<PestResultsPage>
               child: ElevatedButton.icon(
                 onPressed: _onConfirmPestA,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _darkBrown, foregroundColor: Colors.white,
+                  backgroundColor: _darkBrown,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
-                  elevation: 4, shadowColor: _darkBrown.withValues(alpha: .4),
+                  elevation: 4,
+                  shadowColor: _darkBrown.withValues(alpha: .4),
                 ),
                 icon: const Icon(Icons.check_circle_rounded, size: 18),
                 label: Text('Yes, Show Management',
@@ -685,11 +701,12 @@ class _PestResultsPageState extends State<PestResultsPage>
             _buildSectionHeader(
               icon: Icons.bug_report_rounded,
               title: 'Possible Pests at This Stage',
-              subtitle: '${_pestCards.length} pests known to attack coffee during $_resolvedStage',
+              subtitle:
+                  '${_pestCards.length} pests known to attack coffee during $_resolvedStage',
             ),
             const SizedBox(height: 14),
-            ...List.generate(_pestCards.length,
-                (i) => _buildPestCard(_pestCards[i], i)),
+            ...List.generate(
+                _pestCards.length, (i) => _buildPestCard(_pestCards[i], i)),
           ],
         ),
       ),
@@ -697,7 +714,7 @@ class _PestResultsPageState extends State<PestResultsPage>
   }
 
   Widget _buildPestCard(_PestCard card, int index) {
-    final delay      = (index * 60).clamp(0, 400);
+    final delay = (index * 60).clamp(0, 400);
     final isSelected = _selectedPestInGrid == card.name;
 
     return TweenAnimationBuilder<double>(
@@ -706,7 +723,8 @@ class _PestResultsPageState extends State<PestResultsPage>
       curve: Curves.easeOut,
       builder: (_, val, child) => Opacity(
         opacity: val,
-        child: Transform.translate(offset: Offset(0, 20 * (1 - val)), child: child),
+        child: Transform.translate(
+            offset: Offset(0, 20 * (1 - val)), child: child),
       ),
       child: GestureDetector(
         onTap: () => _onSelectPestB(card.name),
@@ -735,7 +753,8 @@ class _PestResultsPageState extends State<PestResultsPage>
                     topLeft: Radius.circular(15),
                     bottomLeft: Radius.circular(15)),
                 child: SizedBox(
-                  width: 110, height: 90,
+                  width: 110,
+                  height: 90,
                   child: card.imagesLoaded
                       ? (card.imageUrls.isNotEmpty
                           ? _netImage(url: card.imageUrls.first)
@@ -751,8 +770,10 @@ class _PestResultsPageState extends State<PestResultsPage>
                     children: [
                       Text(card.name,
                           style: GoogleFonts.poppins(
-                              fontSize: 13.5, fontWeight: FontWeight.w700,
-                              color: _darkBrown, height: 1.2)),
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: _darkBrown,
+                              height: 1.2)),
                       const SizedBox(height: 5),
                       Text(kPestDetails[card.name]?['symptoms'] ?? '',
                           maxLines: 2,
@@ -766,7 +787,9 @@ class _PestResultsPageState extends State<PestResultsPage>
                             color: isSelected ? _darkBrown : _lightBrown),
                         const SizedBox(width: 4),
                         Text(
-                          isSelected ? 'Loading details…' : 'Tap for management',
+                          isSelected
+                              ? 'Loading details…'
+                              : 'Tap for management',
                           style: GoogleFonts.poppins(
                               fontSize: 11.5,
                               color: isSelected ? _darkBrown : _lightBrown,
@@ -813,37 +836,44 @@ class _PestResultsPageState extends State<PestResultsPage>
             _buildSectionHeader(
               icon: Icons.medical_services_rounded,
               title: 'Pest Management Details',
-              subtitle: 'AI-enhanced recommendations for ${_resolvedPest ?? "identified pest"}',
+              subtitle:
+                  'AI-enhanced recommendations for ${_resolvedPest ?? "identified pest"}',
             ),
             const SizedBox(height: 14),
             if (_managementData != null) ...[
               _buildMgmtCard(
-                  index: 0, icon: Icons.info_outline_rounded,
+                  index: 0,
+                  icon: Icons.info_outline_rounded,
                   title: 'Description',
                   content: _managementData!['description']?.toString() ?? '',
                   accentColor: const Color(0xFF5D4037)),
               _buildMgmtCard(
-                  index: 1, icon: Icons.warning_amber_rounded,
+                  index: 1,
+                  icon: Icons.warning_amber_rounded,
                   title: 'Symptoms',
                   content: _managementData!['symptoms']?.toString() ?? '',
                   accentColor: const Color(0xFFE65100)),
               _buildListMgmtCard(
-                  index: 2, icon: Icons.science_rounded,
+                  index: 2,
+                  icon: Icons.science_rounded,
                   title: 'Chemical Controls',
                   items: _toList(_managementData!['chemical_controls']),
                   accentColor: const Color(0xFF1565C0)),
               _buildListMgmtCard(
-                  index: 3, icon: Icons.eco_rounded,
+                  index: 3,
+                  icon: Icons.eco_rounded,
                   title: 'Biological Controls',
                   items: _toList(_managementData!['biological_controls']),
                   accentColor: _successGreen),
               _buildListMgmtCard(
-                  index: 4, icon: Icons.search_rounded,
+                  index: 4,
+                  icon: Icons.search_rounded,
                   title: 'Possible Causes',
                   items: _toList(_managementData!['possible_causes']),
                   accentColor: const Color(0xFF6A1B9A)),
               _buildListMgmtCard(
-                  index: 5, icon: Icons.shield_rounded,
+                  index: 5,
+                  icon: Icons.shield_rounded,
                   title: 'Preventive Measures',
                   items: _toList(_managementData!['preventive_measures']),
                   accentColor: const Color(0xFF00695C)),
@@ -887,11 +917,15 @@ class _PestResultsPageState extends State<PestResultsPage>
             const SizedBox(width: 6),
             Text('CoffeeCore AI Identification',
                 style: GoogleFonts.poppins(
-                    fontSize: 12.5, fontWeight: FontWeight.w700, color: _darkBrown)),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: _darkBrown)),
             const Spacer(),
             Text('${confidence.toStringAsFixed(0)}% confidence',
                 style: GoogleFonts.poppins(
-                    fontSize: 12, fontWeight: FontWeight.w600, color: barColor)),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: barColor)),
           ]),
           const SizedBox(height: 8),
           ClipRRect(
@@ -922,7 +956,8 @@ class _PestResultsPageState extends State<PestResultsPage>
 
   Widget _buildImageSection() {
     // Check whether a scanned image is available on the current platform.
-    final bool hasScannedImage = widget.detectionMode == PestDetectionMode.aiScan &&
+    final bool hasScannedImage = widget.detectionMode ==
+            PestDetectionMode.aiScan &&
         (widget.scannedImageBytes != null || widget.scannedImageFile != null);
 
     if (hasScannedImage) {
@@ -1053,8 +1088,8 @@ class _PestResultsPageState extends State<PestResultsPage>
             child: Stack(
               children: [
                 PageView.builder(
-                  controller:    _carouselController,
-                  itemCount:     urls.length,
+                  controller: _carouselController,
+                  itemCount: urls.length,
                   onPageChanged: (i) =>
                       setState(() => _currentCarouselPage = i),
                   itemBuilder: (_, i) => Container(
@@ -1074,7 +1109,8 @@ class _PestResultsPageState extends State<PestResultsPage>
                 ),
                 if (urls.length > 1)
                   Positioned(
-                    top: 10, right: 10,
+                    top: 10,
+                    right: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 9, vertical: 4),
@@ -1104,7 +1140,7 @@ class _PestResultsPageState extends State<PestResultsPage>
               urls.length,
               (i) => AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                width:  _currentCarouselPage == i ? 18 : 7,
+                width: _currentCarouselPage == i ? 18 : 7,
                 height: 7,
                 margin: const EdgeInsets.symmetric(horizontal: 3),
                 decoration: BoxDecoration(
@@ -1127,8 +1163,8 @@ class _PestResultsPageState extends State<PestResultsPage>
       height: 170,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount:       assets.length,
-        itemBuilder:     (_, i) => Padding(
+        itemCount: assets.length,
+        itemBuilder: (_, i) => Padding(
           padding: const EdgeInsets.only(right: 10),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(14),
@@ -1152,8 +1188,10 @@ class _PestResultsPageState extends State<PestResultsPage>
   // ── Management cards ───────────────────────────────────────────────────────
 
   Widget _buildMgmtCard({
-    required int index, required IconData icon,
-    required String title, required String content,
+    required int index,
+    required IconData icon,
+    required String title,
+    required String content,
     required Color accentColor,
   }) {
     if (content.isEmpty) return const SizedBox.shrink();
@@ -1163,7 +1201,8 @@ class _PestResultsPageState extends State<PestResultsPage>
       curve: Curves.easeOut,
       builder: (_, val, child) => Opacity(
         opacity: val,
-        child: Transform.translate(offset: Offset(0, 16 * (1 - val)), child: child),
+        child: Transform.translate(
+            offset: Offset(0, 16 * (1 - val)), child: child),
       ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -1172,7 +1211,8 @@ class _PestResultsPageState extends State<PestResultsPage>
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFEDE0D4)),
           boxShadow: const [
-            BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 2))
+            BoxShadow(
+                color: Colors.black38, blurRadius: 6, offset: Offset(0, 2))
           ],
         ),
         child: Column(
@@ -1182,7 +1222,8 @@ class _PestResultsPageState extends State<PestResultsPage>
               decoration: BoxDecoration(
                 color: accentColor.withValues(alpha: .09),
                 borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(15), topRight: Radius.circular(15)),
+                    topLeft: Radius.circular(15),
+                    topRight: Radius.circular(15)),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
               child: Row(children: [
@@ -1190,7 +1231,8 @@ class _PestResultsPageState extends State<PestResultsPage>
                 const SizedBox(width: 10),
                 Text(title,
                     style: GoogleFonts.poppins(
-                        fontSize: 13.5, fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
                         color: accentColor)),
               ]),
             ),
@@ -1207,8 +1249,10 @@ class _PestResultsPageState extends State<PestResultsPage>
   }
 
   Widget _buildListMgmtCard({
-    required int index, required IconData icon,
-    required String title, required List<String> items,
+    required int index,
+    required IconData icon,
+    required String title,
+    required List<String> items,
     required Color accentColor,
   }) {
     if (items.isEmpty) return const SizedBox.shrink();
@@ -1218,7 +1262,8 @@ class _PestResultsPageState extends State<PestResultsPage>
       curve: Curves.easeOut,
       builder: (_, val, child) => Opacity(
         opacity: val,
-        child: Transform.translate(offset: Offset(0, 16 * (1 - val)), child: child),
+        child: Transform.translate(
+            offset: Offset(0, 16 * (1 - val)), child: child),
       ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -1227,7 +1272,8 @@ class _PestResultsPageState extends State<PestResultsPage>
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFEDE0D4)),
           boxShadow: const [
-            BoxShadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 2))
+            BoxShadow(
+                color: Colors.black38, blurRadius: 6, offset: Offset(0, 2))
           ],
         ),
         child: Column(
@@ -1237,7 +1283,8 @@ class _PestResultsPageState extends State<PestResultsPage>
               decoration: BoxDecoration(
                 color: accentColor.withValues(alpha: .09),
                 borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(15), topRight: Radius.circular(15)),
+                    topLeft: Radius.circular(15),
+                    topRight: Radius.circular(15)),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
               child: Row(children: [
@@ -1245,35 +1292,42 @@ class _PestResultsPageState extends State<PestResultsPage>
                 const SizedBox(width: 10),
                 Text(title,
                     style: GoogleFonts.poppins(
-                        fontSize: 13.5, fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
                         color: accentColor)),
               ]),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               child: Column(
-                children: items.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 7),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 5),
-                        child: Container(
-                          width: 7, height: 7,
-                          decoration: BoxDecoration(
-                              color: accentColor, shape: BoxShape.circle),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(item,
-                            style: GoogleFonts.poppins(
-                                fontSize: 13, color: _midBrown, height: 1.5)),
-                      ),
-                    ],
-                  ),
-                )).toList(),
+                children: items
+                    .map((item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 7),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 5),
+                                child: Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                      color: accentColor,
+                                      shape: BoxShape.circle),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(item,
+                                    style: GoogleFonts.poppins(
+                                        fontSize: 13,
+                                        color: _midBrown,
+                                        height: 1.5)),
+                              ),
+                            ],
+                          ),
+                        ))
+                    .toList(),
               ),
             ),
           ],
@@ -1284,13 +1338,15 @@ class _PestResultsPageState extends State<PestResultsPage>
 
   Widget _buildMgmtSkeletons() {
     return Column(
-      children: List.generate(4, (_) => Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        height: 80,
-        decoration: BoxDecoration(
-            color: Colors.brown.shade50,
-            borderRadius: BorderRadius.circular(16)),
-      )),
+      children: List.generate(
+          4,
+          (_) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                height: 80,
+                decoration: BoxDecoration(
+                    color: Colors.brown.shade50,
+                    borderRadius: BorderRadius.circular(16)),
+              )),
     );
   }
 
@@ -1304,19 +1360,25 @@ class _PestResultsPageState extends State<PestResultsPage>
             style: ElevatedButton.styleFrom(
               backgroundColor: _savedToDb ? _successGreen : _darkBrown,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: _savedToDb ? _successGreen : Colors.grey.shade300,
+              disabledBackgroundColor:
+                  _savedToDb ? _successGreen : Colors.grey.shade300,
               disabledForegroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 15),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),
-              elevation: 4, shadowColor: _darkBrown.withValues(alpha: .35),
+              elevation: 4,
+              shadowColor: _darkBrown.withValues(alpha: .35),
             ),
             icon: _isSaving
                 ? const SizedBox(
-                    width: 18, height: 18,
+                    width: 18,
+                    height: 18,
                     child: CircularProgressIndicator(
                         color: Colors.white, strokeWidth: 2))
-                : Icon(_savedToDb ? Icons.check_circle_rounded : Icons.save_rounded,
+                : Icon(
+                    _savedToDb
+                        ? Icons.check_circle_rounded
+                        : Icons.save_rounded,
                     size: 18),
             label: Text(
               _savedToDb
@@ -1348,8 +1410,8 @@ class _PestResultsPageState extends State<PestResultsPage>
                 context,
                 MaterialPageRoute(
                   builder: (_) => CoffeeInterventionPage(
-                    pestData:            localData,
-                    cropStage:           _resolvedStage,
+                    pestData: localData,
+                    cropStage: _resolvedStage,
                     notificationsPlugin: widget.notificationsPlugin,
                   ),
                 ),
@@ -1388,7 +1450,8 @@ class _PestResultsPageState extends State<PestResultsPage>
                 color: Colors.redAccent, size: 48),
             const SizedBox(height: 16),
             Text(
-              _errorMessage ?? 'Something went wrong. Please go back and try again.',
+              _errorMessage ??
+                  'Something went wrong. Please go back and try again.',
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                   fontSize: 13.5, color: _midBrown, height: 1.5),
@@ -1397,7 +1460,8 @@ class _PestResultsPageState extends State<PestResultsPage>
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _darkBrown, foregroundColor: Colors.white,
+                backgroundColor: _darkBrown,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
@@ -1416,10 +1480,12 @@ class _PestResultsPageState extends State<PestResultsPage>
 
   Widget _buildContextRow() {
     return Wrap(
-      spacing: 8, runSpacing: 8,
+      spacing: 8,
+      runSpacing: 8,
       children: [
         _buildChip(Icons.layers_rounded, _resolvedStage),
-        if (_resolvedPest != null) _buildChip(Icons.bug_report_rounded, _resolvedPest!),
+        if (_resolvedPest != null)
+          _buildChip(Icons.bug_report_rounded, _resolvedPest!),
         _buildModeChip(),
       ],
     );
@@ -1445,9 +1511,9 @@ class _PestResultsPageState extends State<PestResultsPage>
 
   Widget _buildModeChip() {
     final (label, color) = switch (widget.detectionMode) {
-      PestDetectionMode.knownBoth  => ('Manual Selection', _midBrown),
-      PestDetectionMode.knownStage => ('Stage Guided',     _lightBrown),
-      PestDetectionMode.aiScan     => ('AI Scanned',       _amber),
+      PestDetectionMode.knownBoth => ('Manual Selection', _midBrown),
+      PestDetectionMode.knownStage => ('Stage Guided', _lightBrown),
+      PestDetectionMode.aiScan => ('AI Scanned', _amber),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1466,18 +1532,23 @@ class _PestResultsPageState extends State<PestResultsPage>
     );
   }
 
-  Widget _buildSectionHeader({
-    required IconData icon, required String title, required String subtitle}) {
+  Widget _buildSectionHeader(
+      {required IconData icon,
+      required String title,
+      required String subtitle}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, color: _darkBrown, size: 20),
         const SizedBox(width: 10),
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(title,
                 style: GoogleFonts.poppins(
-                    fontSize: 14, fontWeight: FontWeight.w700, color: _darkBrown)),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: _darkBrown)),
             Text(subtitle,
                 style: GoogleFonts.poppins(fontSize: 11.5, color: _lightBrown)),
           ]),
@@ -1525,15 +1596,15 @@ class _PestResultsPageState extends State<PestResultsPage>
   CoffeePestData _buildCoffeePestData(String pestName) {
     final d = kPestDetails[pestName]!;
     return CoffeePestData(
-      name:               pestName,
-      description:        d['description'],
-      symptoms:           d['symptoms'],
-      chemicalControls:   List<String>.from(d['chemicalControls']),
+      name: pestName,
+      description: d['description'],
+      symptoms: d['symptoms'],
+      chemicalControls: List<String>.from(d['chemicalControls']),
       mechanicalControls: List<String>.from(d['mechanicalControls']),
       biologicalControls: List<String>.from(d['biologicalControls']),
-      possibleCauses:     List<String>.from(d['possibleCauses']),
+      possibleCauses: List<String>.from(d['possibleCauses']),
       preventiveMeasures: List<String>.from(d['preventiveMeasures']),
-      lifecycleImages:    List<String>.from(d['lifecycleImages']),
+      lifecycleImages: List<String>.from(d['lifecycleImages']),
     );
   }
 }

@@ -134,9 +134,8 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
                 widget.currentNutrients!.isNotEmpty)
               _buildContextBanner(),
             Expanded(
-              child: _messages.isEmpty
-                  ? _buildEmptyState()
-                  : _buildMessageList(),
+              child:
+                  _messages.isEmpty ? _buildEmptyState() : _buildMessageList(),
             ),
             _buildInputBar(),
           ],
@@ -200,15 +199,13 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
         color: const Color(0xFFE8D5B0),
         child: Row(
           children: [
-            const Icon(Icons.info_outline,
-                size: 14, color: Color(0xFF4A2C2A)),
+            const Icon(Icons.info_outline, size: 14, color: Color(0xFF4A2C2A)),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 'Using your current soil readings as context'
                 '${widget.soilType != null ? " — ${widget.soilType} soil" : ""}',
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xFF4A2C2A)),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF4A2C2A)),
               ),
             ),
           ],
@@ -305,8 +302,7 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
           ],
           Flexible(
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: isUser ? const Color(0xFF4A2C2A) : Colors.white,
                 borderRadius: BorderRadius.only(
@@ -352,8 +348,7 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
             ),
             const SizedBox(width: 8),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: const BorderRadius.only(
@@ -414,13 +409,12 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
-                    borderSide:
-                        const BorderSide(color: Color(0xFF3A5F0B)),
+                    borderSide: const BorderSide(color: Color(0xFF3A5F0B)),
                   ),
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
                 // null = unlimited growth; no artificial 3-line cap that
                 // forces the user to scroll within the input box.
@@ -444,13 +438,11 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: _isLoading
-                      ? Colors.grey[400]
-                      : const Color(0xFF4A2C2A),
+                  color:
+                      _isLoading ? Colors.grey[400] : const Color(0xFF4A2C2A),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.send,
-                    color: Colors.white, size: 20),
+                child: const Icon(Icons.send, color: Colors.white, size: 20),
               ),
             ),
           ],
