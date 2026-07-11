@@ -8,6 +8,7 @@ import 'package:coffeecore/screens/Farm%20Management/widgets/cycle_stage_badge.d
 import 'package:coffeecore/screens/Farm%20Management/widgets/empty_state.dart';
 import 'package:coffeecore/screens/Farm%20Management/widgets/farm_map_thumbnail.dart';
 import 'package:coffeecore/screens/Farm%20Management/widgets/stat_tile.dart';
+import 'package:coffeecore/screens/Farm%20Management/screens/farm_map_view_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/screens/inventory_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/screens/yield_entry_screen.dart';
 
@@ -31,7 +32,7 @@ class OverviewTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(FarmTheme.spaceMd),
       children: [
-        FarmMapThumbnail(farm: farm, height: 160),
+        _buildMapCard(context),
         const SizedBox(height: FarmTheme.spaceMd),
         _buildCycleBanner(context),
         const SizedBox(height: FarmTheme.spaceMd),
@@ -39,6 +40,49 @@ class OverviewTab extends StatelessWidget {
         const SizedBox(height: FarmTheme.spaceMd),
         _buildQuickActions(context),
       ],
+    );
+  }
+
+  Widget _buildMapCard(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => FarmMapViewScreen(farm: farm),
+        ),
+      ),
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(FarmTheme.radiusCard),
+            child: FarmMapThumbnail(farm: farm, height: 160),
+          ),
+          Positioned(
+            right: FarmTheme.spaceSm,
+            bottom: FarmTheme.spaceSm,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: FarmTheme.spaceSm,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(FarmTheme.spaceSm),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.zoom_in, size: 16, color: Colors.white),
+                  SizedBox(width: 4),
+                  Text(
+                    'View full map',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
