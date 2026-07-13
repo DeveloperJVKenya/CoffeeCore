@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:logger/logger.dart';
 import 'package:coffeecore/models/user_model.dart';
 import 'package:coffeecore/data/kenya_locations.dart';
@@ -20,6 +21,10 @@ class RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final FocusNode _fullNameFocus = FocusNode();
+  final FocusNode _emailFocus = FocusNode();
+  final FocusNode _phoneFocus = FocusNode();
+  final FocusNode _passwordFocus = FocusNode();
   final logger = Logger(printer: PrettyPrinter());
 
   String? _fullName;
@@ -41,7 +46,21 @@ class RegistrationScreenState extends State<RegistrationScreen> {
     _emailController.dispose();
     _phoneNumberController.dispose();
     _passwordController.dispose();
+    _fullNameFocus.dispose();
+    _emailFocus.dispose();
+    _phoneFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
+  }
+
+  void _showToast(String message, {bool isError = false}) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_LONG,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: isError ? Colors.red[700] : Colors.brown[700],
+      textColor: Colors.white,
+    );
   }
 
   void _updateConstituencies(String? county) {
@@ -64,6 +83,13 @@ class RegistrationScreenState extends State<RegistrationScreen> {
     });
   }
 
+  void _submitForm() {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+      _signUp();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,249 +99,256 @@ class RegistrationScreenState extends State<RegistrationScreen> {
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage(
-                    'assets/coffee_registration_background.jpg'), // Updated asset
+                image: AssetImage('assets/coffee_registration_background.jpg'),
                 fit: BoxFit.cover,
               ),
             ),
           ),
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(20.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const SizedBox(height: 20.0),
-                  Text(
-                    'Welcome to CoffeeCore!',
-                    style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.brown[700]),
-                  ),
-                  const SizedBox(height: 10.0),
-                  Text(
-                    'Create your coffee farming account below.',
-                    style: TextStyle(fontSize: 16, color: Colors.brown[400]),
-                  ),
-                  const SizedBox(height: 30.0),
-                  // Full Name Field
-                  TextFormField(
-                    controller: _fullNameController,
-                    decoration: InputDecoration(
-                      labelText: 'Full Name',
-                      hintText: 'Enter your full name',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30.0)),
-                      filled: true,
-                      fillColor: Colors.brown[50],
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your full name';
-                      }
-                      return null;
-                    },
-                    onSaved: (value) {
-                      _fullName = value;
-                    },
-                  ),
-                  const SizedBox(height: 15.0),
-                  // Email Field
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      hintText: 'Enter your email address',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30.0)),
-                      filled: true,
-                      fillColor: Colors.brown[50],
-                    ),
-                    validator: (value) {
-                      if (value == null ||
-                          value.isEmpty ||
-                          !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                        return 'Please enter a valid email address';
-                      }
-                      return null;
-                    },
-                    onSaved: (value) {
-                      _email = value;
-                    },
-                  ),
-                  const SizedBox(height: 15.0),
-                  // County Dropdown
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: 'County',
-                      hintText: 'Select your county',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30.0)),
-                      filled: true,
-                      fillColor: Colors.brown[50],
-                    ),
-                    initialValue: _county,
-                    items: kenyaLocations.keys
-                        .map((county) => DropdownMenuItem(
-                              value: county,
-                              child: Text(county),
-                            ))
-                        .toList(),
-                    onChanged: _updateConstituencies,
-                    validator: (value) =>
-                        value == null ? 'Please select a county' : null,
-                    onSaved: (value) => _county = value,
-                  ),
-                  const SizedBox(height: 15.0),
-                  // Constituency Dropdown
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: 'Constituency',
-                      hintText: 'Select your constituency',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30.0)),
-                      filled: true,
-                      fillColor: Colors.brown[50],
-                    ),
-                    initialValue: _constituency,
-                    items: _currentConstituencies
-                        .map((constituency) => DropdownMenuItem(
-                              value: constituency,
-                              child: Text(constituency),
-                            ))
-                        .toList(),
-                    onChanged: _updateWards,
-                    validator: (value) =>
-                        value == null ? 'Please select a constituency' : null,
-                    onSaved: (value) => _constituency = value,
-                  ),
-                  const SizedBox(height: 15.0),
-                  // Ward Dropdown
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      labelText: 'Ward',
-                      hintText: 'Select your ward',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30.0)),
-                      filled: true,
-                      fillColor: Colors.brown[50],
-                    ),
-                    initialValue: _ward,
-                    items: _currentWards
-                        .map((ward) => DropdownMenuItem(
-                              value: ward,
-                              child: Text(ward),
-                            ))
-                        .toList(),
-                    onChanged: (value) => setState(() => _ward = value),
-                    validator: (value) =>
-                        value == null ? 'Please select a ward' : null,
-                    onSaved: (value) => _ward = value,
-                  ),
-                  const SizedBox(height: 15.0),
-                  // Phone Number Field
-                  TextFormField(
-                    controller: _phoneNumberController,
-                    decoration: InputDecoration(
-                      labelText: 'Phone Number',
-                      hintText: 'Enter your phone number',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30.0)),
-                      filled: true,
-                      fillColor: Colors.brown[50],
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your phone number';
-                      }
-                      return null;
-                    },
-                    onSaved: (value) {
-                      _phoneNumber = value;
-                    },
-                  ),
-                  const SizedBox(height: 15.0),
-                  // Password Field
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      hintText: 'Enter your password',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30.0)),
-                      filled: true,
-                      fillColor: Colors.brown[50],
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: Colors.brown[700],
-                        ),
-                        onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a password';
-                      }
-                      return null;
-                    },
-                    onSaved: (value) {
-                      _password = value;
-                    },
-                  ),
-                  const SizedBox(height: 20.0),
-                  // Sign Up Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () {
-                              if (_formKey.currentState!.validate()) {
-                                _formKey.currentState!.save();
-                                _signUp();
-                              }
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            Colors.brown[700], // Coffee-inspired color
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30.0)),
-                        padding: const EdgeInsets.symmetric(vertical: 15.0),
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'Sign Up',
-                              style: TextStyle(
-                                  fontSize: 20.0, color: Colors.white),
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Card(
+                  elevation: 6,
+                  color: Colors.white.withValues(alpha: 0.94),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24.0)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 32),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(
+                            'Welcome to CoffeeCore!',
+                            style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.brown[700]),
+                          ),
+                          const SizedBox(height: 8.0),
+                          Text(
+                            'Create your coffee farming account below.',
+                            style: TextStyle(
+                                fontSize: 15, color: Colors.brown[400]),
+                          ),
+                          const SizedBox(height: 24.0),
+                          TextFormField(
+                            controller: _fullNameController,
+                            focusNode: _fullNameFocus,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) => _emailFocus.requestFocus(),
+                            decoration: _fieldDecoration(
+                              label: 'Full Name',
+                              hintText: 'Enter your full name',
                             ),
-                    ),
-                  ),
-                  const SizedBox(height: 10.0),
-                  // Login Link
-                  Center(
-                    child: TextButton(
-                      onPressed: () =>
-                          Navigator.of(context).pushReplacementNamed('/login'),
-                      child: Text(
-                        'Already have an account? Log In',
-                        style: TextStyle(color: Colors.brown[700]),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your full name';
+                              }
+                              return null;
+                            },
+                            onSaved: (value) => _fullName = value,
+                          ),
+                          const SizedBox(height: 15.0),
+                          TextFormField(
+                            controller: _emailController,
+                            focusNode: _emailFocus,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) => _phoneFocus.requestFocus(),
+                            decoration: _fieldDecoration(
+                              label: 'Email',
+                              hintText: 'Enter your email address',
+                            ),
+                            validator: (value) {
+                              if (value == null ||
+                                  value.isEmpty ||
+                                  !RegExp(r'^[^@]+@[^@]+\.[^@]+')
+                                      .hasMatch(value)) {
+                                return 'Please enter a valid email address';
+                              }
+                              return null;
+                            },
+                            onSaved: (value) => _email = value,
+                          ),
+                          const SizedBox(height: 15.0),
+                          DropdownButtonFormField<String>(
+                            decoration: _fieldDecoration(
+                              label: 'County',
+                              hintText: 'Select your county',
+                            ),
+                            initialValue: _county,
+                            items: kenyaLocations.keys
+                                .map((county) => DropdownMenuItem(
+                                      value: county,
+                                      child: Text(county),
+                                    ))
+                                .toList(),
+                            onChanged: _updateConstituencies,
+                            validator: (value) =>
+                                value == null ? 'Please select a county' : null,
+                            onSaved: (value) => _county = value,
+                          ),
+                          const SizedBox(height: 15.0),
+                          DropdownButtonFormField<String>(
+                            decoration: _fieldDecoration(
+                              label: 'Constituency',
+                              hintText: 'Select your constituency',
+                            ),
+                            initialValue: _constituency,
+                            items: _currentConstituencies
+                                .map((constituency) => DropdownMenuItem(
+                                      value: constituency,
+                                      child: Text(constituency),
+                                    ))
+                                .toList(),
+                            onChanged: _updateWards,
+                            validator: (value) => value == null
+                                ? 'Please select a constituency'
+                                : null,
+                            onSaved: (value) => _constituency = value,
+                          ),
+                          const SizedBox(height: 15.0),
+                          DropdownButtonFormField<String>(
+                            decoration: _fieldDecoration(
+                              label: 'Ward',
+                              hintText: 'Select your ward',
+                            ),
+                            initialValue: _ward,
+                            items: _currentWards
+                                .map((ward) => DropdownMenuItem(
+                                      value: ward,
+                                      child: Text(ward),
+                                    ))
+                                .toList(),
+                            onChanged: (value) => setState(() => _ward = value),
+                            validator: (value) =>
+                                value == null ? 'Please select a ward' : null,
+                            onSaved: (value) => _ward = value,
+                          ),
+                          const SizedBox(height: 15.0),
+                          TextFormField(
+                            controller: _phoneNumberController,
+                            focusNode: _phoneFocus,
+                            keyboardType: TextInputType.phone,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) =>
+                                _passwordFocus.requestFocus(),
+                            decoration: _fieldDecoration(
+                              label: 'Phone Number',
+                              hintText: 'Enter your phone number',
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter your phone number';
+                              }
+                              return null;
+                            },
+                            onSaved: (value) => _phoneNumber = value,
+                          ),
+                          const SizedBox(height: 15.0),
+                          TextFormField(
+                            controller: _passwordController,
+                            focusNode: _passwordFocus,
+                            obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _submitForm(),
+                            decoration: _fieldDecoration(
+                              label: 'Password',
+                              hintText: 'Enter your password',
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.brown[700],
+                                ),
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a password';
+                              }
+                              if (value.length < 6) {
+                                return 'Password must be at least 6 characters';
+                              }
+                              return null;
+                            },
+                            onSaved: (value) => _password = value,
+                          ),
+                          const SizedBox(height: 22.0),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _submitForm,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.brown[700],
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16.0)),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14.0),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Sign Up',
+                                      style: TextStyle(
+                                          fontSize: 18.0, color: Colors.white),
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 8.0),
+                          Center(
+                            child: TextButton(
+                              onPressed: () => Navigator.of(context)
+                                  .pushReplacementNamed('/login'),
+                              child: Text(
+                                'Already have an account? Log In',
+                                style: TextStyle(color: Colors.brown[700]),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  InputDecoration _fieldDecoration({
+    required String label,
+    String? hintText,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hintText,
+      suffixIcon: suffixIcon,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16.0)),
+      filled: true,
+      fillColor: Colors.brown[50],
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
     );
   }
 
@@ -346,10 +379,7 @@ class RegistrationScreenState extends State<RegistrationScreen> {
 
       if (!mounted) return;
 
-      // Success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign up successful. Welcome, $_fullName!')),
-      );
+      _showToast('Sign up successful. Welcome, $_fullName!');
 
       // Navigate to home
       Navigator.of(context).pushReplacementNamed('/home');
@@ -376,11 +406,9 @@ class RegistrationScreenState extends State<RegistrationScreen> {
         errorMessage = 'An unknown error occurred. Please try again.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-      );
+      _showToast(errorMessage, isError: true);
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 }

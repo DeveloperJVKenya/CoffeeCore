@@ -25,8 +25,15 @@ class FarmCaptureScreen extends StatefulWidget {
 class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
   static final Logger _logger = Logger(printer: PrettyPrinter());
   static const double _earthRadiusMeters = 6371000.0;
-  static const double _minPointSpacingMeters = 2.0;
-  static const double _maxJumpMeters = 50.0;
+  // Kept small so tightly-spaced corners on sub-hectare plots aren't
+  // rejected as duplicates, while still filtering GPS noise from a single
+  // stationary reading.
+  static const double _minPointSpacingMeters = 0.5;
+  // Wide enough to cover a single boundary side on a farm of thousands of
+  // hectares (e.g. a 2,000 ha square farm has ~4.5km sides) while still
+  // catching obviously erroneous GPS teleports (a bad fix jumping tens of
+  // kilometers away).
+  static const double _maxJumpMeters = 20000.0;
   static const int _minPointsForPolygon = 3;
   static const LatLng _defaultCenter = LatLng(-1.2921, 36.8219); // Nairobi
 
@@ -43,6 +50,7 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
   bool _locationServicesEnabled = true;
   bool _isMappingActive = false;
   bool _isAddingPoint = false;
+  bool _isFetchingPosition = false;
   bool _isSaving = false;
   bool _isCheckingPermission = true;
   String? _permissionError;
@@ -197,23 +205,127 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
     return total;
   }
 
-  void _addBoundaryPoint(LatLng point) {
-    if (_isAddingPoint) return;
+  /// Mirrors [FarmPolygon.areaLabel]: sub-hectare plots read far more
+  /// clearly in m² than as "0.00 ha" or "0.01 ha".
+  String _areaLabel(double hectares) {
+    if (hectares >= 1.0) return '${hectares.toStringAsFixed(2)} ha';
+    return '${(hectares * 10000).toStringAsFixed(0)} m²';
+  }
+
+  /// Mirrors [FarmPolygon.perimeterLabel]: keeps large-farm perimeters
+  /// readable in km instead of a long raw meter count.
+  String _perimeterLabel(double meters) {
+    if (meters >= 1000) return '${(meters / 1000).toStringAsFixed(2)} km';
+    return '${meters.toStringAsFixed(0)} m';
+  }
+
+  /// Attempts to add [point] to the boundary. Returns null on success, or a
+  /// reason the point was rejected so the caller can surface it to the user
+  /// — previously these rejections were silent, which made the UI look
+  /// "stuck" on the second point whenever the fresh reading was too close
+  /// to (or too far from) the last accepted one.
+  _PointRejection? _addBoundaryPoint(LatLng point) {
+    if (_isAddingPoint) return null;
     _isAddingPoint = true;
     try {
       if (_boundaryPoints.isNotEmpty) {
         final LatLng last = _boundaryPoints.last;
         final double dist = _haversineDistance(last, point);
-        if (dist < _minPointSpacingMeters) return;
-        if (dist > _maxJumpMeters) return;
+        if (dist < _minPointSpacingMeters) {
+          _logger.w('Point rejected (too close): ${dist.toStringAsFixed(2)}m '
+              'from previous point (min ${_minPointSpacingMeters}m). '
+              'Candidate: (${point.latitude}, ${point.longitude})');
+          return _PointRejection.tooClose;
+        }
+        if (dist > _maxJumpMeters) {
+          _logger.w('Point rejected (too far): ${dist.toStringAsFixed(1)}m '
+              'from previous point (max ${_maxJumpMeters}m). '
+              'Candidate: (${point.latitude}, ${point.longitude})');
+          return _PointRejection.tooFar;
+        }
+        _logger.i('Point ${_boundaryPoints.length + 1} accepted at '
+            '(${point.latitude}, ${point.longitude}), '
+            '${dist.toStringAsFixed(2)}m from previous point.');
+      } else {
+        _logger.i('Point 1 (start) accepted at '
+            '(${point.latitude}, ${point.longitude}).');
       }
       setState(() {
         _boundaryPoints.add(point);
         _areaHectares = _shoelaceAreaHectares(_boundaryPoints);
         _perimeterMeters = _haversinePerimeterMeters(_boundaryPoints);
       });
+      _logger.i('Boundary now ${_boundaryPoints.length} point(s), '
+          'area ${_areaHectares.toStringAsFixed(4)} ha, '
+          'perimeter ${_perimeterMeters.toStringAsFixed(1)} m.');
+      return null;
     } finally {
       _isAddingPoint = false;
+    }
+  }
+
+  void _reportRejection(_PointRejection? rejection) {
+    if (rejection == null) return;
+    final String message = switch (rejection) {
+      _PointRejection.tooClose => 'Too close to the last point — move at least '
+          '${_minPointSpacingMeters.toStringAsFixed(1)}m before adding the '
+          'next one.',
+      _PointRejection.tooFar => 'That reading jumped more than '
+          '${(_maxJumpMeters / 1000).toStringAsFixed(0)}km from the last '
+          'point — GPS may be inaccurate here. Try again.',
+    };
+    _logger.w('Point rejection shown to user: $message');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Fetches a brand-new GPS fix and attempts to add it as the next
+  /// boundary point. A fresh reading is requested here rather than reusing
+  /// the passive position-stream's cached value, because that stream only
+  /// emits on ~1m movement — if the device hasn't moved since the last
+  /// point, "ADD POINT" would otherwise keep resubmitting the exact same
+  /// coordinates and get silently rejected as "too close", which is what
+  /// made the second point appear to hang.
+  Future<void> _onAddPointPressed() async {
+    if (_isFetchingPosition || _isAddingPoint) return;
+    setState(() => _isFetchingPosition = true);
+    try {
+      final Position fresh = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+      _logger.i('Fresh GPS fix: (${fresh.latitude}, ${fresh.longitude}), '
+          '±${fresh.accuracy.toStringAsFixed(1)}m accuracy.');
+      if (!mounted) return;
+      setState(() => _currentPosition = fresh);
+      _reportRejection(
+        _addBoundaryPoint(LatLng(fresh.latitude, fresh.longitude)),
+      );
+      // A fix worse than the minimum corner spacing can't reliably place a
+      // point precisely enough to matter, most noticeable on small plots.
+      if (fresh.accuracy > _minPointSpacingMeters * 10 && mounted) {
+        final String warning = 'GPS accuracy is low (±'
+            '${fresh.accuracy.toStringAsFixed(0)}m) — the point was still '
+            'added, but wait for a stronger signal for a more precise '
+            'boundary, especially on smaller plots.';
+        _logger.w(warning);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(warning)));
+      }
+    } catch (e, st) {
+      _logger.e('Failed to fetch a fresh GPS position',
+          error: e, stackTrace: st);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not get a GPS reading. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isFetchingPosition = false);
     }
   }
 
@@ -265,8 +377,8 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
               ),
               const SizedBox(height: FarmTheme.spaceMd),
               Text('Points: ${_boundaryPoints.length}'),
-              Text('Area: ${_areaHectares.toStringAsFixed(2)} ha'),
-              Text('Perimeter: ${_perimeterMeters.toStringAsFixed(1)} m'),
+              Text('Area: ${_areaLabel(_areaHectares)}'),
+              Text('Perimeter: ${_perimeterLabel(_perimeterMeters)}'),
             ],
           ),
           actions: <Widget>[
@@ -308,7 +420,13 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
         updatedAt: now,
       );
       await _mappingService.saveFarm(farm);
+      _logger.i('Farm "$name" saved: ${_boundaryPoints.length} points, '
+          '${_areaHectares.toStringAsFixed(4)} ha, '
+          '${_perimeterMeters.toStringAsFixed(1)} m perimeter.');
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Farm "$name" saved successfully.')),
+      );
       Navigator.of(context).pop();
     } on ServiceUnavailableException catch (e) {
       _logger.e('Failed to save farm', error: e);
@@ -461,7 +579,9 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
             polygons: polygons,
             polylines: polylines,
             onLongPress: (LatLng latLng) {
-              if (_isMappingActive) _addBoundaryPoint(latLng);
+              if (_isMappingActive) {
+                _reportRejection(_addBoundaryPoint(latLng));
+              }
             },
           ),
         ),
@@ -487,8 +607,8 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: <Widget>[
               Text('Points: ${_boundaryPoints.length}'),
-              Text('Area: ${_areaHectares.toStringAsFixed(2)} ha'),
-              Text('Perimeter: ${_perimeterMeters.toStringAsFixed(1)} m'),
+              Text('Area: ${_areaLabel(_areaHectares)}'),
+              Text('Perimeter: ${_perimeterLabel(_perimeterMeters)}'),
             ],
           ),
           const SizedBox(height: FarmTheme.spaceSm),
@@ -510,16 +630,21 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
               children: <Widget>[
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _currentPosition != null && !_isAddingPoint
-                        ? () => _addBoundaryPoint(
-                              LatLng(
-                                _currentPosition!.latitude,
-                                _currentPosition!.longitude,
-                              ),
-                            )
+                    onPressed: _currentPosition != null &&
+                            !_isAddingPoint &&
+                            !_isFetchingPosition
+                        ? _onAddPointPressed
                         : null,
-                    icon: const Icon(Icons.add_location, size: 18),
-                    label: const Text('ADD POINT'),
+                    icon: _isFetchingPosition
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.add_location, size: 18),
+                    label: Text(
+                      _isFetchingPosition ? 'LOCATING...' : 'ADD POINT',
+                    ),
                   ),
                 ),
                 const SizedBox(width: FarmTheme.spaceSm),
@@ -564,3 +689,6 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
     );
   }
 }
+
+/// Why a candidate boundary point was rejected by [_addBoundaryPoint].
+enum _PointRejection { tooClose, tooFar }

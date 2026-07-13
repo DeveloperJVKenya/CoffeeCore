@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Placeholder entry point for the Farm Journal feature.
-/// TODO: implement the actual journal UI/functionality.
+/// ToDO: implement the actual journal UI/functionality.
 class JournalScreen extends StatelessWidget {
   const JournalScreen({super.key});
 

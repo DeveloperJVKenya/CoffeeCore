@@ -60,9 +60,9 @@ class MyApp extends StatelessWidget {
 // ------------------------------------------------------------------
 // AuthGate
 // ------------------------------------------------------------------
-// Shows SplashScreen for the full 5-second animation, then routes
-// based on Firebase Auth state. Because no platform view is built
-// during startup, the flutter/lifecycle discarded-message warning
+// Shows SplashScreen for its full animation (SplashScreen.totalDurationSeconds),
+// then routes based on Firebase Auth state. Because no platform view is
+// built during startup, the flutter/lifecycle discarded-message warning
 // is eliminated.
 // ------------------------------------------------------------------
 class AuthGate extends StatefulWidget {
@@ -78,7 +78,8 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 5), () {
+    Future.delayed(const Duration(seconds: SplashScreen.totalDurationSeconds),
+        () {
       if (mounted) setState(() => _splashFinished = true);
     });
   }
@@ -88,12 +89,12 @@ class _AuthGateState extends State<AuthGate> {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // Keep splash animation running for the full 5 seconds
+        // Keep splash animation running for its full duration
         if (!_splashFinished) {
           return const SplashScreen();
         }
 
-        // After 5 s: route based on Firebase Auth state
+        // After the splash duration: route based on Firebase Auth state
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SplashScreen();
         }
