@@ -4,6 +4,7 @@ import 'package:coffeecore/screens/Farm%20Management/services/farm_mapping_servi
 import 'package:coffeecore/screens/Farm%20Management/services/service_exceptions.dart';
 import 'package:coffeecore/screens/Farm%20Management/utils/geo_math.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:geolocator/geolocator.dart';
@@ -96,21 +97,70 @@ class _FarmCaptureRemoteScreenState extends State<FarmCaptureRemoteScreen> {
       _applyReposition(point);
       return;
     }
-    if (_boundaryPoints.isNotEmpty) {
+    final int? nearestIndex = _nearestPointIndex(point);
+    if (nearestIndex != null) {
       final double dist =
-          GeoMath.haversineDistanceMeters(_boundaryPoints.last, point);
+          GeoMath.haversineDistanceMeters(_boundaryPoints[nearestIndex], point);
       if (dist < _minPointSpacingMeters) {
         _logger.w('Point rejected (duplicate long-press): '
-            '${dist.toStringAsFixed(2)}m from previous point.');
+            '${dist.toStringAsFixed(2)}m from an existing point.');
         return;
       }
     }
+    // Points aren't necessarily dropped in walking order the way live GPS
+    // capture is — the user pans/zooms freely, so a tap "between" two
+    // already-placed corners must be spliced into the ring at that spot
+    // rather than appended, or the polygon edges cross back across the
+    // shape and leave points stranded outside it. Insert at whichever
+    // existing edge the new point adds the least extra perimeter to
+    // (cheapest-insertion heuristic) so the ring stays non-self-intersecting.
+    final int insertIndex = _bestInsertionIndex(point);
     setState(() {
-      _boundaryPoints.add(point);
+      _boundaryPoints.insert(insertIndex, point);
       _recomputeGeometry();
     });
-    _logger.i('Remote point ${_boundaryPoints.length} added at '
-        '(${point.latitude}, ${point.longitude}).');
+    _logger.i('Remote point inserted at ring position $insertIndex '
+        '(${point.latitude}, ${point.longitude}), '
+        '${_boundaryPoints.length} point(s) total.');
+  }
+
+  int? _nearestPointIndex(LatLng point) {
+    if (_boundaryPoints.isEmpty) return null;
+    int bestIndex = 0;
+    double bestDist =
+        GeoMath.haversineDistanceMeters(_boundaryPoints[0], point);
+    for (int i = 1; i < _boundaryPoints.length; i++) {
+      final double dist =
+          GeoMath.haversineDistanceMeters(_boundaryPoints[i], point);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIndex = i;
+      }
+    }
+    return bestIndex;
+  }
+
+  /// Finds the ring position that adds the least extra perimeter when
+  /// [point] is spliced between two existing consecutive corners. With
+  /// fewer than 3 points there's no established ring order yet (any order
+  /// of 1-2 points is unambiguous), so it's just appended.
+  int _bestInsertionIndex(LatLng point) {
+    final int n = _boundaryPoints.length;
+    if (n < 3) return n;
+    double bestCost = double.infinity;
+    int bestIndex = n;
+    for (int i = 0; i < n; i++) {
+      final LatLng a = _boundaryPoints[i];
+      final LatLng b = _boundaryPoints[(i + 1) % n];
+      final double cost = GeoMath.haversineDistanceMeters(a, point) +
+          GeoMath.haversineDistanceMeters(point, b) -
+          GeoMath.haversineDistanceMeters(a, b);
+      if (cost < bestCost) {
+        bestCost = cost;
+        bestIndex = i + 1;
+      }
+    }
+    return bestIndex;
   }
 
   void _onMapTap(LatLng point) {
@@ -256,6 +306,11 @@ class _FarmCaptureRemoteScreenState extends State<FarmCaptureRemoteScreen> {
   Future<String> _suggestFarmName() async {
     final String fallback =
         'Farm ${DateFormat('dd MMM yyyy').format(DateTime.now())}';
+    // The geocoding package ships only Android/iOS platform implementations
+    // — there's no web backend, so calling it in a browser build always
+    // fails. Skip straight to the fallback there instead of paying for a
+    // doomed round trip and logging noise on every save.
+    if (kIsWeb) return fallback;
     try {
       final LatLng center = GeoMath.centroid(_boundaryPoints);
       final List<geocoding.Placemark> placemarks =
