@@ -53,6 +53,7 @@ dependencies:
   firebase_ai: ^3.10.0
   google_maps_flutter: ^2.17.1
   geolocator: ^14.0.2
+  geocoding: ^3.0.0
   pdf: ^3.11.3
   fluttertoast: ^9.0.0
 

@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:coffeecore/screens/Farm%20Management/farm_management_theme.dart';
 import 'package:coffeecore/screens/Farm%20Management/models/farm_polygon_model.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/farm_mapping_service.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/service_exceptions.dart';
+import 'package:coffeecore/screens/Farm%20Management/utils/geo_math.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -24,7 +24,6 @@ class FarmCaptureScreen extends StatefulWidget {
 
 class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
   static final Logger _logger = Logger(printer: PrettyPrinter());
-  static const double _earthRadiusMeters = 6371000.0;
   // Kept small so tightly-spaced corners on sub-hectare plots aren't
   // rejected as duplicates, while still filtering GPS noise from a single
   // stationary reading.
@@ -156,69 +155,6 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
 
   // ── Boundary point math ──────────────────────────────────────
 
-  double _haversineDistance(LatLng a, LatLng b) {
-    final double dLat = (b.latitude - a.latitude) * math.pi / 180;
-    final double dLng = (b.longitude - a.longitude) * math.pi / 180;
-    final double sinDLat = math.sin(dLat / 2);
-    final double sinDLng = math.sin(dLng / 2);
-    final double aVal = sinDLat * sinDLat +
-        math.cos(a.latitude * math.pi / 180) *
-            math.cos(b.latitude * math.pi / 180) *
-            sinDLng *
-            sinDLng;
-    return _earthRadiusMeters *
-        2 *
-        math.atan2(
-          math.sqrt(aVal),
-          math.sqrt(1 - aVal),
-        );
-  }
-
-  double _shoelaceAreaHectares(List<LatLng> pts) {
-    if (pts.length < 3) return 0.0;
-    double area = 0.0;
-    final int n = pts.length;
-    for (int i = 0; i < n; i++) {
-      final int j = (i + 1) % n;
-      final double xi = pts[i].longitude *
-          (math.pi / 180) *
-          _earthRadiusMeters *
-          math.cos(pts[i].latitude * math.pi / 180);
-      final double yi = pts[i].latitude * (math.pi / 180) * _earthRadiusMeters;
-      final double xj = pts[j].longitude *
-          (math.pi / 180) *
-          _earthRadiusMeters *
-          math.cos(pts[j].latitude * math.pi / 180);
-      final double yj = pts[j].latitude * (math.pi / 180) * _earthRadiusMeters;
-      area += xi * yj - xj * yi;
-    }
-    return (area.abs() / 2) / 10000;
-  }
-
-  double _haversinePerimeterMeters(List<LatLng> pts) {
-    if (pts.length < 2) return 0.0;
-    double total = 0.0;
-    for (int i = 0; i < pts.length - 1; i++) {
-      total += _haversineDistance(pts[i], pts[i + 1]);
-    }
-    total += _haversineDistance(pts.last, pts.first);
-    return total;
-  }
-
-  /// Mirrors [FarmPolygon.areaLabel]: sub-hectare plots read far more
-  /// clearly in m² than as "0.00 ha" or "0.01 ha".
-  String _areaLabel(double hectares) {
-    if (hectares >= 1.0) return '${hectares.toStringAsFixed(2)} ha';
-    return '${(hectares * 10000).toStringAsFixed(0)} m²';
-  }
-
-  /// Mirrors [FarmPolygon.perimeterLabel]: keeps large-farm perimeters
-  /// readable in km instead of a long raw meter count.
-  String _perimeterLabel(double meters) {
-    if (meters >= 1000) return '${(meters / 1000).toStringAsFixed(2)} km';
-    return '${meters.toStringAsFixed(0)} m';
-  }
-
   /// Attempts to add [point] to the boundary. Returns null on success, or a
   /// reason the point was rejected so the caller can surface it to the user
   /// — previously these rejections were silent, which made the UI look
@@ -230,7 +166,7 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
     try {
       if (_boundaryPoints.isNotEmpty) {
         final LatLng last = _boundaryPoints.last;
-        final double dist = _haversineDistance(last, point);
+        final double dist = GeoMath.haversineDistanceMeters(last, point);
         if (dist < _minPointSpacingMeters) {
           _logger.w('Point rejected (too close): ${dist.toStringAsFixed(2)}m '
               'from previous point (min ${_minPointSpacingMeters}m). '
@@ -252,8 +188,8 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
       }
       setState(() {
         _boundaryPoints.add(point);
-        _areaHectares = _shoelaceAreaHectares(_boundaryPoints);
-        _perimeterMeters = _haversinePerimeterMeters(_boundaryPoints);
+        _areaHectares = GeoMath.shoelaceAreaHectares(_boundaryPoints);
+        _perimeterMeters = GeoMath.haversinePerimeterMeters(_boundaryPoints);
       });
       _logger.i('Boundary now ${_boundaryPoints.length} point(s), '
           'area ${_areaHectares.toStringAsFixed(4)} ha, '
@@ -333,8 +269,8 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
     if (_boundaryPoints.isEmpty) return;
     setState(() {
       _boundaryPoints.removeLast();
-      _areaHectares = _shoelaceAreaHectares(_boundaryPoints);
-      _perimeterMeters = _haversinePerimeterMeters(_boundaryPoints);
+      _areaHectares = GeoMath.shoelaceAreaHectares(_boundaryPoints);
+      _perimeterMeters = GeoMath.haversinePerimeterMeters(_boundaryPoints);
     });
   }
 
@@ -377,8 +313,8 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
               ),
               const SizedBox(height: FarmTheme.spaceMd),
               Text('Points: ${_boundaryPoints.length}'),
-              Text('Area: ${_areaLabel(_areaHectares)}'),
-              Text('Perimeter: ${_perimeterLabel(_perimeterMeters)}'),
+              Text('Area: ${GeoMath.areaLabel(_areaHectares)}'),
+              Text('Perimeter: ${GeoMath.perimeterLabel(_perimeterMeters)}'),
             ],
           ),
           actions: <Widget>[
@@ -607,8 +543,8 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: <Widget>[
               Text('Points: ${_boundaryPoints.length}'),
-              Text('Area: ${_areaLabel(_areaHectares)}'),
-              Text('Perimeter: ${_perimeterLabel(_perimeterMeters)}'),
+              Text('Area: ${GeoMath.areaLabel(_areaHectares)}'),
+              Text('Perimeter: ${GeoMath.perimeterLabel(_perimeterMeters)}'),
             ],
           ),
           const SizedBox(height: FarmTheme.spaceSm),

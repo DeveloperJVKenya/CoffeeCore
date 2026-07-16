@@ -1,5 +1,6 @@
 import 'package:coffeecore/screens/Farm%20Management/farm_management_theme.dart';
 import 'package:coffeecore/screens/Farm%20Management/providers/farm_hub_provider.dart';
+import 'package:coffeecore/screens/Farm%20Management/screens/farm_capture_remote_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/screens/farm_capture_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/screens/farm_detail_shell_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/screens/legacy_migration_screen.dart';
@@ -13,10 +14,12 @@ import 'package:provider/provider.dart';
 
 /// Unified entry point for the Farm Management section.
 ///
-/// Lists every farm the user has mapped, offers a floating action button to
-/// capture a new farm via GPS, and — on first load — checks for unmigrated
-/// legacy `FarmData` cycles and, if found, offers to migrate them onto one
-/// of the user's existing farms.
+/// Lists every farm the user has mapped, offers a floating action button
+/// that lets the user choose between capturing a new farm by walking its
+/// boundary with live GPS or mapping it remotely from satellite imagery,
+/// and — on first load — checks for unmigrated legacy `FarmData` cycles
+/// and, if found, offers to migrate them onto one of the user's existing
+/// farms.
 class FarmManagementHomeScreen extends StatelessWidget {
   const FarmManagementHomeScreen({super.key});
 
@@ -62,7 +65,7 @@ class _FarmManagementHomeViewState extends State<_FarmManagementHomeView> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: FarmTheme.secondaryGreen,
-        onPressed: () => _openCaptureScreen(context),
+        onPressed: () => _showCaptureModePicker(context),
         tooltip: 'Map a new farm',
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -78,7 +81,7 @@ class _FarmManagementHomeViewState extends State<_FarmManagementHomeView> {
               message: 'Map your first farm boundary to start tracking cycles, '
                   'costs, yield and compliance.',
               actionLabel: 'Map Your First Farm',
-              onAction: () => _openCaptureScreen(context),
+              onAction: () => _showCaptureModePicker(context),
             );
           }
           return RefreshIndicator(
@@ -112,10 +115,54 @@ class _FarmManagementHomeViewState extends State<_FarmManagementHomeView> {
     );
   }
 
-  void _openCaptureScreen(BuildContext context) {
+  void _showCaptureModePicker(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.my_location,
+                    color: FarmTheme.secondaryGreen),
+                title: const Text('Map Live Location'),
+                subtitle: const Text('Walk the boundary with GPS'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _openLiveCaptureScreen(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.satellite_alt,
+                    color: FarmTheme.primaryBrown),
+                title: const Text('Map From Remote'),
+                subtitle:
+                    const Text('Zoom, pan and tap using satellite imagery'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _openRemoteCaptureScreen(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _openLiveCaptureScreen(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => const FarmCaptureScreen(),
+      ),
+    );
+  }
+
+  void _openRemoteCaptureScreen(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const FarmCaptureRemoteScreen(),
       ),
     );
   }
