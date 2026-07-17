@@ -12,6 +12,21 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 
+/// How a newly long-pressed point is wired into the existing boundary ring.
+enum _AddPointMode {
+  /// Appends to the end, same order as tapped — for tracing a boundary
+  /// point-by-point along a real edge (e.g. following road joints around a
+  /// county). Matches how the live-GPS capture screen behaves.
+  trace,
+
+  /// Splices the point into whichever existing edge it adds the least
+  /// extra perimeter to — for dropping corners in arbitrary zoom/pan order
+  /// without worrying about sequence. Can misfire on long, concave, or
+  /// snake-like boundaries where the nearest edge isn't the one actually
+  /// being traced, which is exactly the failure trace mode avoids.
+  autoFit,
+}
+
 /// Remote boundary capture screen. Rather than walking the perimeter with a
 /// live GPS fix, the user pans/zooms satellite imagery and long-presses to
 /// drop each corner, then long-presses (taps) an existing corner to remove
@@ -39,6 +54,12 @@ class _FarmCaptureRemoteScreenState extends State<FarmCaptureRemoteScreen> {
 
   final List<LatLng> _boundaryPoints = <LatLng>[];
   LatLng _initialCameraTarget = _defaultCenter;
+
+  // Trace is the default: it matches live-GPS capture's behavior and is the
+  // safer choice for tracing a real edge (roads, fence lines, ridges) point
+  // by point, which is the common case. Auto-fit is opt-in for freehand
+  // corner-dropping where sequence doesn't matter.
+  _AddPointMode _addPointMode = _AddPointMode.trace;
 
   /// Index of the point awaiting a new location, or null when not
   /// repositioning. While set, a map tap moves that point instead of
@@ -97,47 +118,46 @@ class _FarmCaptureRemoteScreenState extends State<FarmCaptureRemoteScreen> {
       _applyReposition(point);
       return;
     }
-    final int? nearestIndex = _nearestPointIndex(point);
-    if (nearestIndex != null) {
-      final double dist =
-          GeoMath.haversineDistanceMeters(_boundaryPoints[nearestIndex], point);
+    final LatLng? nearest = _nearestPoint(point);
+    if (nearest != null) {
+      final double dist = GeoMath.haversineDistanceMeters(nearest, point);
       if (dist < _minPointSpacingMeters) {
         _logger.w('Point rejected (duplicate long-press): '
             '${dist.toStringAsFixed(2)}m from an existing point.');
         return;
       }
     }
-    // Points aren't necessarily dropped in walking order the way live GPS
-    // capture is — the user pans/zooms freely, so a tap "between" two
-    // already-placed corners must be spliced into the ring at that spot
-    // rather than appended, or the polygon edges cross back across the
-    // shape and leave points stranded outside it. Insert at whichever
-    // existing edge the new point adds the least extra perimeter to
-    // (cheapest-insertion heuristic) so the ring stays non-self-intersecting.
-    final int insertIndex = _bestInsertionIndex(point);
+
+    final int insertIndex = _addPointMode == _AddPointMode.trace
+        // Tracing a real edge point by point: each new point continues the
+        // line in tap order, exactly like live-GPS capture.
+        ? _boundaryPoints.length
+        // Freeform corner-dropping: splice into whichever existing edge the
+        // new point adds the least extra perimeter to, so an out-of-order
+        // tap doesn't cross back across the shape.
+        : _bestInsertionIndex(point);
     setState(() {
       _boundaryPoints.insert(insertIndex, point);
       _recomputeGeometry();
     });
     _logger.i('Remote point inserted at ring position $insertIndex '
-        '(${point.latitude}, ${point.longitude}), '
-        '${_boundaryPoints.length} point(s) total.');
+        '(${point.latitude}, ${point.longitude}) in '
+        '${_addPointMode.name} mode, ${_boundaryPoints.length} point(s) total.');
   }
 
-  int? _nearestPointIndex(LatLng point) {
+  LatLng? _nearestPoint(LatLng point) {
     if (_boundaryPoints.isEmpty) return null;
-    int bestIndex = 0;
-    double bestDist =
-        GeoMath.haversineDistanceMeters(_boundaryPoints[0], point);
+    LatLng best = _boundaryPoints[0];
+    double bestDist = GeoMath.haversineDistanceMeters(best, point);
     for (int i = 1; i < _boundaryPoints.length; i++) {
       final double dist =
           GeoMath.haversineDistanceMeters(_boundaryPoints[i], point);
       if (dist < bestDist) {
         bestDist = dist;
-        bestIndex = i;
+        best = _boundaryPoints[i];
       }
     }
-    return bestIndex;
+    return best;
   }
 
   /// Finds the ring position that adds the least extra perimeter when
@@ -491,6 +511,31 @@ class _FarmCaptureRemoteScreenState extends State<FarmCaptureRemoteScreen> {
     );
   }
 
+  Widget _buildAddPointModeToggle() {
+    return SegmentedButton<_AddPointMode>(
+      segments: const <ButtonSegment<_AddPointMode>>[
+        ButtonSegment<_AddPointMode>(
+          value: _AddPointMode.trace,
+          label: Text('Trace In Order'),
+          icon: Icon(Icons.timeline, size: 16),
+        ),
+        ButtonSegment<_AddPointMode>(
+          value: _AddPointMode.autoFit,
+          label: Text('Auto-Fit Nearest Edge'),
+          icon: Icon(Icons.hub_outlined, size: 16),
+        ),
+      ],
+      selected: <_AddPointMode>{_addPointMode},
+      onSelectionChanged: (Set<_AddPointMode> selection) {
+        setState(() => _addPointMode = selection.first);
+      },
+      style: const ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        textStyle: WidgetStatePropertyAll<TextStyle>(TextStyle(fontSize: 11)),
+      ),
+    );
+  }
+
   Widget _buildControlPanel() {
     return Container(
       padding: const EdgeInsets.all(FarmTheme.spaceMd),
@@ -512,6 +557,8 @@ class _FarmCaptureRemoteScreenState extends State<FarmCaptureRemoteScreen> {
               Text('Perimeter: ${GeoMath.perimeterLabel(_perimeterMeters)}'),
             ],
           ),
+          const SizedBox(height: FarmTheme.spaceSm),
+          _buildAddPointModeToggle(),
           const SizedBox(height: FarmTheme.spaceSm),
           const Text(
             'Long-press the map to add a point. Tap a point to remove or '
