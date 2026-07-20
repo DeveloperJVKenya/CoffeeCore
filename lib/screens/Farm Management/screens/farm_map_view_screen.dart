@@ -4,10 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:coffeecore/screens/Farm%20Management/farm_management_theme.dart';
 import 'package:coffeecore/screens/Farm%20Management/models/farm_polygon_model.dart';
+import 'package:coffeecore/screens/Farm%20Management/services/sentinel_hub_service.dart';
+import 'package:coffeecore/screens/Farm%20Management/services/service_exceptions.dart';
+import 'package:coffeecore/screens/Farm%20Management/widgets/metric_gradient_legend.dart';
 
 /// Full-screen, fully interactive view of a saved farm's mapped boundary:
 /// pinch/scroll to zoom, drag to pan, and toggle between map types. Reached
-/// by tapping the map card on the Overview tab.
+/// by tapping the map card on the Overview tab. Also renders a real,
+/// per-pixel colorized NDVI/NDWI raster (clipped to the farm shape) as a
+/// [GroundOverlay] when the user selects a metric — not just a single flat
+/// fill color — so within-field variation is visible the same way a
+/// standard satellite vegetation/moisture heat-map would show it.
 class FarmMapViewScreen extends StatefulWidget {
   final FarmPolygon farm;
 
@@ -18,8 +25,14 @@ class FarmMapViewScreen extends StatefulWidget {
 }
 
 class _FarmMapViewScreenState extends State<FarmMapViewScreen> {
+  final SentinelHubService _sentinelHubService = SentinelHubService();
+
   GoogleMapController? _controller;
   MapType _mapType = MapType.hybrid;
+  MapMetric? _metric;
+  RasterOverlayData? _raster;
+  bool _isLoadingRaster = false;
+  String? _rasterError;
 
   void _cycleMapType() {
     setState(() {
@@ -29,6 +42,34 @@ class _FarmMapViewScreenState extends State<FarmMapViewScreen> {
         _ => MapType.hybrid,
       };
     });
+  }
+
+  Future<void> _onMetricSelected(MapMetric? metric) async {
+    setState(() {
+      _metric = metric;
+      _raster = null;
+      _rasterError = null;
+    });
+    if (metric == null) return;
+
+    setState(() => _isLoadingRaster = true);
+    try {
+      final raster = await _sentinelHubService.fetchColorizedRaster(
+        coordinates: widget.farm.coordinates,
+        metric: metric == MapMetric.ndvi ? 'ndvi' : 'ndwi',
+      );
+      if (!mounted) return;
+      setState(() => _raster = raster);
+    } on ServiceUnavailableException catch (e) {
+      if (!mounted) return;
+      setState(() => _rasterError = e.userMessage);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() =>
+          _rasterError = 'Something went wrong rendering the map overlay.');
+    } finally {
+      if (mounted) setState(() => _isLoadingRaster = false);
+    }
   }
 
   LatLngBounds _boundsFor(List<LatLng> points) {
@@ -73,17 +114,48 @@ class _FarmMapViewScreenState extends State<FarmMapViewScreen> {
         ),
     };
 
+    final double? ndvi = farm.satelliteData?.ndviScore;
+    final double? ndwi = farm.satelliteData?.ndwiScore;
+    final bool overlayActive = _metric != null && _raster != null;
+    // Once the colorized raster is showing, the polygon itself only needs a
+    // boundary outline (the raster already carries the per-pixel color and
+    // is clipped to the farm shape) — filling it too would just wash out
+    // the raster underneath.
+    final Color boundaryColor =
+        overlayActive ? Colors.white : FarmTheme.secondaryGreen;
+
     final Set<Polygon> polygons = <Polygon>{
       if (farm.coordinates.length >= 3)
         Polygon(
           polygonId: PolygonId(farm.farmId ?? farm.farmName),
           points: farm.coordinates,
-          fillColor: FarmTheme.secondaryGreen.withValues(alpha: 0.2),
-          strokeColor: FarmTheme.secondaryGreen,
+          fillColor: overlayActive
+              ? Colors.transparent
+              : FarmTheme.secondaryGreen.withValues(alpha: 0.2),
+          strokeColor: boundaryColor,
           strokeWidth: 3,
           geodesic: true,
         ),
     };
+
+    final Set<GroundOverlay> groundOverlays = <GroundOverlay>{
+      if (_raster != null)
+        GroundOverlay.fromBounds(
+          groundOverlayId: const GroundOverlayId('metric_raster'),
+          image: BytesMapBitmap(
+            _raster!.pngBytes,
+            bitmapScaling: MapBitmapScaling.none,
+          ),
+          bounds: _raster!.bounds,
+          transparency: 0.05,
+        ),
+    };
+
+    final double? legendValue = _metric == MapMetric.ndvi
+        ? ndvi
+        : _metric == MapMetric.ndwi
+            ? ndwi
+            : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -91,6 +163,23 @@ class _FarmMapViewScreenState extends State<FarmMapViewScreen> {
         backgroundColor: FarmTheme.primaryBrown,
         foregroundColor: Colors.white,
         actions: <Widget>[
+          PopupMenuButton<MapMetric?>(
+            icon: const Icon(Icons.gradient),
+            tooltip: 'NDVI/NDWI color overlay',
+            initialValue: _metric,
+            onSelected: _onMetricSelected,
+            itemBuilder: (context) => <PopupMenuEntry<MapMetric?>>[
+              const PopupMenuItem(value: null, child: Text('No overlay')),
+              const PopupMenuItem(
+                value: MapMetric.ndvi,
+                child: Text('NDVI (vegetation)'),
+              ),
+              const PopupMenuItem(
+                value: MapMetric.ndwi,
+                child: Text('NDWI (moisture)'),
+              ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.layers),
             tooltip: 'Change map type',
@@ -116,6 +205,7 @@ class _FarmMapViewScreenState extends State<FarmMapViewScreen> {
             },
             markers: markers,
             polygons: polygons,
+            groundOverlays: groundOverlays,
             zoomControlsEnabled: true,
             zoomGesturesEnabled: true,
             scrollGesturesEnabled: true,
@@ -125,26 +215,79 @@ class _FarmMapViewScreenState extends State<FarmMapViewScreen> {
             mapToolbarEnabled: true,
             compassEnabled: true,
           ),
+          if (_isLoadingRaster)
+            Positioned(
+              top: FarmTheme.spaceMd,
+              left: FarmTheme.spaceMd,
+              right: FarmTheme.spaceMd,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: FarmTheme.spaceMd,
+                  vertical: FarmTheme.spaceSm,
+                ),
+                decoration: FarmTheme.cardDecoration(),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: FarmTheme.spaceSm),
+                    Text('Rendering satellite overlay…',
+                        style: FarmTheme.statLabel),
+                  ],
+                ),
+              ),
+            ),
+          if (_rasterError != null)
+            Positioned(
+              top: FarmTheme.spaceMd,
+              left: FarmTheme.spaceMd,
+              right: FarmTheme.spaceMd,
+              child: Container(
+                padding: const EdgeInsets.all(FarmTheme.spaceSm),
+                decoration: FarmTheme.cardDecoration(color: Colors.red[50]),
+                child: Text(
+                  _rasterError!,
+                  style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                ),
+              ),
+            ),
           Positioned(
             left: FarmTheme.spaceMd,
             right: FarmTheme.spaceMd,
             bottom: FarmTheme.spaceMd,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: FarmTheme.spaceMd,
-                vertical: FarmTheme.spaceSm,
-              ),
-              decoration: FarmTheme.cardDecoration(),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: <Widget>[
-                  Text('Area: ${farm.areaLabel}', style: FarmTheme.statLabel),
-                  Text('Perimeter: ${farm.perimeterLabel}',
-                      style: FarmTheme.statLabel),
-                  Text('Points: ${farm.coordinates.length}',
-                      style: FarmTheme.statLabel),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (_metric != null) ...[
+                  MetricGradientLegend(
+                    metric: _metric!,
+                    currentValue: legendValue,
+                  ),
+                  const SizedBox(height: FarmTheme.spaceSm),
                 ],
-              ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: FarmTheme.spaceMd,
+                    vertical: FarmTheme.spaceSm,
+                  ),
+                  decoration: FarmTheme.cardDecoration(),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: <Widget>[
+                      Text('Area: ${farm.areaLabel}',
+                          style: FarmTheme.statLabel),
+                      Text('Perimeter: ${farm.perimeterLabel}',
+                          style: FarmTheme.statLabel),
+                      Text('Points: ${farm.coordinates.length}',
+                          style: FarmTheme.statLabel),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],

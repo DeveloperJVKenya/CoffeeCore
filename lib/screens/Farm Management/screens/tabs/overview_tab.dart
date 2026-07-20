@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/farm_management_theme.dart';
 import 'package:coffeecore/screens/Farm%20Management/models/farm_polygon_model.dart';
+import 'package:coffeecore/screens/Farm%20Management/providers/climate_satellite_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/providers/farm_cycle_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/providers/farm_finance_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/widgets/cycle_stage_badge.dart';
@@ -44,45 +45,56 @@ class OverviewTab extends StatelessWidget {
   }
 
   Widget _buildMapCard(BuildContext context) {
-    return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => FarmMapViewScreen(farm: farm),
-        ),
-      ),
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(FarmTheme.radiusCard),
-            child: FarmMapThumbnail(farm: farm, height: 160),
-          ),
-          Positioned(
-            right: FarmTheme.spaceSm,
-            bottom: FarmTheme.spaceSm,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: FarmTheme.spaceSm,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(FarmTheme.spaceSm),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.zoom_in, size: 16, color: Colors.white),
-                  SizedBox(width: 4),
-                  Text(
-                    'View full map',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ],
-              ),
+    // Reads the live satellite/NDVI/NDWI snapshot from ClimateSatelliteProvider
+    // instead of the plain `farm` prop, which is fetched once in
+    // FarmDetailShellScreen's initState and never refreshed — without this,
+    // fetching new NDVI/NDWI data in the Climate & Satellite tab would never
+    // be reflected on the map until the farm detail screen was reopened.
+    return Consumer<ClimateSatelliteProvider>(
+      builder: (context, climateProvider, _) {
+        final liveFarm =
+            farm.copyWith(satelliteData: climateProvider.satellite);
+        return GestureDetector(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => FarmMapViewScreen(farm: liveFarm),
             ),
           ),
-        ],
-      ),
+          child: Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(FarmTheme.radiusCard),
+                child: FarmMapThumbnail(farm: liveFarm, height: 160),
+              ),
+              Positioned(
+                right: FarmTheme.spaceSm,
+                bottom: FarmTheme.spaceSm,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: FarmTheme.spaceSm,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(FarmTheme.spaceSm),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.zoom_in, size: 16, color: Colors.white),
+                      SizedBox(width: 4),
+                      Text(
+                        'View full map',
+                        style: TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

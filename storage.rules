@@ -27,6 +27,19 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // Community post photos — one folder per post, uploaded right after the
+    // post document is created (see CommunityStorageService /
+    // create_post_screen.dart), so the Firestore doc already exists and its
+    // author.uid can be checked directly.
+    match /community_posts/{postId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null &&
+                    firestore.get(/databases/(default)/documents/community_posts/$(postId)).data.author.uid == request.auth.uid;
+      allow delete: if request.auth != null &&
+                    (isAdmin() ||
+                      firestore.get(/databases/(default)/documents/community_posts/$(postId)).data.author.uid == request.auth.uid);
+    }
+
     // Default deny all other paths
     match /{allPaths=**} {
       allow read, write: if false;

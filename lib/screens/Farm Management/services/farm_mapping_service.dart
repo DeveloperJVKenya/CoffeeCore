@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coffeecore/screens/Farm%20Management/models/farm_polygon_model.dart';
+import 'package:coffeecore/screens/Farm%20Management/models/ndvi_history_entry_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 
@@ -225,6 +226,68 @@ class FarmMappingService {
         stackTrace: st,
       );
       rethrow;
+    }
+  }
+
+  // ── NDVI/NDWI HISTORY (subcollection) ───────────────────────
+  //
+  // Each satellite refresh appends a snapshot here so trends (e.g. for the
+  // Drought Risk Index) can be computed later. This is purely additive —
+  // existing farms simply start with an empty subcollection.
+
+  Future<void> appendNdviHistoryEntry(
+      String farmId, NdviHistoryEntry entry) async {
+    try {
+      _log.i(
+        'FarmMappingService.appendNdviHistoryEntry: '
+        'Farm $farmId ← NDVI=${entry.ndvi.toStringAsFixed(3)}'
+        '${entry.ndwi != null ? ", NDWI=${entry.ndwi!.toStringAsFixed(3)}" : ""}',
+      );
+      await _firestore
+          .collection(_collection)
+          .doc(farmId)
+          .collection('ndviHistory')
+          .add(entry.toMap());
+    } catch (e, st) {
+      _log.e(
+        'FarmMappingService.appendNdviHistoryEntry: Error – $e',
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<List<NdviHistoryEntry>> fetchRecentNdviHistory(
+    String farmId, {
+    int limit = 12,
+  }) async {
+    try {
+      _log.i(
+        'FarmMappingService.fetchRecentNdviHistory: '
+        'Fetching last $limit entries for farm $farmId',
+      );
+      final snap = await _firestore
+          .collection(_collection)
+          .doc(farmId)
+          .collection('ndviHistory')
+          .orderBy('fetchedAt', descending: true)
+          .limit(limit)
+          .get();
+      final entries = snap.docs
+          .map((d) => NdviHistoryEntry.fromMap(d.data()))
+          .toList()
+          .reversed
+          .toList();
+      _log.i(
+        'FarmMappingService.fetchRecentNdviHistory: '
+        '${entries.length} entries loaded for farm $farmId',
+      );
+      return entries;
+    } catch (e, st) {
+      _log.e(
+        'FarmMappingService.fetchRecentNdviHistory: Error – $e',
+        stackTrace: st,
+      );
+      return [];
     }
   }
 

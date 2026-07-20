@@ -283,18 +283,25 @@ class ClimateData {
   String get iconUrl => weatherIcon.isEmpty ? '' : '$weatherIcon.png';
 }
 
-// ── Satellite / NDVI data snapshot ───────────────────────────
+// ── Satellite / NDVI / NDWI data snapshot ────────────────────
 class SatelliteData {
   final double ndviScore;
   final String vegetationHealth;
-  final double soilMoistureIndex;
+  // DEPRECATED: legacy fake proxy (ndvi * 85), kept only so older Firestore
+  // documents written before real NDWI existed still deserialize safely.
+  // New writes never populate this — prefer [ndwiScore]/[moistureLevel].
+  final double? soilMoistureIndex;
+  final double? ndwiScore;
+  final String? moistureLevel;
   final DateTime fetchedAt;
   final String dataSource;
 
   const SatelliteData({
     required this.ndviScore,
     required this.vegetationHealth,
-    required this.soilMoistureIndex,
+    this.soilMoistureIndex,
+    this.ndwiScore,
+    this.moistureLevel,
     required this.fetchedAt,
     required this.dataSource,
   });
@@ -303,7 +310,9 @@ class SatelliteData {
     return SatelliteData(
       ndviScore: (map['ndviScore'] as num? ?? 0).toDouble(),
       vegetationHealth: map['vegetationHealth'] as String? ?? 'Unknown',
-      soilMoistureIndex: (map['soilMoistureIndex'] as num? ?? 0).toDouble(),
+      soilMoistureIndex: (map['soilMoistureIndex'] as num?)?.toDouble(),
+      ndwiScore: (map['ndwiScore'] as num?)?.toDouble(),
+      moistureLevel: map['moistureLevel'] as String?,
       fetchedAt: map['fetchedAt'] != null
           ? (map['fetchedAt'] as Timestamp).toDate()
           : DateTime.now(),
@@ -315,10 +324,30 @@ class SatelliteData {
     return {
       'ndviScore': ndviScore,
       'vegetationHealth': vegetationHealth,
-      'soilMoistureIndex': soilMoistureIndex,
+      if (ndwiScore != null) 'ndwiScore': ndwiScore,
+      if (moistureLevel != null) 'moistureLevel': moistureLevel,
       'fetchedAt': Timestamp.fromDate(fetchedAt),
       'dataSource': dataSource,
     };
+  }
+
+  SatelliteData copyWith({
+    double? ndviScore,
+    String? vegetationHealth,
+    double? ndwiScore,
+    String? moistureLevel,
+    DateTime? fetchedAt,
+    String? dataSource,
+  }) {
+    return SatelliteData(
+      ndviScore: ndviScore ?? this.ndviScore,
+      vegetationHealth: vegetationHealth ?? this.vegetationHealth,
+      soilMoistureIndex: soilMoistureIndex,
+      ndwiScore: ndwiScore ?? this.ndwiScore,
+      moistureLevel: moistureLevel ?? this.moistureLevel,
+      fetchedAt: fetchedAt ?? this.fetchedAt,
+      dataSource: dataSource ?? this.dataSource,
+    );
   }
 
   Color get healthColor {
@@ -337,4 +366,18 @@ class SatelliteData {
   }
 
   double get ndviFraction => ((ndviScore + 1) / 2).clamp(0.0, 1.0);
+
+  double? get ndwiFraction =>
+      ndwiScore == null ? null : ((ndwiScore! + 1) / 2).clamp(0.0, 1.0);
+
+  /// Human-readable moisture label for display, preferring the real NDWI
+  /// derived label and falling back to the old proxy (clearly flagged as a
+  /// legacy estimate) or an explicit "not available" state.
+  String get moistureDisplayLabel {
+    if (moistureLevel != null) return moistureLevel!;
+    if (soilMoistureIndex != null) {
+      return 'Legacy estimate (${soilMoistureIndex!.toStringAsFixed(0)}%)';
+    }
+    return 'Not available';
+  }
 }

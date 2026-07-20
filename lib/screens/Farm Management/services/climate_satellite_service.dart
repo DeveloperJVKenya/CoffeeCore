@@ -166,11 +166,14 @@ class ClimateSatelliteService {
         final description =
             weatherCondition['description'] as Map<String, dynamic>?;
         final maxTemp = entry['maxTemperature'] as Map<String, dynamic>?;
+        final precipitation = daytime['precipitation'] as Map<String, dynamic>?;
+        final qpf = precipitation?['qpf'] as Map<String, dynamic>?;
 
         days.add({
           'date': dt,
           'temp': (maxTemp?['degrees'] as num? ?? 0).toDouble(),
           'humidity': (daytime['relativeHumidity'] as num? ?? 0).toDouble(),
+          'rainfallMm': (qpf?['quantity'] as num? ?? 0).toDouble(),
           'description':
               (description?['text'] as String? ?? 'Unknown').capitalize(),
           'icon': weatherCondition['iconBaseUri'] as String? ?? '',
@@ -340,15 +343,13 @@ class ClimateSatelliteService {
       final satellite = SatelliteData(
         ndviScore: ndvi,
         vegetationHealth: _ndviToHealth(ndvi),
-        soilMoistureIndex: _estimateSoilMoisture(ndvi),
         fetchedAt: DateTime.now(),
         dataSource: 'Sentinel-2 / AgroMonitoring',
       );
       _log.i(
         'ClimateSatelliteService.fetchLatestNdvi: '
         'NDVI=${ndvi.toStringAsFixed(3)}, '
-        'Health=${satellite.vegetationHealth}, '
-        'SoilMoisture=${satellite.soilMoistureIndex.toStringAsFixed(1)}%',
+        'Health=${satellite.vegetationHealth}',
       );
       return satellite;
     } on ServiceUnavailableException {
@@ -377,9 +378,6 @@ class ClimateSatelliteService {
     if (ndvi >= 0.20) return 'Fair';
     return 'Poor';
   }
-
-  double _estimateSoilMoisture(double ndvi) =>
-      ((ndvi * 85.0).clamp(0.0, 100.0));
 }
 
 extension _StringCapitalize on String {

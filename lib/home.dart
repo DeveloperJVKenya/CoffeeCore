@@ -4,6 +4,7 @@ import 'package:coffeecore/screens/Cooperative%20Section/coop_admin_management_s
 import 'package:coffeecore/screens/Cooperative%20Section/market_manager_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/produce_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/screens/farm_management_home_screen.dart';
+import 'package:coffeecore/screens/Community/feed_screen.dart';
 import 'package:coffeecore/screens/Field%20Data/coffee_soil_home_page.dart';
 import 'package:coffeecore/screens/admin/admin_management_screen.dart';
 import 'package:flutter/material.dart';
@@ -890,8 +891,7 @@ class _HomePageState extends State<HomePage> {
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
         BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Manuals'),
-        BottomNavigationBarItem(
-            icon: Icon(Icons.supervisor_account), label: 'F-Management'),
+        BottomNavigationBarItem(icon: Icon(Icons.forum), label: 'Community'),
         BottomNavigationBarItem(icon: Icon(Icons.menu_book), label: 'Journal'),
       ],
       type: BottomNavigationBarType.fixed,
@@ -920,7 +920,7 @@ class _HomePageState extends State<HomePage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (context) => const FarmManagementHomeScreen()),
+                  builder: (context) => const CommunityFeedScreen()),
             );
             break;
           case 3:

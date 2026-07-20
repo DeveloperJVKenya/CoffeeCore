@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/farm_management_theme.dart';
 import 'package:coffeecore/screens/Farm%20Management/providers/climate_satellite_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/widgets/climate_card.dart';
+import 'package:coffeecore/screens/Farm%20Management/widgets/drought_risk_card.dart';
 import 'package:coffeecore/screens/Farm%20Management/widgets/forecast_strip.dart';
 import 'package:coffeecore/screens/Farm%20Management/widgets/loading_error_view.dart';
 import 'package:coffeecore/screens/Farm%20Management/widgets/satellite_card.dart';
@@ -26,6 +27,7 @@ class _ClimateSatelliteTabState extends State<ClimateSatelliteTab> {
       final provider = context.read<ClimateSatelliteProvider>();
       if (provider.climate == null) provider.refreshClimate();
       if (provider.satellite == null) provider.refreshSatellite();
+      provider.loadNdviHistory();
     });
   }
 
@@ -77,9 +79,36 @@ class _ClimateSatelliteTabState extends State<ClimateSatelliteTab> {
                 return SatelliteCard(
                   satellite: provider.satellite!,
                   onRefresh: provider.refreshSatellite,
+                  onRefreshNdwi: provider.refreshNdwi,
+                  isLoadingNdwi: provider.isLoadingNdwi,
                 );
               },
             ),
+            if (provider.ndwiError != null) ...[
+              const SizedBox(height: FarmTheme.spaceSm),
+              Text(provider.ndwiError!,
+                  style:
+                      const TextStyle(color: Colors.redAccent, fontSize: 12)),
+            ],
+            const SizedBox(height: FarmTheme.spaceMd),
+            if (provider.satellite == null)
+              Container(
+                padding: const EdgeInsets.all(FarmTheme.spaceMd),
+                decoration: FarmTheme.cardDecoration(),
+                child: const Text(
+                  'Fetch satellite data above to see the Drought Risk Index.',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+              )
+            else
+              DroughtRiskCard(
+                result: provider.droughtRisk!,
+                onRefresh: () {
+                  provider.refreshSatellite();
+                  provider.refreshForecast();
+                  provider.refreshClimate();
+                },
+              ),
           ],
         );
       },

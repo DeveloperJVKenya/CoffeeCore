@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:coffeecore/authentication/splashscreen.dart';
 import 'package:coffeecore/authentication/login.dart';
 import 'package:coffeecore/authentication/registration.dart';
@@ -10,9 +11,18 @@ import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Hot restart resets Dart-side state but not the native Firebase app
+  // instance, so re-initializing throws [core/duplicate-app] on every hot
+  // restart. Left unguarded, that throw happens before runApp() ever runs,
+  // which is what makes hot restart specifically (never a cold start) leave
+  // the app looking stuck until a fresh sign-in forces a clean auth event.
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } on FirebaseException catch (e) {
+    if (e.code != 'duplicate-app') rethrow;
+  }
 
   // Enable edge-to-edge mode globally
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -29,7 +39,7 @@ void main() async {
     ),
   );
 
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -75,6 +85,17 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   bool _splashFinished = false;
 
+  // Captured once — FirebaseAuth.authStateChanges() returns a NEW Stream
+  // object on every call (confirmed in firebase_auth's source; it isn't
+  // memoized). Calling it inline as StreamBuilder's `stream:` argument means
+  // every rebuild of this widget (e.g. the splash-timer setState below)
+  // hands StreamBuilder a different stream reference, which makes it cancel
+  // the working subscription and resubscribe cold — right at the exact
+  // moment this widget decides Home vs. sign-in. Caching it once avoids
+  // that resubscription entirely.
+  late final Stream<User?> _authStateChanges =
+      FirebaseAuth.instance.authStateChanges();
+
   @override
   void initState() {
     super.initState();
@@ -87,7 +108,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: _authStateChanges,
       builder: (context, snapshot) {
         // Keep splash animation running for its full duration
         if (!_splashFinished) {
