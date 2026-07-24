@@ -1,6 +1,6 @@
-const { onRequest } = require("firebase-functions/v2/https");
+const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
-const { defineSecret } = require("firebase-functions/params");
+const { defineSecret, defineString } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 
@@ -68,6 +68,89 @@ exports.agroProxy = onRequest(
 exports.gfwProxy = onRequest(
   { region: "us-central1", cors: true },
   (req, res) => forward(req, res, GFW_BASE)
+);
+
+// ── NuaSense weather station API ────────────────────────────────────────
+//
+// Callable (not a plain HTTP proxy like agroProxy/gfwProxy above) because
+// the NuaSense API key must never reach the client — it's only readable
+// here, inside Cloud Functions, via Secret Manager
+// (`firebase functions:secrets:set NUASENSE_API_KEY`).
+//
+// NUASENSE_BASE_URL is a plain (non-secret) runtime param — set it with
+// `firebase functions:config` equivalent for v2 params: create
+// functions/.env.coffeecore-7111a with `NUASENSE_BASE_URL=https://...`,
+// or `firebase functions:secrets:set NUASENSE_BASE_URL` also works since
+// defineString falls back to reading env/secret files the same way. It's
+// still unset as of this writing — getNuaSenseData fails closed with a
+// clear "failed-precondition" error until it's configured, rather than
+// silently calling an invented host.
+//
+// Endpoint allowlist mirrors exactly what lib/screens/Weather Station/
+// nuasense_service.dart calls — nothing else is reachable through here.
+const nuaSenseApiKey = defineSecret("NUASENSE_API_KEY");
+const nuaSenseBaseUrl = defineString("NUASENSE_BASE_URL", { default: "" });
+
+const NUASENSE_ALLOWED_ENDPOINTS = new Set([
+  "weather",
+  "derived",
+  "stations",
+  "derived/forecast",
+]);
+
+exports.getNuaSenseData = onCall(
+  { region: "us-central1", secrets: [nuaSenseApiKey] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in to load weather station data.");
+    }
+
+    const { endpoint, params } = request.data || {};
+    if (typeof endpoint !== "string" || !NUASENSE_ALLOWED_ENDPOINTS.has(endpoint)) {
+      throw new HttpsError("invalid-argument", "Unsupported NuaSense endpoint.");
+    }
+
+    const baseUrl = nuaSenseBaseUrl.value();
+    if (!baseUrl) {
+      throw new HttpsError(
+        "failed-precondition",
+        "NUASENSE_BASE_URL is not configured yet. Set it via functions/.env.coffeecore-7111a."
+      );
+    }
+
+    const query = new URLSearchParams();
+    if (params && typeof params === "object") {
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null) query.set(key, String(value));
+      }
+    }
+    const search = query.toString();
+    const url = `${baseUrl.replace(/\/$/, "")}/${endpoint}${search ? `?${search}` : ""}`;
+
+    let upstreamRes;
+    try {
+      upstreamRes = await fetch(url, {
+        headers: { "x-api-key": nuaSenseApiKey.value() },
+      });
+    } catch (err) {
+      throw new HttpsError("unavailable", `Could not reach NuaSense API: ${err}`);
+    }
+
+    const text = await upstreamRes.text();
+    if (!upstreamRes.ok) {
+      throw new HttpsError(
+        "unavailable",
+        `NuaSense API error (HTTP ${upstreamRes.status})`,
+        { detail: text }
+      );
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch (err) {
+      throw new HttpsError("internal", "NuaSense API returned an unparseable response.");
+    }
+  }
 );
 
 // ── Sentinel Hub NDWI (Copernicus Data Space Ecosystem) ────────────

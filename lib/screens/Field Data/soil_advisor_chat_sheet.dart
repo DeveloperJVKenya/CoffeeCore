@@ -8,10 +8,17 @@ class SoilAdvisorChatSheet extends StatefulWidget {
   final String? stage;
   final String? soilType;
 
+  /// Live NuaSense weather station summary (leaf wetness, spray quality,
+  /// coffee berry borer pressure, etc.) — see
+  /// CoffeeSoilForm._weatherContextSummary(). Fed silently into every
+  /// Gemini call alongside the soil context, same as the fields above.
+  final String? weatherContext;
+
   const SoilAdvisorChatSheet({
     this.currentNutrients,
     this.stage,
     this.soilType,
+    this.weatherContext,
     super.key,
   });
 
@@ -21,6 +28,7 @@ class SoilAdvisorChatSheet extends StatefulWidget {
     Map<String, double>? currentNutrients,
     String? stage,
     String? soilType,
+    String? weatherContext,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -30,6 +38,7 @@ class SoilAdvisorChatSheet extends StatefulWidget {
         currentNutrients: currentNutrients,
         stage: stage,
         soilType: soilType,
+        weatherContext: weatherContext,
       ),
     );
   }
@@ -82,6 +91,7 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
       currentNutrients: widget.currentNutrients,
       stage: widget.stage,
       soilType: widget.soilType,
+      weatherContext: widget.weatherContext,
       conversationHistory: List.from(_history),
     );
 
@@ -91,6 +101,7 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
     if (!mounted) return;
     setState(() {
       final reply = answer ??
+          GeminiSoilAiService.lastErrorMessage ??
           'Sorry, I couldn\'t reach the advisor right now. '
               'Please check your internet connection and try again.';
       _messages.add({'role': 'model', 'text': reply});
@@ -130,8 +141,10 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
           children: [
             _buildHandle(),
             _buildHeader(),
-            if (widget.currentNutrients != null &&
-                widget.currentNutrients!.isNotEmpty)
+            if ((widget.currentNutrients != null &&
+                    widget.currentNutrients!.isNotEmpty) ||
+                (widget.weatherContext != null &&
+                    widget.weatherContext!.isNotEmpty))
               _buildContextBanner(),
             Expanded(
               child:
@@ -193,6 +206,24 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
         ),
       );
 
+  String _contextBannerText() {
+    final hasNutrients =
+        widget.currentNutrients != null && widget.currentNutrients!.isNotEmpty;
+    final hasWeather =
+        widget.weatherContext != null && widget.weatherContext!.isNotEmpty;
+
+    if (hasNutrients && hasWeather) {
+      return 'Using your current soil readings and live weather conditions '
+          'as context'
+          '${widget.soilType != null ? " — ${widget.soilType} soil" : ""}';
+    }
+    if (hasNutrients) {
+      return 'Using your current soil readings as context'
+          '${widget.soilType != null ? " — ${widget.soilType} soil" : ""}';
+    }
+    return 'Using live weather station conditions as context';
+  }
+
   Widget _buildContextBanner() => Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -203,8 +234,7 @@ class _SoilAdvisorChatSheetState extends State<SoilAdvisorChatSheet> {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                'Using your current soil readings as context'
-                '${widget.soilType != null ? " — ${widget.soilType} soil" : ""}',
+                _contextBannerText(),
                 style: const TextStyle(fontSize: 12, color: Color(0xFF4A2C2A)),
               ),
             ),

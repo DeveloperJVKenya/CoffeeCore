@@ -168,6 +168,16 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
         _isTrendLoading = false;
       });
 
+      if (result == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(GeminiSoilAiService.lastErrorMessage ??
+                'AI trend insight is unavailable right now.'),
+            backgroundColor: const Color(0xFF4A2C2A),
+          ),
+        );
+      }
+
       // Cache for today.
       if (result != null) {
         await prefs.setString(
@@ -377,178 +387,183 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
             ],
           ),
         ),
-        child: Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            initiallyExpanded: _trendExpanded,
-            onExpansionChanged: (v) => setState(() => _trendExpanded = v),
-            tilePadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            title: Row(
+        child: Material(
+          type: MaterialType.transparency,
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              initiallyExpanded: _trendExpanded,
+              onExpansionChanged: (v) => setState(() => _trendExpanded = v),
+              tilePadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              title: Row(
+                children: [
+                  const Icon(Icons.auto_awesome,
+                      color: Color(0xFF3A5F0B), size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'AI Soil Trend Insight',
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4A2C2A)),
+                    ),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: directionColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: directionColor.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(directionIcon, size: 14, color: directionColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          r.overallDirection.toUpperCase(),
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: directionColor),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               children: [
-                const Icon(Icons.auto_awesome,
-                    color: Color(0xFF3A5F0B), size: 18),
-                const SizedBox(width: 8),
-                const Expanded(
+                // Summary
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Text(
-                    'AI Soil Trend Insight',
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF4A2C2A)),
+                    r.trendSummary,
+                    style: const TextStyle(
+                        fontSize: 13, color: Color(0xFF3A5F0B), height: 1.4),
                   ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: directionColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: directionColor.withValues(alpha: 0.5)),
+
+                // Critical alerts
+                if (r.criticalAlerts.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ...r.criticalAlerts.map((alert) => Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.warning_amber,
+                                size: 16, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                alert,
+                                style: const TextStyle(
+                                    fontSize: 12, color: Color(0xFF4A2C2A)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+
+                // Positive trends
+                if (r.positiveTrends.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  ...r.positiveTrends.map((trend) => Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: Colors.green.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.check_circle_outline,
+                                size: 16, color: Colors.green),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                trend,
+                                style: const TextStyle(
+                                    fontSize: 12, color: Color(0xFF4A2C2A)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+
+                // Recommended next action
+                if (r.recommendedAction.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3A5F0B).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color:
+                              const Color(0xFF3A5F0B).withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.arrow_forward_ios,
+                            size: 14, color: Color(0xFF3A5F0B)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            r.recommendedAction,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4A2C2A)),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(directionIcon, size: 14, color: directionColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        r.overallDirection.toUpperCase(),
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: directionColor),
-                      ),
-                    ],
+                ],
+
+                // Refresh button
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _trendResult = null;
+                        _isTrendLoading = false;
+                      });
+                      _loadTrendAnalysis();
+                    },
+                    icon: const Icon(Icons.refresh,
+                        size: 14, color: Color(0xFF3A5F0B)),
+                    label: const Text('Refresh',
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFF3A5F0B))),
                   ),
                 ),
               ],
             ),
-            children: [
-              // Summary
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  r.trendSummary,
-                  style: const TextStyle(
-                      fontSize: 13, color: Color(0xFF3A5F0B), height: 1.4),
-                ),
-              ),
-
-              // Critical alerts
-              if (r.criticalAlerts.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                ...r.criticalAlerts.map((alert) => Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.07),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: Colors.red.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.warning_amber,
-                              size: 16, color: Colors.red),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              alert,
-                              style: const TextStyle(
-                                  fontSize: 12, color: Color(0xFF4A2C2A)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
-              ],
-
-              // Positive trends
-              if (r.positiveTrends.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                ...r.positiveTrends.map((trend) => Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.07),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: Colors.green.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.check_circle_outline,
-                              size: 16, color: Colors.green),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              trend,
-                              style: const TextStyle(
-                                  fontSize: 12, color: Color(0xFF4A2C2A)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
-              ],
-
-              // Recommended next action
-              if (r.recommendedAction.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3A5F0B).withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                        color: const Color(0xFF3A5F0B).withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.arrow_forward_ios,
-                          size: 14, color: Color(0xFF3A5F0B)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          r.recommendedAction,
-                          style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF4A2C2A)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              // Refresh button
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _trendResult = null;
-                      _isTrendLoading = false;
-                    });
-                    _loadTrendAnalysis();
-                  },
-                  icon: const Icon(Icons.refresh,
-                      size: 14, color: Color(0xFF3A5F0B)),
-                  label: const Text('Refresh',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF3A5F0B))),
-                ),
-              ),
-            ],
           ),
         ),
       ),
@@ -1552,279 +1567,283 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Plot ID Header Banner ────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 13, 12, 13),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [Color(0xFF2A3D1A), Color(0xFF3A5F0B)],
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    // Plot ID pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.35)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.grid_view_rounded,
-                              color: Colors.white70, size: 12),
-                          const SizedBox(width: 5),
-                          Text(
-                            entry.plotId,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 12,
-                                letterSpacing: 0.5),
-                          ),
-                        ],
-                      ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Plot ID Header Banner ────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 13, 12, 13),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [Color(0xFF2A3D1A), Color(0xFF3A5F0B)],
                     ),
-                    const SizedBox(width: 8),
-                    // Soil type chip
-                    if (entry.soilType != null)
+                  ),
+                  child: Row(
+                    children: [
+                      // Plot ID pill
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color:
-                              const Color(0xFFD4A054).withValues(alpha: 0.25),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.35)),
                         ),
-                        child: Text(
-                          entry.soilType!,
-                          style: const TextStyle(
-                              color: Color(0xFFFFD88A),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.grid_view_rounded,
+                                color: Colors.white70, size: 12),
+                            const SizedBox(width: 5),
+                            Text(
+                              entry.plotId,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                  letterSpacing: 0.5),
+                            ),
+                          ],
                         ),
                       ),
-                    const Spacer(),
-                    // Notification badge
-                    if (entry.notificationTriggered)
-                      Container(
-                        margin: const EdgeInsets.only(right: 6),
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.25),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.notifications_active,
-                            color: Color(0xFF8FE06A), size: 13),
-                      ),
-                    // Action menu
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          _editSoilData(context, entry, docId);
-                        } else if (value == 'delete') {
-                          _deleteSoilData(context, docId);
-                        }
-                      },
-                      icon: const Icon(Icons.more_vert,
-                          color: Colors.white70, size: 20),
-                      color: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(children: [
-                            Icon(Icons.edit_outlined,
-                                color: Color(0xFF3A5F0B), size: 18),
-                            SizedBox(width: 10),
-                            Text('Edit Entry',
-                                style: TextStyle(
-                                    fontSize: 13,
-                                    color: Color(0xFF2A1F1F),
-                                    fontWeight: FontWeight.w600)),
-                          ]),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(children: [
-                            Icon(Icons.delete_outline,
-                                color: Colors.red, size: 18),
-                            SizedBox(width: 10),
-                            Text('Delete',
-                                style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.red,
-                                    fontWeight: FontWeight.w600)),
-                          ]),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // ── Stage + Date Row ─────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            entry.stage,
-                            style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF2A1F1F),
-                                letterSpacing: -0.2),
+                      const SizedBox(width: 8),
+                      // Soil type chip
+                      if (entry.soilType != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color:
+                                const Color(0xFFD4A054).withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          const SizedBox(height: 3),
-                          Row(
-                            children: [
-                              const Icon(Icons.schedule_outlined,
-                                  size: 12, color: Color(0xFF8A7A70)),
-                              const SizedBox(width: 4),
-                              Text(
-                                DateFormat('MMM dd, yyyy · HH:mm')
-                                    .format(entry.timestamp.toDate()),
-                                style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF8A7A70),
-                                    fontWeight: FontWeight.w500),
-                              ),
-                            ],
+                          child: Text(
+                            entry.soilType!,
+                            style: const TextStyle(
+                                color: Color(0xFFFFD88A),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      const Spacer(),
+                      // Notification badge
+                      if (entry.notificationTriggered)
+                        Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.25),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.notifications_active,
+                              color: Color(0xFF8FE06A), size: 13),
+                        ),
+                      // Action menu
+                      PopupMenuButton<String>(
+                        onSelected: (value) {
+                          if (value == 'edit') {
+                            _editSoilData(context, entry, docId);
+                          } else if (value == 'delete') {
+                            _deleteSoilData(context, docId);
+                          }
+                        },
+                        icon: const Icon(Icons.more_vert,
+                            color: Colors.white70, size: 20),
+                        color: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(children: [
+                              Icon(Icons.edit_outlined,
+                                  color: Color(0xFF3A5F0B), size: 18),
+                              SizedBox(width: 10),
+                              Text('Edit Entry',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFF2A1F1F),
+                                      fontWeight: FontWeight.w600)),
+                            ]),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(children: [
+                              Icon(Icons.delete_outline,
+                                  color: Colors.red, size: 18),
+                              SizedBox(width: 10),
+                              Text('Delete',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.w600)),
+                            ]),
                           ),
                         ],
                       ),
-                    ),
-                    // Feature badges
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        if (hasRecommendations)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 4),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1565C0)
-                                  .withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                  color: const Color(0xFF1565C0)
-                                      .withValues(alpha: 0.3)),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.lightbulb_outline,
-                                    size: 10, color: Color(0xFF1565C0)),
-                                SizedBox(width: 4),
-                                Text('RECS',
-                                    style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF1565C0),
-                                        letterSpacing: 0.5)),
-                              ],
-                            ),
-                          ),
-                        if (hasPrediction)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF00695C)
-                                  .withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                  color: const Color(0xFF00695C)
-                                      .withValues(alpha: 0.3)),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.auto_graph,
-                                    size: 10, color: Color(0xFF00695C)),
-                                SizedBox(width: 4),
-                                Text('AI PRED',
-                                    style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF00695C),
-                                        letterSpacing: 0.5)),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
-              // ── Quick stats strip ────────────────────────────────────────
-              _buildQuickStatsStrip(entry),
-
-              // ── Expandable Detail ────────────────────────────────────────
-              Theme(
-                data: Theme.of(context)
-                    .copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  tilePadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                  childrenPadding: const EdgeInsets.fromLTRB(14, 4, 14, 16),
-                  dense: true,
-                  title: Row(
+                // ── Stage + Date Row ─────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 18,
-                        height: 2,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3A5F0B).withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(1),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              entry.stage,
+                              style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF2A1F1F),
+                                  letterSpacing: -0.2),
+                            ),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                const Icon(Icons.schedule_outlined,
+                                    size: 12, color: Color(0xFF8A7A70)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  DateFormat('MMM dd, yyyy · HH:mm')
+                                      .format(entry.timestamp.toDate()),
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF8A7A70),
+                                      fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'Full Analysis',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF3A5F0B)),
+                      // Feature badges
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (hasRecommendations)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1565C0)
+                                    .withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: const Color(0xFF1565C0)
+                                        .withValues(alpha: 0.3)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.lightbulb_outline,
+                                      size: 10, color: Color(0xFF1565C0)),
+                                  SizedBox(width: 4),
+                                  Text('RECS',
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF1565C0),
+                                          letterSpacing: 0.5)),
+                                ],
+                              ),
+                            ),
+                          if (hasPrediction)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF00695C)
+                                    .withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: const Color(0xFF00695C)
+                                        .withValues(alpha: 0.3)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.auto_graph,
+                                      size: 10, color: Color(0xFF00695C)),
+                                  SizedBox(width: 4),
+                                  Text('AI PRED',
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF00695C),
+                                          letterSpacing: 0.5)),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
-                  children: [
-                    _buildNutrientDataSection(entry),
-                    if (entry.interventionMethod != null) ...[
-                      const SizedBox(height: 12),
-                      _buildInterventionSection(entry),
-                    ],
-                    if (hasPrediction) ...[
-                      const SizedBox(height: 12),
-                      _buildAiPredictionSection(rawData),
-                    ],
-                    if (hasRecommendations) ...[
-                      const SizedBox(height: 12),
-                      _buildRecommendationsSection(entry.recommendations!),
-                    ],
-                  ],
                 ),
-              ),
-            ],
+
+                // ── Quick stats strip ────────────────────────────────────────
+                _buildQuickStatsStrip(entry),
+
+                // ── Expandable Detail ────────────────────────────────────────
+                Theme(
+                  data: Theme.of(context)
+                      .copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    tilePadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                    childrenPadding: const EdgeInsets.fromLTRB(14, 4, 14, 16),
+                    dense: true,
+                    title: Row(
+                      children: [
+                        Container(
+                          width: 18,
+                          height: 2,
+                          decoration: BoxDecoration(
+                            color:
+                                const Color(0xFF3A5F0B).withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Full Analysis',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF3A5F0B)),
+                        ),
+                      ],
+                    ),
+                    children: [
+                      _buildNutrientDataSection(entry),
+                      if (entry.interventionMethod != null) ...[
+                        const SizedBox(height: 12),
+                        _buildInterventionSection(entry),
+                      ],
+                      if (hasPrediction) ...[
+                        const SizedBox(height: 12),
+                        _buildAiPredictionSection(rawData),
+                      ],
+                      if (hasRecommendations) ...[
+                        const SizedBox(height: 12),
+                        _buildRecommendationsSection(entry.recommendations!),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -2246,72 +2265,80 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
           ),
         ],
       ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          title: Row(
-            children: [
-              Container(
-                width: 6,
-                height: 6,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1565C0),
-                  shape: BoxShape.circle,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Material(
+          type: MaterialType.transparency,
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              title: Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF1565C0),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    nutrient.toUpperCase(),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF2A1F1F),
+                        letterSpacing: 0.5),
+                  ),
+                ],
+              ),
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: recommendations.entries
+                      .map((rec) => Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: _getRecommendationTypeColor(rec.key)
+                                  .withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: _getRecommendationTypeColor(rec.key)
+                                    .withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _getRecommendationTypeTitle(rec.key),
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color:
+                                          _getRecommendationTypeColor(rec.key)),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  rec.value.toString(),
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF3A5F0B),
+                                      height: 1.4),
+                                ),
+                              ],
+                            ),
+                          ))
+                      .toList(),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                nutrient.toUpperCase(),
-                style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF2A1F1F),
-                    letterSpacing: 0.5),
-              ),
-            ],
-          ),
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: recommendations.entries
-                  .map((rec) => Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: _getRecommendationTypeColor(rec.key)
-                              .withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: _getRecommendationTypeColor(rec.key)
-                                .withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _getRecommendationTypeTitle(rec.key),
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: _getRecommendationTypeColor(rec.key)),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              rec.value.toString(),
-                              style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF3A5F0B),
-                                  height: 1.4),
-                            ),
-                          ],
-                        ),
-                      ))
-                  .toList(),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

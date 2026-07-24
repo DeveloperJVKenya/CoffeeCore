@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_ai/firebase_ai.dart';
+import '../../services/ai_error_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DATA MODELS
@@ -307,6 +308,12 @@ class GeminiSoilAiService {
 
   static const String _model = 'gemini-2.5-flash';
 
+  /// Non-technical message describing the most recent AI call failure —
+  /// set by every catch block below, cleared on a successful call. UI code
+  /// reads this after a null result so it can show the farmer a friendly
+  /// message instead of failing silently or showing a raw error.
+  static String? lastErrorMessage;
+
   // The advisor uses the same model as everything else — gemini-2.5-flash.
   // gemini-2.0-flash was deprecated for new users (API error confirmed).
   // Instead we defeat the thinking-token starvation by setting a token limit
@@ -340,6 +347,7 @@ class GeminiSoilAiService {
     debugPrint('[GeminiSoilAI] 🤖 Calling Gemini — soil type vision scan '
         '(${imageBytes.length} bytes, $mimeType)');
 
+    lastErrorMessage = null;
     try {
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
@@ -414,10 +422,12 @@ If you are less than 65% confident:
     } on FirebaseException catch (e) {
       debugPrint('[GeminiSoilAI] ❌ Firebase error in identifySoilType: '
           'code=${e.code} message="${e.message}"');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     } catch (e, stack) {
       debugPrint('[GeminiSoilAI] ❌ Unexpected error in identifySoilType: $e');
       debugPrint('[GeminiSoilAI]    Stack: $stack');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     }
   }
@@ -432,7 +442,17 @@ If you are less than 65% confident:
     required String? soilType,
     required int plantDensity,
     required bool isPerPlant,
+    // Optional live conditions from the NuaSense weather station (see
+    // lib/screens/Weather%20Station/nuasense_service.dart), e.g. leaf
+    // wetness, spray quality, coffee berry borer pressure. When provided,
+    // Gemini factors current field conditions into its recommendations —
+    // e.g. holding off on a foliar-feed suggestion while leaves are wet.
+    String? weatherContext,
   }) async {
+    // Weather isn't part of the cache key on purpose — it changes hour to
+    // hour and would defeat caching almost entirely. The nutrient/stage/
+    // soil combination is what's expensive to re-analyse; weather is cheap
+    // context layered on top each time.
     final cacheKey =
         '${_mapKey(nutrientValues)}|$stage|${soilType ?? "unknown"}';
     if (_analysisCache.containsKey(cacheKey)) {
@@ -443,6 +463,7 @@ If you are less than 65% confident:
     debugPrint('[GeminiSoilAI] 🤖 Calling Gemini — holistic soil analysis '
         'stage="$stage" soilType="$soilType"');
 
+    lastErrorMessage = null;
     try {
       // Gemini 2.5 Flash consumes ~1500–3000 tokens for its internal thinking
       // pass BEFORE emitting any visible output. With the old 2048 limit the
@@ -458,8 +479,8 @@ If you are less than 65% confident:
       );
 
       final response = await model.generateContent([
-        Content.text(_buildAnalysisPrompt(
-            nutrientValues, stage, soilType, plantDensity, isPerPlant)),
+        Content.text(_buildAnalysisPrompt(nutrientValues, stage, soilType,
+            plantDensity, isPerPlant, weatherContext)),
       ]);
       final rawText = response.text ?? '';
       final finishReason = response.candidates.firstOrNull?.finishReason;
@@ -492,11 +513,13 @@ If you are less than 65% confident:
     } on FirebaseException catch (e) {
       debugPrint('[GeminiSoilAI] ❌ Firebase error in generateSoilAnalysis: '
           'code=${e.code} message="${e.message}"');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     } catch (e, stack) {
       debugPrint(
           '[GeminiSoilAI] ❌ Unexpected error in generateSoilAnalysis: $e');
       debugPrint('[GeminiSoilAI]    Stack: $stack');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     }
   }
@@ -523,6 +546,7 @@ If you are less than 65% confident:
     debugPrint('[GeminiSoilAI] 🤖 Calling Gemini — fertilization plan '
         'stage="$stage" soilType="$soilType"');
 
+    lastErrorMessage = null;
     try {
       // 8 192 tokens: thinking pass ~2000 + full plan JSON ~6000 headroom.
       final model = FirebaseAI.googleAI().generativeModel(
@@ -562,11 +586,13 @@ If you are less than 65% confident:
       debugPrint(
           '[GeminiSoilAI] ❌ Firebase error in generateFertilizationPlan: '
           'code=${e.code} message="${e.message}"');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     } catch (e, stack) {
       debugPrint('[GeminiSoilAI] ❌ Unexpected error in '
           'generateFertilizationPlan: $e');
       debugPrint('[GeminiSoilAI]    Stack: $stack');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     }
   }
@@ -593,6 +619,7 @@ If you are less than 65% confident:
         'product="$interventionProduct" '
         'qty=${interventionQuantityKgPerAcre}kg/acre');
 
+    lastErrorMessage = null;
     try {
       // 4 096 tokens: thinking ~1500 + compact 8-nutrient prediction JSON.
       final model = FirebaseAI.googleAI().generativeModel(
@@ -626,11 +653,13 @@ If you are less than 65% confident:
     } on FirebaseException catch (e) {
       debugPrint('[GeminiSoilAI] ❌ Firebase error in '
           'predictInterventionOutcome: code=${e.code} message="${e.message}"');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     } catch (e, stack) {
       debugPrint('[GeminiSoilAI] ❌ Unexpected error in '
           'predictInterventionOutcome: $e');
       debugPrint('[GeminiSoilAI]    Stack: $stack');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     }
   }
@@ -662,6 +691,7 @@ If you are less than 65% confident:
     debugPrint('[GeminiSoilAI] 🤖 Calling Gemini — trend analysis '
         '(${readings.length} readings, soilType="$soilType", stage="$stage")');
 
+    lastErrorMessage = null;
     try {
       // 4 096 tokens: thinking ~1500 + compact trend JSON ~2500 headroom.
       final model = FirebaseAI.googleAI().generativeModel(
@@ -694,10 +724,12 @@ If you are less than 65% confident:
     } on FirebaseException catch (e) {
       debugPrint('[GeminiSoilAI] ❌ Firebase error in analyzeSoilTrend: '
           'code=${e.code} message="${e.message}"');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     } catch (e, stack) {
       debugPrint('[GeminiSoilAI] ❌ Unexpected error in analyzeSoilTrend: $e');
       debugPrint('[GeminiSoilAI]    Stack: $stack');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     }
   }
@@ -711,15 +743,19 @@ If you are less than 65% confident:
     Map<String, double>? currentNutrients,
     String? stage,
     String? soilType,
+    // Optional live NuaSense weather station summary — see
+    // lib/screens/Weather%20Station/nuasense_service.dart.
+    String? weatherContext,
     List<Map<String, String>> conversationHistory = const [],
   }) async {
     // Log the FULL question — the old 60-char substring was misleading users
     // into thinking their question hadn't been submitted completely.
     debugPrint('[GeminiSoilAI] 🤖 Soil advisor Q: "$question"');
 
+    lastErrorMessage = null;
     try {
-      final contextBlock =
-          _buildAdvisorContext(currentNutrients, stage, soilType);
+      final contextBlock = _buildAdvisorContext(
+          currentNutrients, stage, soilType, weatherContext);
 
       // _model (gemini-2.5-flash) is the only confirmed-available model.
       // _advisorMaxTokens (16 384) gives the thinking pass ~2000–4000 tokens
@@ -762,10 +798,12 @@ If you are less than 65% confident:
     } on FirebaseException catch (e) {
       debugPrint('[GeminiSoilAI] ❌ Firebase error in askSoilAdvisor: '
           'code=${e.code} message="${e.message}"');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     } catch (e, stack) {
       debugPrint('[GeminiSoilAI] ❌ Unexpected error in askSoilAdvisor: $e');
       debugPrint('[GeminiSoilAI]    Stack: $stack');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     }
   }
@@ -780,6 +818,7 @@ If you are less than 65% confident:
     String? soilType,
     int plantDensity,
     bool isPerPlant,
+    String? weatherContext,
   ) {
     final unit = isPerPlant ? 'mg/plant' : 'kg/acre';
     final valuesStr = values.entries
@@ -848,7 +887,15 @@ Stage-specific notes:
 - Flowering & Fruiting: B and Zn critical for fruit set; Ca for cell integrity.
 - Maturation & Harvesting: K highest demand for cherry fill; reduce N to avoid over-vegetative growth.
 ──────────────────────────────────────────────────────────────────────────
-
+${weatherContext != null && weatherContext.isNotEmpty ? '''
+─── CURRENT FIELD CONDITIONS (live weather station) ───
+$weatherContext
+Factor these into your recommendations where relevant — e.g. hold off on
+foliar-feed timing advice while leaves are wet, flag if coffee berry borer
+pressure is elevated, or note if conditions favour nutrient leaching after
+heavy rain.
+──────────────────────────────────────────────────────────────────────────
+''' : ''}
 Return ONLY valid JSON. Start with { and end with }. No markdown, no code fences.
 CRITICAL: The JSON must be complete — every opened array [ and object { MUST have a matching ] and }.
 Do NOT truncate the response mid-sentence or mid-field. If you are running out of space, shorten individual text fields but complete all structural JSON brackets.
@@ -1073,6 +1120,7 @@ Rules:
     Map<String, double>? nutrients,
     String? stage,
     String? soilType,
+    String? weatherContext,
   ) {
     // NOTE: Deliberately no sentence-count cap here — the previous
     // "Keep answers to 2–4 sentences" instruction was causing the advisor
@@ -1095,20 +1143,32 @@ Rules:
         'Write for someone with no chemistry background — no jargon. '
         'Use bullet points or numbered steps when listing actions.';
 
-    if (nutrients == null || nutrients.isEmpty) {
+    final hasNutrients = nutrients != null && nutrients.isNotEmpty;
+    final hasWeather = weatherContext != null && weatherContext.isNotEmpty;
+
+    if (!hasNutrients && !hasWeather) {
       return systemInstruction;
     }
 
-    final nutrientStr = nutrients.entries
-        .map((e) => '${e.key}: ${e.value.toStringAsFixed(2)}')
-        .join(', ');
+    final buffer = StringBuffer(systemInstruction)..write('\n\n');
 
-    return '$systemInstruction\n\n'
-        'The farmer\'s current soil data:\n'
-        '  Stage: ${stage ?? 'Unknown'}\n'
-        '  Soil type: ${soilType ?? 'Unknown'}\n'
-        '  Nutrients: $nutrientStr\n\n'
-        'Use this context when answering if relevant.';
+    if (hasNutrients) {
+      final nutrientStr = nutrients.entries
+          .map((e) => '${e.key}: ${e.value.toStringAsFixed(2)}')
+          .join(', ');
+      buffer.write('The farmer\'s current soil data:\n'
+          '  Stage: ${stage ?? 'Unknown'}\n'
+          '  Soil type: ${soilType ?? 'Unknown'}\n'
+          '  Nutrients: $nutrientStr\n\n');
+    }
+
+    if (hasWeather) {
+      buffer.write('Current field conditions (live weather station):\n'
+          '$weatherContext\n\n');
+    }
+
+    buffer.write('Use this context when answering if relevant.');
+    return buffer.toString();
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -1247,6 +1307,7 @@ Rules:
     debugPrint('[GeminiSoilAI] 🌐 Fetching live research recs — '
         '$nutrient $status | stage=$stage | soil=${soilType ?? "unknown"}');
 
+    lastErrorMessage = null;
     final unit = isPerPlant ? 'mg/plant' : 'kg/acre';
     final soilDesc = soilType != null ? '$soilType soil' : 'unknown soil type';
 
@@ -1343,10 +1404,12 @@ Rules:
     } on FirebaseException catch (e) {
       debugPrint('[GeminiSoilAI] ❌ Firebase error in fetchLiveRecommendations: '
           'code=${e.code} message="${e.message}"');
+      lastErrorMessage = humanizeAiError(e);
       return {};
     } catch (e, stack) {
       debugPrint(
           '[GeminiSoilAI] ❌ Error in fetchLiveRecommendations: $e\n$stack');
+      lastErrorMessage = humanizeAiError(e);
       return {};
     }
   }

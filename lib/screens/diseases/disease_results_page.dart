@@ -224,7 +224,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
       if (!mounted) return;
       if (data == null) {
         setState(() {
-          _errorMessage =
+          _errorMessage = GeminiDiseaseAiService.lastErrorMessage ??
               'Could not load management details. Please check your connection.';
           _pageState = _PageState.error;
         });
@@ -238,7 +238,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'An error occurred loading management details: $e';
+        _errorMessage = GeminiDiseaseAiService.lastErrorMessage ??
+            'An error occurred loading management details.';
         _pageState = _PageState.error;
       });
     }
@@ -266,7 +267,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
     if (diseaseNames.isEmpty) {
       setState(() {
-        _errorMessage =
+        _errorMessage = GeminiDiseaseAiService.lastErrorMessage ??
             'Could not load diseases for this stage. Please try again.';
         _pageState = _PageState.error;
       });
@@ -357,7 +358,7 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
       if (!mounted) return;
       if (data == null) {
         setState(() {
-          _errorMessage =
+          _errorMessage = GeminiDiseaseAiService.lastErrorMessage ??
               'Could not load management details. Please try again.';
           _pageState = _PageState.error;
         });
@@ -371,7 +372,8 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'An error occurred: $e';
+        _errorMessage =
+            GeminiDiseaseAiService.lastErrorMessage ?? 'An error occurred.';
         _pageState = _PageState.error;
       });
     }
@@ -415,8 +417,10 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
         _managementData = data;
         _pageState =
             data != null ? _PageState.showingManagement : _PageState.error;
-        _errorMessage =
-            data == null ? 'Could not load management details.' : null;
+        _errorMessage = data == null
+            ? (GeminiDiseaseAiService.lastErrorMessage ??
+                'Could not load management details.')
+            : null;
       });
       if (data != null) _fadeController.forward(from: 0);
     }
@@ -462,9 +466,9 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
 
     if (finalMgmt == null) {
       setState(() {
-        _errorMessage =
+        _errorMessage = GeminiDiseaseAiService.lastErrorMessage ??
             'No management information found for "$_resolvedDisease". '
-            'Please check the disease name and try again.';
+                'Please check the disease name and try again.';
         _pageState = _PageState.error;
       });
       return;

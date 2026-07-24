@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_ai/firebase_ai.dart';
+import '../../services/ai_error_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEMINI DISEASE AI SERVICE
@@ -17,6 +18,12 @@ class GeminiDiseaseAiService {
   GeminiDiseaseAiService._();
 
   static const String _model = 'gemini-2.5-flash';
+
+  /// Non-technical message describing the most recent AI call failure —
+  /// set by every catch block below, cleared on a successful call. UI code
+  /// reads this after a null result so it can show the farmer a friendly
+  /// message instead of failing silently or showing a raw error.
+  static String? lastErrorMessage;
 
   // ── In-memory caches ───────────────────────────────────────────────────────
   static final Map<String, Map<String, dynamic>> _managementCache = {};
@@ -42,6 +49,7 @@ class GeminiDiseaseAiService {
     debugPrint('[GeminiDiseaseAI] 🤖 Calling Gemini API — '
         'disease management details for "$diseaseName" at "$stage"');
 
+    lastErrorMessage = null;
     try {
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
@@ -98,11 +106,13 @@ class GeminiDiseaseAiService {
     } on FirebaseException catch (e) {
       debugPrint('[GeminiDiseaseAI] ❌ Firebase error: code=${e.code} '
           'message="${e.message}".');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     } catch (e, stack) {
       debugPrint(
           '[GeminiDiseaseAI] ❌ Unexpected error generating management: $e');
       debugPrint('[GeminiDiseaseAI]    Stack trace: $stack');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     }
   }
@@ -123,6 +133,7 @@ class GeminiDiseaseAiService {
     debugPrint(
         '[GeminiDiseaseAI] 🤖 Calling Gemini API — disease list for stage "$stage"');
 
+    lastErrorMessage = null;
     try {
       final model = FirebaseAI.googleAI().generativeModel(
         model: _model,
@@ -168,10 +179,12 @@ class GeminiDiseaseAiService {
     } on FirebaseException catch (e) {
       debugPrint('[GeminiDiseaseAI] ❌ Firebase error in listDiseasesForStage: '
           'code=${e.code} message="${e.message}"');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     } catch (e) {
       debugPrint(
           '[GeminiDiseaseAI] ❌ listDiseasesForStage unexpected error: $e');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     }
   }

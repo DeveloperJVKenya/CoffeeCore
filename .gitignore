@@ -21,6 +21,9 @@ secrets.json
 
 # Cloud Functions
 functions/node_modules/
+functions/.env
+functions/.env.*
+functions/.env.local
 
 # iOS
 ios/.generated/

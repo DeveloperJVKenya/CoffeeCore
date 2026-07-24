@@ -3,6 +3,8 @@ import 'package:coffeecore/models/coffee_soil_data.dart';
 import 'package:coffeecore/screens/Field%20Data/gemini_soil_ai_service.dart';
 import 'package:coffeecore/screens/Field%20Data/helpers/nutrient_analysis_helper.dart';
 import 'package:coffeecore/screens/Field%20Data/coffee_soil_summary_page.dart';
+import 'package:coffeecore/screens/Weather%20Station/nuasense_service.dart';
+import 'package:coffeecore/screens/Weather%20Station/weather_station_inline_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -24,6 +26,11 @@ class CoffeeSoilForm extends StatefulWidget {
     String? soilType,
   )? onNutrientsChanged;
 
+  /// Called once live weather station data loads (and again if it's
+  /// refreshed) so the parent can also pass current field conditions to
+  /// the Soil Advisor chat FAB — same idea as [onNutrientsChanged].
+  final void Function(String weatherContext)? onWeatherContextChanged;
+
   const CoffeeSoilForm({
     required this.userId,
     required this.plotId,
@@ -31,6 +38,7 @@ class CoffeeSoilForm extends StatefulWidget {
     required this.onSave,
     this.onInputInteraction,
     this.onNutrientsChanged,
+    this.onWeatherContextChanged,
     super.key,
   });
 
@@ -69,6 +77,9 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
   // ── ③ Fertilization plan state ───────────────────────────────────────────
   bool _isGeneratingPlan = false;
 
+  // ── Weather station context (live NuaSense data fed into AI prompts) ────
+  NuaSenseReading? _weatherReading;
+
   static const List<String> _nutrients = [
     'pH',
     'nitrogen',
@@ -101,6 +112,61 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
   void initState() {
     super.initState();
     _initializeControllers();
+    _loadWeatherContext();
+  }
+
+  // ── Weather station context ──────────────────────────────────────────────
+  // Non-blocking: the form is fully usable before this resolves. Once it
+  // does, both the inline panel and the AI prompts (analysis + chat) pick
+  // it up.
+
+  Future<void> _loadWeatherContext() async {
+    try {
+      final stationId =
+          await NuaSenseService.loadSelectedStation(widget.userId);
+      final reading =
+          await NuaSenseService.getLatestReading(stationId: stationId);
+      if (!mounted) return;
+      setState(() => _weatherReading = reading);
+      widget.onWeatherContextChanged?.call(_weatherContextSummary());
+    } catch (e, stackTrace) {
+      developer.log('Error loading weather context: $e',
+          name: 'CoffeeSoilForm', error: e, stackTrace: stackTrace);
+    }
+  }
+
+  /// Condenses the current reading into a short plain-text block for
+  /// Gemini prompts — deliberately compact, since this rides alongside the
+  /// nutrient data on every analysis/chat call.
+  String _weatherContextSummary() {
+    final r = _weatherReading;
+    if (r == null) return '';
+
+    String pressureLevel(double value, double med, double high) => value >= high
+        ? 'High'
+        : value >= med
+            ? 'Medium'
+            : 'Low';
+
+    final lines = <String>[
+      'Air temp ${r.airTemp.toStringAsFixed(1)}°C, '
+          'humidity ${r.humidity.toStringAsFixed(0)}%, '
+          'rainfall ${r.rainfall.toStringAsFixed(1)} mm (this hour).',
+      r.leafIsWet
+          ? 'Leaves currently wet'
+              '${r.lwdConsecutiveHours > 0 ? ' (${r.lwdConsecutiveHours}h in a row)' : ''} '
+              '— elevated fungal/coffee leaf rust risk; avoid recommending '
+              'foliar application until leaves dry.'
+          : 'Leaves currently dry.',
+      if (r.sprayQualityLabel.isNotEmpty)
+        'Spray/foliar-feed conditions: ${r.sprayQualityLabel} '
+            '(${r.sprayQualityIndex.toStringAsFixed(0)}/100).',
+      'Coffee berry borer pressure: '
+          '${pressureLevel(r.ddCbbHour, 0.2, 0.5)}.',
+      'VPD ${r.vpd.toStringAsFixed(2)} kPa, ET₀ ${r.et0Hour.toStringAsFixed(2)} mm/h '
+          '— relevant to irrigation/fertigation timing.',
+    ];
+    return lines.join('\n');
   }
 
   @override
@@ -426,6 +492,7 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
       soilType: _selectedSoilType,
       plantDensity: _plantDensity,
       isPerPlant: _isPerPlant,
+      weatherContext: _weatherContextSummary(),
     );
 
     if (!mounted) return;
@@ -445,10 +512,11 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
 
     if (result == null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('AI analysis unavailable. Using standard recommendations.'),
-          backgroundColor: Color(0xFF4A2C2A),
+        SnackBar(
+          content: Text(
+              '${GeminiSoilAiService.lastErrorMessage ?? 'AI analysis unavailable.'} '
+              'Using standard recommendations.'),
+          backgroundColor: const Color(0xFF4A2C2A),
         ),
       );
     }
@@ -553,6 +621,16 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
 
         if (!mounted) return;
         setState(() => _isGeneratingPlan = false);
+
+        if (plan == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(GeminiSoilAiService.lastErrorMessage ??
+                  'Could not generate a fertilization plan right now.'),
+              backgroundColor: const Color(0xFF4A2C2A),
+            ),
+          );
+        }
 
         if (plan != null) {
           // Auto-populate intervention from week-1 if none set yet.
@@ -1891,6 +1969,37 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Live weather station context ─────────────────────────────
+            // Gives the farmer/agronomist current field conditions right
+            // where they're entering soil data — the same reading also
+            // feeds the AI analysis and Soil Advisor chat prompts above.
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4, bottom: 8),
+                      child: Text(
+                        'Current Field Conditions',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF4A2C2A)),
+                      ),
+                    ),
+                    const WeatherStationInlinePanel(
+                      showDegreeDays: true,
+                      showFertiliser: true,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // ── Soil & Growth Details ────────────────────────────────────
             Card(
               elevation: 2,

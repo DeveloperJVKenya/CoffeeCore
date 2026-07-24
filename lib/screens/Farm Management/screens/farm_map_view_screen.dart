@@ -8,13 +8,6 @@ import 'package:coffeecore/screens/Farm%20Management/services/sentinel_hub_servi
 import 'package:coffeecore/screens/Farm%20Management/services/service_exceptions.dart';
 import 'package:coffeecore/screens/Farm%20Management/widgets/metric_gradient_legend.dart';
 
-/// Full-screen, fully interactive view of a saved farm's mapped boundary:
-/// pinch/scroll to zoom, drag to pan, and toggle between map types. Reached
-/// by tapping the map card on the Overview tab. Also renders a real,
-/// per-pixel colorized NDVI/NDWI raster (clipped to the farm shape) as a
-/// [GroundOverlay] when the user selects a metric — not just a single flat
-/// fill color — so within-field variation is visible the same way a
-/// standard satellite vegetation/moisture heat-map would show it.
 class FarmMapViewScreen extends StatefulWidget {
   final FarmPolygon farm;
 
@@ -33,6 +26,7 @@ class _FarmMapViewScreenState extends State<FarmMapViewScreen> {
   RasterOverlayData? _raster;
   bool _isLoadingRaster = false;
   String? _rasterError;
+  int _rasterRequestId = 0;
 
   void _cycleMapType() {
     setState(() {
@@ -45,6 +39,7 @@ class _FarmMapViewScreenState extends State<FarmMapViewScreen> {
   }
 
   Future<void> _onMetricSelected(MapMetric? metric) async {
+    final int requestId = ++_rasterRequestId;
     setState(() {
       _metric = metric;
       _raster = null;
@@ -58,17 +53,19 @@ class _FarmMapViewScreenState extends State<FarmMapViewScreen> {
         coordinates: widget.farm.coordinates,
         metric: metric == MapMetric.ndvi ? 'ndvi' : 'ndwi',
       );
-      if (!mounted) return;
+      if (!mounted || requestId != _rasterRequestId) return;
       setState(() => _raster = raster);
     } on ServiceUnavailableException catch (e) {
-      if (!mounted) return;
+      if (!mounted || requestId != _rasterRequestId) return;
       setState(() => _rasterError = e.userMessage);
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || requestId != _rasterRequestId) return;
       setState(() =>
           _rasterError = 'Something went wrong rendering the map overlay.');
     } finally {
-      if (mounted) setState(() => _isLoadingRaster = false);
+      if (mounted && requestId == _rasterRequestId) {
+        setState(() => _isLoadingRaster = false);
+      }
     }
   }
 

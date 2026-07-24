@@ -312,7 +312,8 @@ class _PestResultsPageState extends State<PestResultsPage>
         '"$pestName" | stage="$stage"');
 
     // ── Try local data first ───────────────────────────────────────────────
-    if (kPestDetails.containsKey(pestName)) {
+    final hadLocalData = kPestDetails.containsKey(pestName);
+    if (hadLocalData) {
       final local = kPestDetails[pestName]!;
       _managementData = {
         'description': local['description'],
@@ -346,7 +347,7 @@ class _PestResultsPageState extends State<PestResultsPage>
     // ── Kick off AI enrichment in background ──────────────────────────────
     debugPrint('[PestResultsPage] 🤖 Starting CoffeeCore AI enrichment for '
         '"$pestName" in background…');
-    _enrichWithAi(pestName, stage);
+    _enrichWithAi(pestName, stage, hadLocalData: hadLocalData);
 
     if (!mounted) return;
     setState(() => _pageState = _PageState.showingManagement);
@@ -356,7 +357,8 @@ class _PestResultsPageState extends State<PestResultsPage>
         '"$pestName". AI enrichment running in background.');
   }
 
-  Future<void> _enrichWithAi(String pestName, String stage) async {
+  Future<void> _enrichWithAi(String pestName, String stage,
+      {required bool hadLocalData}) async {
     debugPrint('[PestResultsPage] 🤖 _enrichWithAi called for '
         '"$pestName" | stage="$stage"');
     try {
@@ -366,6 +368,18 @@ class _PestResultsPageState extends State<PestResultsPage>
       if (aiData == null) {
         debugPrint('[PestResultsPage] ⚠️ AI returned null for "$pestName" — '
             'keeping local/existing data as fallback.');
+        // Only alert the farmer when there was no local fallback to show —
+        // if local data already renders the management page fine, a failed
+        // background enrichment call isn't worth interrupting them for.
+        if (mounted && !hadLocalData) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(GeminiPestAiService.lastErrorMessage ??
+                  'AI details unavailable — showing standard guidance.'),
+              backgroundColor: const Color(0xFF4A2C2A),
+            ),
+          );
+        }
         return;
       }
 

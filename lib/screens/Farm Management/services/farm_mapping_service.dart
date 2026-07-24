@@ -68,6 +68,25 @@ class FarmMappingService {
     });
   }
 
+  // ── READ (all farms, all users – admin/export use only) ─────
+
+  Future<List<FarmPolygon>> fetchAllFarms() async {
+    try {
+      _log.i('FarmMappingService.fetchAllFarms: Fetching all farms');
+      final snap = await _firestore
+          .collection(_collection)
+          .orderBy('createdAt', descending: true)
+          .get();
+      final farms = snap.docs.map((d) => FarmPolygon.fromFirestore(d)).toList();
+      _log.i(
+          'FarmMappingService.fetchAllFarms: ${farms.length} farm(s) loaded');
+      return farms;
+    } catch (e, st) {
+      _log.e('FarmMappingService.fetchAllFarms: Error – $e', stackTrace: st);
+      return [];
+    }
+  }
+
   // ── READ (single fetch) ─────────────────────────────────────
 
   Future<FarmPolygon?> getFarmById(String farmId) async {

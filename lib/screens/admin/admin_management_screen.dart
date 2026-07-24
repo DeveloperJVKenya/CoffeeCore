@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:coffeecore/screens/admin/filter_users_screen.dart';
 import 'package:logger/logger.dart';
 import 'package:coffeecore/screens/admin/collection_management_screen.dart';
+import 'package:coffeecore/screens/admin/farm_geojson_export_screen.dart';
 
 class AdminManagementScreen extends StatefulWidget {
   const AdminManagementScreen({super.key});
@@ -204,6 +205,13 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                 context,
                 MaterialPageRoute(
                     builder: (context) => const FilterUsersScreen()))),
+        _buildOptionCard(
+            'Export Farm AOIs',
+            Icons.map,
+            () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const FarmGeoJsonExportScreen()))),
       ],
     );
   }

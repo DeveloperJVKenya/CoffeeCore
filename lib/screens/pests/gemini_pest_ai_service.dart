@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_ai/firebase_ai.dart';
+import '../../services/ai_error_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEMINI PEST AI SERVICE
@@ -16,6 +17,12 @@ class GeminiPestAiService {
 
   // ✅ gemini-2.5-flash — confirmed stable model for Firebase AI (Google AI backend)
   static const String _model = 'gemini-2.5-flash';
+
+  /// Non-technical message describing the most recent AI call failure —
+  /// set by every catch block below, cleared on a successful call. UI code
+  /// reads this after a null result so it can show the farmer a friendly
+  /// message instead of failing silently or showing a raw error.
+  static String? lastErrorMessage;
 
   // ── In-memory caches ───────────────────────────────────────────────────────
   static final Map<String, Map<String, dynamic>> _managementCache = {};
@@ -40,6 +47,7 @@ class GeminiPestAiService {
     debugPrint('[GeminiPestAI] 🤖 Calling Gemini API — '
         'management details for "$pestName" at "$stage"');
 
+    lastErrorMessage = null;
     try {
       // ✅ FirebaseAI.googleAI() — replaces deprecated FirebaseVertexAI.instance
       final model = FirebaseAI.googleAI().generativeModel(
@@ -104,10 +112,12 @@ class GeminiPestAiService {
           'message="${e.message}". '
           'Check that Firebase AI is initialised and the Google AI backend is enabled '
           'in your Firebase project.');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     } catch (e, stack) {
       debugPrint('[GeminiPestAI] ❌ Unexpected error generating management: $e');
       debugPrint('[GeminiPestAI]    Stack trace: $stack');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     }
   }
@@ -128,6 +138,7 @@ class GeminiPestAiService {
     debugPrint(
         '[GeminiPestAI] 🤖 Calling Gemini API — pest list for stage "$stage"');
 
+    lastErrorMessage = null;
     try {
       // ✅ FirebaseAI.googleAI()
       final model = FirebaseAI.googleAI().generativeModel(
@@ -172,9 +183,11 @@ class GeminiPestAiService {
     } on FirebaseException catch (e) {
       debugPrint('[GeminiPestAI] ❌ Firebase error in listPestsForStage: '
           'code=${e.code} message="${e.message}"');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     } catch (e) {
       debugPrint('[GeminiPestAI] ❌ listPestsForStage unexpected error: $e');
+      lastErrorMessage = humanizeAiError(e);
       return null;
     }
   }

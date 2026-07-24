@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'coffee_soil_input_page.dart';
 import 'coffee_soil_summary_page.dart';
+import '../Weather Station/weather_station_screen.dart';
 import 'dart:developer' as developer;
 
 class CoffeeSoilHomePage extends StatefulWidget {
@@ -68,6 +69,12 @@ class _CoffeeSoilHomePageState extends State<CoffeeSoilHomePage> {
                   return null;
                 }
               }),
+            ),
+            _buildCard(
+              context,
+              'Weather Station',
+              'Live conditions, spray windows, and pest pressure for your plots.',
+              () => _navigate(context, () => const WeatherStationScreen()),
             ),
           ],
         ),
