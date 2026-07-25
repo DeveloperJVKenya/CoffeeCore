@@ -1,4 +1,5 @@
-import 'package:coffeecore/screens/Pest%20Management/coffee_pest_management_page.dart';
+import 'package:coffeecore/screens/Symptom%20Analysis/symptom_checker_ai_service.dart';
+import 'package:coffeecore/screens/pests/coffee_pest_management_page.dart';
 import 'package:flutter/material.dart';
 
 class CoffeePestSymptomAnalysisPage extends StatefulWidget {
@@ -684,21 +685,51 @@ class _CoffeePestSymptomAnalysisPageState
 
     matchingPests = topPests.map((e) => e.key).toList();
 
-    bool isConclusive = topPests.length == 1 ||
+    // ── RAG-grounded final decision — grounds Gemini on the locally-ranked
+    // top candidates (retrieval = the cluster-weighted scoring above) and
+    // prefers its pick over the fixed 1.5x-score-margin heuristic, which
+    // remains the offline/failure fallback.
+    String? aiPest;
+    String? aiReasoning;
+    double? aiConfidence;
+    final matchResult = await SymptomCheckerAiService.identifySpecificMatch(
+      isPest: true,
+      selectedSymptoms: [
+        for (final list in allSelectedSymptoms.values) ...list,
+      ],
+      candidates: SymptomCheckerAiService.candidatesFromNames(
+        matchingPests,
+        isPest: true,
+      ),
+    );
+    if (matchResult != null) {
+      aiPest = matchResult.bestMatch;
+      aiReasoning = matchResult.reasoning;
+      aiConfidence = matchResult.confidence.toDouble();
+    }
+
+    bool isConclusive = aiPest != null ||
+        topPests.length == 1 ||
         (topPests.length > 1 &&
             topPests[0].value['score'] > topPests[1].value['score'] * 1.5);
 
     if (isConclusive) {
       StringBuffer resultMessage = StringBuffer();
       List<Widget> navigationButtons = [];
-      var pestEntry = topPests[0];
+      var pestEntry = topPests.firstWhere(
+        (e) => e.key == aiPest,
+        orElse: () => topPests[0],
+      );
       String pest = pestEntry.key;
       double score = pestEntry.value['score'];
-      double confidence = pestEntry.value['confidence'];
+      double confidence = aiConfidence ?? pestEntry.value['confidence'];
       List<String> matchedSymptoms = pestEntry.value['matchedSymptoms'];
       resultMessage.writeln('Top Matching Pest:');
       resultMessage.writeln(
           '**$pest** (Score: ${score.toStringAsFixed(1)}, Confidence: ${confidence.toStringAsFixed(1)}%)');
+      if (aiReasoning != null) {
+        resultMessage.writeln('AI reasoning: $aiReasoning');
+      }
       resultMessage.writeln('Matching Symptoms:');
       for (var symptom in matchedSymptoms) {
         resultMessage.writeln('  • $symptom');
@@ -718,6 +749,8 @@ class _CoffeePestSymptomAnalysisPageState
               builder: (context) => CoffeePestManagementPage(
                 pestName: pest,
                 coffeeStage: coffeeStage,
+                aiReasoning: aiReasoning,
+                aiConfidence: aiConfidence,
               ),
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:coffeecore/screens/Symptom%20Analysis/coffee_disease_symptom_analysis_page.dart';
 import 'package:coffeecore/screens/Symptom%20Analysis/coffee_pest_symptom_analysis_page.dart';
+import 'package:coffeecore/screens/Symptom%20Analysis/symptom_checker_ai_service.dart';
 import 'package:flutter/material.dart';
 
 class CoffeeSymptomCheckerPage extends StatefulWidget {
@@ -741,14 +742,44 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
         }
       });
 
+      // ── Sequential first distinguishment: pest or disease? ──────────────
+      // RAG-grounded: retrieval (keyword overlap over kPestDetails/
+      // kDiseaseDetails) + Gemini reasoning, replacing the old fixed-margin
+      // score comparison as the primary decision. Falls back to that same
+      // arithmetic when offline or the AI call fails.
+      final flatSymptoms = <String>[
+        for (final list in symptomDetails.values)
+          for (final s in list) s['symptom'] as String,
+      ];
+      final classification =
+          await SymptomCheckerAiService.classifyPestOrDisease(
+        selectedSymptoms: flatSymptoms,
+      );
+
+      bool routePest;
+      bool routeDisease;
+      String aiNote;
+      if (classification != null) {
+        routePest = classification.category == 'pest';
+        routeDisease = classification.category == 'disease';
+        aiNote = '\n\nAI analysis (${classification.confidence}% '
+            'confidence): ${classification.reasoning}';
+      } else {
+        routePest = pestScore > diseaseScore + 0.5;
+        routeDisease = diseaseScore > pestScore + 0.5;
+        final offlineReason = SymptomCheckerAiService.lastErrorMessage;
+        aiNote = '\n\n(Standard matching used — '
+            '${offlineReason ?? "AI insight unavailable offline"}.)';
+      }
+
       resultMessage = 'Analysis Results:\n'
           'Pest-related symptoms: ${pestPercentage.toStringAsFixed(1)}% (Score: ${pestScore.toStringAsFixed(1)})\n'
           'Disease-related symptoms: ${diseasePercentage.toStringAsFixed(1)}% (Score: ${diseaseScore.toStringAsFixed(1)})\n\n'
           'Selected Symptoms:\n${details.toString()}';
 
-      if (pestScore > diseaseScore + 0.5) {
+      if (routePest && !routeDisease) {
         resultMessage +=
-            '\nThe symptoms lean toward a pest issue. Proceed to pest analysis for details.';
+            '\nThe symptoms lean toward a pest issue. Proceed to pest analysis for details.$aiNote';
         navigationButton = ElevatedButton(
           onPressed: () => Navigator.push(
             context,
@@ -763,9 +794,9 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
           ),
           child: const Text('Analyze Pests Further'),
         );
-      } else if (diseaseScore > pestScore + 0.5) {
+      } else if (routeDisease && !routePest) {
         resultMessage +=
-            '\nThe symptoms lean toward a disease issue. Proceed to disease analysis for details.';
+            '\nThe symptoms lean toward a disease issue. Proceed to disease analysis for details.$aiNote';
         navigationButton = ElevatedButton(
           onPressed: () => Navigator.push(
             context,
@@ -782,7 +813,7 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
         );
       } else {
         resultMessage +=
-            '\nThe symptoms are inconclusive due to overlap. Explore both pest and disease analysis.';
+            '\nThe symptoms are inconclusive due to overlap. Explore both pest and disease analysis.$aiNote';
         navigationButton = Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

@@ -553,8 +553,19 @@ class CoffeeDiseaseManagementPage extends StatefulWidget {
   final String? diseaseName;
   final String? coffeeStage;
 
-  const CoffeeDiseaseManagementPage(
-      {this.diseaseName, this.coffeeStage, super.key});
+  /// Optional reasoning/confidence from an upstream AI match (e.g. the
+  /// Symptom Checker's RAG-grounded identification) — forwarded to
+  /// [DiseaseResultsPage] so the farmer sees why this disease was suggested.
+  final String? aiReasoning;
+  final double? aiConfidence;
+
+  const CoffeeDiseaseManagementPage({
+    this.diseaseName,
+    this.coffeeStage,
+    this.aiReasoning,
+    this.aiConfidence,
+    super.key,
+  });
 
   @override
   State<CoffeeDiseaseManagementPage> createState() =>
@@ -615,6 +626,8 @@ class _CoffeeDiseaseManagementPageState
           stage: widget.coffeeStage!,
           disease: widget.diseaseName,
           mode: _DetectionMode.knownBoth,
+          aiReasoning: widget.aiReasoning,
+          aiConfidence: widget.aiConfidence,
         );
       });
     }
@@ -654,6 +667,8 @@ class _CoffeeDiseaseManagementPageState
     required String stage,
     required String? disease,
     required _DetectionMode mode,
+    String? aiReasoning,
+    double? aiConfidence,
   }) {
     Navigator.push(
       context,
@@ -670,6 +685,8 @@ class _CoffeeDiseaseManagementPageState
                 disease != null && kDiseaseDetails.containsKey(disease)
                     ? _buildLocalDiseaseData(disease)
                     : null,
+            aiReasoning: aiReasoning,
+            aiConfidence: aiConfidence,
             notificationsPlugin: _notificationsPlugin,
           ),
         ),

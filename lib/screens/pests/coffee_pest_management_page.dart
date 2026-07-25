@@ -325,7 +325,19 @@ class CoffeePestManagementPage extends StatefulWidget {
   final String? pestName;
   final String? coffeeStage;
 
-  const CoffeePestManagementPage({this.pestName, this.coffeeStage, super.key});
+  /// Optional reasoning/confidence from an upstream AI match (e.g. the
+  /// Symptom Checker's RAG-grounded identification) — forwarded to
+  /// [PestResultsPage] so the farmer sees why this pest was suggested.
+  final String? aiReasoning;
+  final double? aiConfidence;
+
+  const CoffeePestManagementPage({
+    this.pestName,
+    this.coffeeStage,
+    this.aiReasoning,
+    this.aiConfidence,
+    super.key,
+  });
 
   @override
   State<CoffeePestManagementPage> createState() =>
@@ -386,6 +398,8 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
           stage: widget.coffeeStage!,
           pest: widget.pestName,
           mode: _DetectionMode.knownBoth,
+          aiReasoning: widget.aiReasoning,
+          aiConfidence: widget.aiConfidence,
         );
       });
     }
@@ -425,6 +439,8 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
     required String stage,
     required String? pest,
     required _DetectionMode mode,
+    String? aiReasoning,
+    double? aiConfidence,
   }) {
     Navigator.push(
       context,
@@ -440,6 +456,8 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
             localPestData: pest != null && kPestDetails.containsKey(pest)
                 ? _buildLocalPestData(pest)
                 : null,
+            aiReasoning: aiReasoning,
+            aiConfidence: aiConfidence,
             notificationsPlugin: _notificationsPlugin,
           ),
         ),

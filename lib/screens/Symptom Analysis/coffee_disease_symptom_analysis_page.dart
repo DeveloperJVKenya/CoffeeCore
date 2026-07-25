@@ -1,4 +1,5 @@
-import 'package:coffeecore/screens/Disease%20Management/coffee_disease_management.dart';
+import 'package:coffeecore/screens/Symptom%20Analysis/symptom_checker_ai_service.dart';
+import 'package:coffeecore/screens/diseases/coffee_disease_management_page.dart';
 import 'package:flutter/material.dart';
 
 class CoffeeDiseaseSymptomAnalysisPage extends StatefulWidget {
@@ -278,25 +279,9 @@ class _CoffeeDiseaseSymptomAnalysisPageState
     },
   };
 
-  final Map<String, List<String>> _stageDiseases = {
-    'Vegetative Stage': [
-      'Coffee Leaf Rust',
-      'Coffee Wilt Disease',
-      'Cercospora Leaf Spot',
-      'Brown Eye Spot',
-      'Phytophthora Root Rot',
-      'Bacterial Blight',
-      'Coffee Sooty Mold',
-      'Fusarium Root Rot',
-    ],
-    'Flowering & Fruit Development': [
-      'Coffee Berry Disease',
-      'Anthracnose',
-      'Coffee Sooty Mold',
-      'Bacterial Blight',
-    ],
-    'Post-harvest / Storage': [],
-  };
+  // Stage lookup now uses the modern kStageDiseases catalog (imported from
+  // diseases/coffee_disease_management_page.dart) instead of a page-local
+  // copy — see the isConclusive branch in _analyzeDiseases().
 
   @override
   void initState() {
@@ -526,7 +511,31 @@ class _CoffeeDiseaseSymptomAnalysisPageState
 
     matchingDiseases = topDiseases.map((e) => e.key).toList();
 
-    bool isConclusive = topDiseases.length == 1 ||
+    // ── RAG-grounded final decision — grounds Gemini on the locally-ranked
+    // top candidates (retrieval = the cluster-weighted scoring above) and
+    // prefers its pick over the fixed 1.5x-score-margin heuristic, which
+    // remains the offline/failure fallback.
+    String? aiDisease;
+    String? aiReasoning;
+    double? aiConfidence;
+    final matchResult = await SymptomCheckerAiService.identifySpecificMatch(
+      isPest: false,
+      selectedSymptoms: [
+        for (final list in allSelectedSymptoms.values) ...list,
+      ],
+      candidates: SymptomCheckerAiService.candidatesFromNames(
+        matchingDiseases,
+        isPest: false,
+      ),
+    );
+    if (matchResult != null) {
+      aiDisease = matchResult.bestMatch;
+      aiReasoning = matchResult.reasoning;
+      aiConfidence = matchResult.confidence.toDouble();
+    }
+
+    bool isConclusive = aiDisease != null ||
+        topDiseases.length == 1 ||
         (topDiseases.length > 1 &&
             topDiseases[0].value['score'] >
                 topDiseases[1].value['score'] * 1.5);
@@ -534,21 +543,30 @@ class _CoffeeDiseaseSymptomAnalysisPageState
     if (isConclusive) {
       StringBuffer resultMessage = StringBuffer();
       List<Widget> navigationButtons = [];
-      var diseaseEntry = topDiseases[0];
+      var diseaseEntry = topDiseases.firstWhere(
+        (e) => e.key == aiDisease,
+        orElse: () => topDiseases[0],
+      );
       String disease = diseaseEntry.key;
       double score = diseaseEntry.value['score'];
-      double confidence = diseaseEntry.value['confidence'];
+      double confidence = aiConfidence ?? diseaseEntry.value['confidence'];
       List<String> matchedSymptoms = diseaseEntry.value['matchedSymptoms'];
       resultMessage.writeln('Top Matching Disease:');
       resultMessage.writeln(
           '**$disease** (Score: ${score.toStringAsFixed(1)}, Confidence: ${confidence.toStringAsFixed(1)}%)');
+      if (aiReasoning != null) {
+        resultMessage.writeln('AI reasoning: $aiReasoning');
+      }
       resultMessage.writeln('Matching Symptoms:');
       for (var symptom in matchedSymptoms) {
         resultMessage.writeln('  • $symptom');
       }
+      // Derive the stage from the modern kStageDiseases catalog (not the
+      // page-local _stageDiseases map below, whose stage names have drifted
+      // from the ones DiseaseResultsPage/kStageDiseases actually use).
       String? coffeeStage;
-      for (var stage in _stageDiseases.keys) {
-        if (_stageDiseases[stage]!.contains(disease)) {
+      for (var stage in kStageDiseases.keys) {
+        if (kStageDiseases[stage]!.contains(disease)) {
           coffeeStage = stage;
           break;
         }
@@ -561,6 +579,8 @@ class _CoffeeDiseaseSymptomAnalysisPageState
               builder: (context) => CoffeeDiseaseManagementPage(
                 diseaseName: disease,
                 coffeeStage: coffeeStage,
+                aiReasoning: aiReasoning,
+                aiConfidence: aiConfidence,
               ),
             ),
           ),
