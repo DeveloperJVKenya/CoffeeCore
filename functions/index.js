@@ -3,6 +3,7 @@ const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const { defineSecret, defineString } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
+const crypto = require("crypto");
 
 // Lazy-initialized — NOT called at module load time. Firebase CLI's local
 // deploy-time discovery step requires this file just to read the exported
@@ -493,6 +494,360 @@ exports.sentinelHubRaster = onRequest(
     } catch (err) {
       res.status(502).json({ error: "sentinelHubRaster failed", detail: String(err) });
     }
+  }
+);
+
+// ── Planetek EUDR Certified Deforestation Analysis ──────────────────────
+//
+// Second, independent EUDR deforestation check alongside the existing GFW
+// screening in eudr_compliance_service.dart. Owns the whole flow —
+// client-credentials token exchange, deployment lookup, submitting the
+// Prefect flow run, polling it to completion, and verifying the Ed25519
+// signature on the result — entirely server-side, so PLANETEK_CLIENT_ID/
+// PLANETEK_CLIENT_SECRET never reach the Flutter app. Configure with:
+//   firebase functions:secrets:set PLANETEK_CLIENT_ID
+//   firebase functions:secrets:set PLANETEK_CLIENT_SECRET
+// See docs/planetek_eudr/README.md for full context, credential status,
+// and the open risks around signature-canonicalization and response shape
+// that are unverifiable until a real clientSecret is in place.
+
+const planetekClientId = defineSecret("PLANETEK_CLIENT_ID");
+const planetekClientSecret = defineSecret("PLANETEK_CLIENT_SECRET");
+
+const PLANETEK_TOKEN_URL =
+  "https://archytas.planetek.it/api/v1/tokens/client-credentials";
+const PLANETEK_DEPLOYMENT_URL =
+  "https://flows.archytas.planetek.it/api/deployments/name";
+const PLANETEK_DEPLOYMENT_NAME = "deforestation-analysis/deforestation-analysis";
+const PLANETEK_DEPLOYMENT_RUN_URL = "https://flows.archytas.planetek.it/api/deployments";
+// Tutorial mixes https:// (deployment lookup) and http:// (flow-run polling)
+// for the same host — try https first (consistent with the other endpoints),
+// fall back to http, and cache whichever one actually answers.
+const PLANETEK_FLOW_RUN_URL_CANDIDATES = [
+  "https://flows.archytas.planetek.it/api/flow_runs",
+  "http://flows.archytas.planetek.it/api/flow_runs",
+];
+
+// Public key Planetek gave alongside check_signature.py — not secret (it's
+// a *public* key), safe to keep in source. See docs/planetek_eudr/.
+const PLANETEK_PUBLIC_KEY_B64 = "ESk6chNPFPIx-pySnrHxoDVFJjvelQZ-RM7UhdyRuDo=";
+const PLANETEK_PUBLIC_KEY_FINGERPRINT =
+  "955f2fa5090b49826feb221df76a1e710a6abe660161e4ca2badd146ef0e3a4d";
+const PLANETEK_SIGNED_METADATA_FIELDS = [
+  "deployment_id",
+  "deployment_version",
+  "algorithm_version",
+];
+
+// Deployment UUID is stable "unless the algorithm is updated" per the
+// tutorial — cache per warm instance instead of resolving on every call.
+let cachedPlanetekDeploymentId = null;
+// Whichever flow-run base URL (https/http) actually answered, cached the
+// same way.
+let cachedPlanetekFlowRunBase = null;
+
+async function getPlanetekToken() {
+  const res = await fetch(PLANETEK_TOKEN_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      clientId: planetekClientId.value(),
+      clientSecret: planetekClientSecret.value(),
+      audiences: ["prefect"],
+      ttlSeconds: 60,
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`Planetek token request failed (HTTP ${res.status}): ${text}`);
+  }
+  const parsed = JSON.parse(text);
+  if (!parsed.exchange_token) {
+    throw new Error("Planetek token response missing exchange_token");
+  }
+  return parsed.exchange_token;
+}
+
+async function resolvePlanetekDeploymentId() {
+  if (cachedPlanetekDeploymentId) return cachedPlanetekDeploymentId;
+  const token = await getPlanetekToken();
+  const res = await fetch(`${PLANETEK_DEPLOYMENT_URL}/${PLANETEK_DEPLOYMENT_NAME}`, {
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`Planetek deployment lookup failed (HTTP ${res.status}): ${text}`);
+  }
+  const parsed = JSON.parse(text);
+  if (!parsed.id) {
+    throw new Error("Planetek deployment lookup response missing id");
+  }
+  cachedPlanetekDeploymentId = parsed.id;
+  return parsed.id;
+}
+
+async function submitPlanetekRun(featureCollection) {
+  const deploymentId = await resolvePlanetekDeploymentId();
+  const token = await getPlanetekToken();
+  const res = await fetch(
+    `${PLANETEK_DEPLOYMENT_RUN_URL}/${deploymentId}/create_flow_run`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/json, text/plain, */*",
+        "content-type": "application/json",
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ parameters: { feature_collection: featureCollection } }),
+    }
+  );
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`Planetek create_flow_run failed (HTTP ${res.status}): ${text}`);
+  }
+  const parsed = JSON.parse(text);
+  if (!parsed.id) {
+    throw new Error("Planetek create_flow_run response missing id");
+  }
+  return parsed.id;
+}
+
+async function fetchPlanetekFlowRun(flowRunId) {
+  const token = await getPlanetekToken();
+  const bases = cachedPlanetekFlowRunBase
+    ? [cachedPlanetekFlowRunBase]
+    : PLANETEK_FLOW_RUN_URL_CANDIDATES;
+
+  let lastErr;
+  for (const base of bases) {
+    try {
+      const res = await fetch(`${base}/${flowRunId}`, {
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      });
+      const text = await res.text();
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+      cachedPlanetekFlowRunBase = base;
+      return JSON.parse(text);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw new Error(`Planetek flow run fetch failed on all endpoints: ${lastErr}`);
+}
+
+// ── Signature verification (Node port of check_signature.py) ────────────
+//
+// Must match Python's json.dumps(..., sort_keys=True,
+// separators=(",", ":"), ensure_ascii=False) byte-for-byte, or a
+// genuinely valid signature will appear invalid. The one known trap:
+// JSON round-tripping loses Python's int/float distinction, so a
+// whole-number float like 100.0 would re-serialize as "100" in plain JS
+// instead of "100.0" — pyFloat() below forces the ".0" back on for any
+// JS number that came through this path, since every numeric field in
+// the known "data" shape (forest_area_2020_ha, deforested_area_ha,
+// deforested_percentage) is a Python float, never an int.
+
+function base64UrlToBuffer(value) {
+  const b64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  return Buffer.from(b64, "base64");
+}
+
+function pyFloat(n) {
+  return Number.isInteger(n) ? `${n}.0` : String(n);
+}
+
+function canonicalJson(value) {
+  if (value === null || value === undefined) return "null";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") return pyFloat(value);
+  if (typeof value === "string") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (typeof value === "object") {
+    const keys = Object.keys(value).sort();
+    return `{${keys
+      .map((k) => `${JSON.stringify(k)}:${canonicalJson(value[k])}`)
+      .join(",")}}`;
+  }
+  throw new Error(`canonicalJson: unsupported value type ${typeof value}`);
+}
+
+function ed25519PublicKeyFromRaw(rawKeyBuffer) {
+  const jwk = { kty: "OKP", crv: "Ed25519", x: rawKeyBuffer.toString("base64url") };
+  return crypto.createPublicKey({ key: jwk, format: "jwk" });
+}
+
+function verifyPlanetekSignature(payload) {
+  const data = payload && payload.data;
+  const metadata = payload && payload.metadata;
+  if (!data || !metadata) {
+    return { verified: false, reason: "payload missing data/metadata envelope" };
+  }
+
+  const algorithm = metadata.signature_algorithm;
+  const signatureB64 = metadata.signature;
+  const payloadFingerprint = metadata.public_key_fingerprint;
+  if (algorithm !== "ed25519-sha256") {
+    return { verified: false, reason: `unsupported signature algorithm: ${algorithm}` };
+  }
+  if (!signatureB64 || !payloadFingerprint) {
+    return { verified: false, reason: "metadata missing signature or fingerprint" };
+  }
+
+  const publicKeyBytes = base64UrlToBuffer(PLANETEK_PUBLIC_KEY_B64);
+  const calculatedFingerprint = crypto
+    .createHash("sha256")
+    .update(publicKeyBytes)
+    .digest("hex");
+  if (
+    calculatedFingerprint !== PLANETEK_PUBLIC_KEY_FINGERPRINT ||
+    payloadFingerprint !== PLANETEK_PUBLIC_KEY_FINGERPRINT
+  ) {
+    return { verified: false, reason: "public key fingerprint mismatch" };
+  }
+
+  const signedMetadata = {};
+  for (const field of PLANETEK_SIGNED_METADATA_FIELDS) {
+    signedMetadata[field] = metadata[field];
+  }
+
+  try {
+    const signedBytes = Buffer.from(
+      canonicalJson({ data, metadata: signedMetadata }),
+      "utf8"
+    );
+    const publicKey = ed25519PublicKeyFromRaw(publicKeyBytes);
+    const ok = crypto.verify(
+      null,
+      signedBytes,
+      publicKey,
+      base64UrlToBuffer(signatureB64)
+    );
+    return { verified: ok, reason: ok ? null : "signature mismatch" };
+  } catch (err) {
+    return { verified: false, reason: `verification error: ${err}` };
+  }
+}
+
+exports.runPlanetekDeforestationAnalysis = onCall(
+  {
+    region: "us-central1",
+    secrets: [planetekClientId, planetekClientSecret],
+    timeoutSeconds: 300,
+    memory: "256MiB",
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Sign in to run the certified EUDR deforestation analysis."
+      );
+    }
+
+    const featureCollection = request.data && request.data.featureCollection;
+    if (
+      !featureCollection ||
+      featureCollection.type !== "FeatureCollection" ||
+      !Array.isArray(featureCollection.features) ||
+      featureCollection.features.length === 0
+    ) {
+      throw new HttpsError(
+        "invalid-argument",
+        "featureCollection must be a valid GeoJSON FeatureCollection with at least one feature."
+      );
+    }
+
+    let flowRunId;
+    try {
+      flowRunId = await submitPlanetekRun(featureCollection);
+    } catch (err) {
+      throw new HttpsError(
+        "unavailable",
+        `Could not submit the certified deforestation analysis to Planetek: ${err}`
+      );
+    }
+
+    const pollIntervalMs = 5000;
+    const maxPolls = 48; // ~4 minutes total, within the 300s function timeout
+    let finalRun = null;
+    for (let attempt = 0; attempt < maxPolls; attempt++) {
+      let run;
+      try {
+        run = await fetchPlanetekFlowRun(flowRunId);
+      } catch (err) {
+        throw new HttpsError(
+          "unavailable",
+          `Could not check the Planetek analysis status: ${err}`
+        );
+      }
+
+      const stateType = run.state && run.state.type;
+      if (stateType === "COMPLETED") {
+        finalRun = run;
+        break;
+      }
+      if (stateType === "FAILED") {
+        throw new HttpsError(
+          "unavailable",
+          "The Planetek deforestation analysis failed. Check the farm boundary is a " +
+            "valid polygon, or contact Planetek if this persists."
+        );
+      }
+      if (stateType === "CRASHED") {
+        throw new HttpsError(
+          "resource-exhausted",
+          "The Planetek deforestation analysis crashed — this farm boundary is likely " +
+            "too large for the allocated compute. Try again with a smaller area."
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    }
+
+    if (!finalRun) {
+      throw new HttpsError(
+        "deadline-exceeded",
+        "The Planetek deforestation analysis is taking longer than expected. Please try again shortly."
+      );
+    }
+
+    let analysis;
+    try {
+      analysis = JSON.parse(finalRun.state.message);
+    } catch (err) {
+      throw new HttpsError("internal", "Planetek returned an unparseable analysis result.");
+    }
+
+    // Real responses are expected to carry the signed envelope shape used by
+    // check_signature.py ({"data": {...}, "metadata": {...}}). Fall back to
+    // treating the whole object as unsigned data if a flatter shape (like
+    // the tutorial's own illustrative examples) comes back instead — never
+    // fail the whole flow over this, just don't claim it's verified.
+    let data = analysis;
+    let signatureVerified = false;
+    let signatureNote = "Response was not in the signed envelope shape — not verified.";
+    let metadata = null;
+    if (analysis && typeof analysis === "object" && analysis.data && analysis.metadata) {
+      data = analysis.data;
+      metadata = analysis.metadata;
+      const result = verifyPlanetekSignature(analysis);
+      signatureVerified = result.verified;
+      signatureNote = result.verified
+        ? "Signature verified."
+        : `Signature NOT verified: ${result.reason}`;
+    }
+
+    return {
+      aoi: data.aoi ?? null,
+      deforestationCertified: data.deforestation_certified ?? null,
+      forestArea2020Ha: data.forest_area_2020_ha ?? null,
+      deforestedAreaHa: data.deforested_area_ha ?? null,
+      deforestedPercentage: data.deforested_percentage ?? null,
+      algorithmVersion: metadata ? metadata.algorithm_version ?? null : null,
+      deploymentVersion: metadata ? metadata.deployment_version ?? null : null,
+      deploymentId: metadata ? metadata.deployment_id ?? null : null,
+      flowRunId,
+      signatureVerified,
+      signatureNote,
+    };
   }
 );
 

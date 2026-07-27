@@ -6,6 +6,7 @@ import 'package:coffeecore/screens/Farm%20Management/providers/eudr_provider.dar
 import 'package:coffeecore/screens/Farm%20Management/providers/farm_cycle_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/providers/farm_finance_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/providers/inventory_provider.dart';
+import 'package:coffeecore/screens/Farm%20Management/providers/planetek_eudr_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/providers/yield_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/farm_mapping_service.dart';
 import 'package:flutter/material.dart';
@@ -229,6 +230,9 @@ class _FarmDetailShellScreenState extends State<FarmDetailShellScreen> {
         ),
         ChangeNotifierProvider<EudrProvider>(
           create: (_) => EudrProvider(farm: farm),
+        ),
+        ChangeNotifierProvider<PlanetekEudrProvider>(
+          create: (_) => PlanetekEudrProvider(farm: farm),
         ),
       ],
       child: DefaultTabController(

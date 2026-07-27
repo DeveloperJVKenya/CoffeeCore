@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/eudr_compliance_service.dart';
+import 'package:coffeecore/screens/Farm%20Management/models/planetek_analysis_model.dart';
 
 // ── EUDR Compliance Data ────────────────────────────────────
 class EudrComplianceData {
@@ -89,6 +90,7 @@ class FarmPolygon {
   final SatelliteData? satelliteData;
   final String? agroMonitoringPolyId;
   final EudrComplianceData? eudrCompliance;
+  final PlanetekAnalysisData? planetekAnalysis;
   final String? activeCycleId;
 
   const FarmPolygon({
@@ -105,6 +107,7 @@ class FarmPolygon {
     this.satelliteData,
     this.agroMonitoringPolyId,
     this.eudrCompliance,
+    this.planetekAnalysis,
     this.activeCycleId,
   });
 
@@ -141,6 +144,10 @@ class FarmPolygon {
           ? EudrComplianceData.fromMap(
               data['eudrCompliance'] as Map<String, dynamic>)
           : null,
+      planetekAnalysis: data['planetekAnalysis'] != null
+          ? PlanetekAnalysisData.fromMap(
+              data['planetekAnalysis'] as Map<String, dynamic>)
+          : null,
       climateData: data['climateData'] != null
           ? ClimateData.fromMap(data['climateData'] as Map<String, dynamic>)
           : null,
@@ -168,6 +175,8 @@ class FarmPolygon {
       if (agroMonitoringPolyId != null)
         'agroMonitoringPolyId': agroMonitoringPolyId,
       if (eudrCompliance != null) 'eudrCompliance': eudrCompliance!.toMap(),
+      if (planetekAnalysis != null)
+        'planetekAnalysis': planetekAnalysis!.toMap(),
       if (climateData != null) 'climateData': climateData!.toMap(),
       if (satelliteData != null) 'satelliteData': satelliteData!.toMap(),
       if (activeCycleId != null) 'activeCycleId': activeCycleId,
@@ -187,6 +196,7 @@ class FarmPolygon {
     SatelliteData? satelliteData,
     String? agroMonitoringPolyId,
     EudrComplianceData? eudrCompliance,
+    PlanetekAnalysisData? planetekAnalysis,
     String? activeCycleId,
   }) {
     return FarmPolygon(
@@ -203,6 +213,7 @@ class FarmPolygon {
       satelliteData: satelliteData ?? this.satelliteData,
       agroMonitoringPolyId: agroMonitoringPolyId ?? this.agroMonitoringPolyId,
       eudrCompliance: eudrCompliance ?? this.eudrCompliance,
+      planetekAnalysis: planetekAnalysis ?? this.planetekAnalysis,
       activeCycleId: activeCycleId ?? this.activeCycleId,
     );
   }

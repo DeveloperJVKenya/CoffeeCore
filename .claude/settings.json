@@ -5,7 +5,12 @@
       "Bash(npm install *)",
       "Bash(firebase deploy *)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://us-central1-coffeecore-7111a.cloudfunctions.net/agroProxy/polygons?appid=583e2f174f1b753e06e1133cf6125434\")",
-      "Bash(node --check functions/index.js)"
+      "Bash(node --check functions/index.js)",
+      "Bash(node \"C:\\\\Users\\\\ADMINI~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Administrator-PROJECTFlutter-JVA-Projects-coffeecore\\\\c1e5d1b0-4833-4ffa-a148-dea0dd5e2e80\\\\scratchpad\\\\test_planetek_sig.js\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(node -e ' *)",
+      "Bash(firebase functions:secrets:set PLANETEK_CLIENT_ID --data-file - --project coffeecore-7111a)",
+      "Bash(firebase functions:secrets:set PLANETEK_CLIENT_SECRET --data-file - --project coffeecore-7111a)"
     ]
   }
 }

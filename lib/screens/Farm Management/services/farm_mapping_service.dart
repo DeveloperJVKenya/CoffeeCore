@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coffeecore/screens/Farm%20Management/models/farm_polygon_model.dart';
 import 'package:coffeecore/screens/Farm%20Management/models/ndvi_history_entry_model.dart';
+import 'package:coffeecore/screens/Farm%20Management/models/planetek_analysis_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 
@@ -242,6 +243,39 @@ class FarmMappingService {
     } catch (e, st) {
       _log.e(
         'FarmMappingService.updateEudrCompliance: Error – $e',
+        stackTrace: st,
+      );
+      rethrow;
+    }
+  }
+
+  // ── UPDATE (partial – Planetek certified EUDR analysis) ─────
+  //
+  // Independent of updateEudrCompliance above — stored as a separate
+  // Firestore field (planetekAnalysis) alongside eudrCompliance, never
+  // overwriting it, since the two are deliberately kept as two distinct
+  // EUDR data sources (GFW screening vs. Planetek certified analysis).
+
+  Future<void> updatePlanetekAnalysis(
+      String farmId, PlanetekAnalysisData data) async {
+    try {
+      _log.i(
+        'FarmMappingService.updatePlanetekAnalysis: '
+        'Updating farm $farmId Planetek status → '
+        'certified=${data.deforestationCertified}, '
+        'signatureVerified=${data.signatureVerified}',
+      );
+      await _firestore.collection(_collection).doc(farmId).update({
+        'planetekAnalysis': data.toMap(),
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
+      _log.i(
+        'FarmMappingService.updatePlanetekAnalysis: '
+        'Planetek data saved for farm $farmId',
+      );
+    } catch (e, st) {
+      _log.e(
+        'FarmMappingService.updatePlanetekAnalysis: Error – $e',
         stackTrace: st,
       );
       rethrow;
