@@ -540,13 +540,37 @@ const PLANETEK_SIGNED_METADATA_FIELDS = [
 ];
 
 // Deployment UUID is stable "unless the algorithm is updated" per the
-// tutorial — cache per warm instance instead of resolving on every call.
-let cachedPlanetekDeploymentId = null;
+// tutorial — seeded with the value confirmed live on 2026-07-27
+// (deployment "deforestation-analysis" v0.2.1) so a warm *or cold*
+// function instance skips the lookup round trip entirely in the common
+// case. resolvePlanetekDeploymentId() still exists as the self-healing
+// path: if Planetek ever rotates this (e.g. an algorithm upgrade), the
+// cached UUID will 404 on create_flow_run, submitPlanetekRun() clears the
+// cache and re-resolves once, and this constant just becomes a stale
+// first guess instead of a hard dependency.
+let cachedPlanetekDeploymentId = "a089937c-5ba9-43be-8ef0-afe59c16c1bb";
 // Whichever flow-run base URL (https/http) actually answered, cached the
-// same way.
-let cachedPlanetekFlowRunBase = null;
+// same way. https:// is confirmed working as of the 2026-07-27 live test,
+// so seed it instead of paying the fallback probe on every cold instance.
+let cachedPlanetekFlowRunBase = "https://flows.archytas.planetek.it/api/flow_runs";
+
+// Tokens are requested with a 60s TTL — polling a single flow run can
+// easily issue a dozen+ requests over that time, so refetching a token
+// per-request (as a naive implementation would) wastes a full auth round
+// trip on every single one. Cache it in-process and only refresh a few
+// seconds before it actually expires, mirroring the Sentinel Hub
+// cachedToken/tokenExpiry pattern above. This does not change what gets
+// fetched or verified — only how many times we re-authenticate to fetch it.
+let cachedPlanetekToken = null;
+let cachedPlanetekTokenExpiry = 0;
+const PLANETEK_TOKEN_TTL_SECONDS = 60;
+const PLANETEK_TOKEN_REFRESH_BUFFER_SECONDS = 8;
 
 async function getPlanetekToken() {
+  if (cachedPlanetekToken && Date.now() < cachedPlanetekTokenExpiry) {
+    return cachedPlanetekToken;
+  }
+
   const res = await fetch(PLANETEK_TOKEN_URL, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -554,7 +578,7 @@ async function getPlanetekToken() {
       clientId: planetekClientId.value(),
       clientSecret: planetekClientSecret.value(),
       audiences: ["prefect"],
-      ttlSeconds: 60,
+      ttlSeconds: PLANETEK_TOKEN_TTL_SECONDS,
     }),
   });
   const text = await res.text();
@@ -565,11 +589,16 @@ async function getPlanetekToken() {
   if (!parsed.exchange_token) {
     throw new Error("Planetek token response missing exchange_token");
   }
-  return parsed.exchange_token;
+
+  cachedPlanetekToken = parsed.exchange_token;
+  const ttl = Number(parsed.expiresIn || PLANETEK_TOKEN_TTL_SECONDS);
+  cachedPlanetekTokenExpiry =
+    Date.now() + Math.max(ttl - PLANETEK_TOKEN_REFRESH_BUFFER_SECONDS, 1) * 1000;
+  return cachedPlanetekToken;
 }
 
-async function resolvePlanetekDeploymentId() {
-  if (cachedPlanetekDeploymentId) return cachedPlanetekDeploymentId;
+async function resolvePlanetekDeploymentId({ forceRefresh = false } = {}) {
+  if (cachedPlanetekDeploymentId && !forceRefresh) return cachedPlanetekDeploymentId;
   const token = await getPlanetekToken();
   const res = await fetch(`${PLANETEK_DEPLOYMENT_URL}/${PLANETEK_DEPLOYMENT_NAME}`, {
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
@@ -601,6 +630,36 @@ async function submitPlanetekRun(featureCollection) {
       body: JSON.stringify({ parameters: { feature_collection: featureCollection } }),
     }
   );
+
+  // Self-heal against a stale cached deployment ID (e.g. after Planetek
+  // rotates the deployment on an algorithm upgrade): re-resolve once and
+  // retry, instead of failing outright on a seeded/cached UUID gone stale.
+  if (res.status === 404) {
+    const freshDeploymentId = await resolvePlanetekDeploymentId({ forceRefresh: true });
+    const retryToken = await getPlanetekToken();
+    const retryRes = await fetch(
+      `${PLANETEK_DEPLOYMENT_RUN_URL}/${freshDeploymentId}/create_flow_run`,
+      {
+        method: "POST",
+        headers: {
+          accept: "application/json, text/plain, */*",
+          "content-type": "application/json",
+          authorization: `Bearer ${retryToken}`,
+        },
+        body: JSON.stringify({ parameters: { feature_collection: featureCollection } }),
+      }
+    );
+    const retryText = await retryRes.text();
+    if (!retryRes.ok) {
+      throw new Error(`Planetek create_flow_run failed (HTTP ${retryRes.status}): ${retryText}`);
+    }
+    const retryParsed = JSON.parse(retryText);
+    if (!retryParsed.id) {
+      throw new Error("Planetek create_flow_run response missing id");
+    }
+    return retryParsed.id;
+  }
+
   const text = await res.text();
   if (!res.ok) {
     throw new Error(`Planetek create_flow_run failed (HTTP ${res.status}): ${text}`);
@@ -614,12 +673,20 @@ async function submitPlanetekRun(featureCollection) {
 
 async function fetchPlanetekFlowRun(flowRunId) {
   const token = await getPlanetekToken();
-  const bases = cachedPlanetekFlowRunBase
-    ? [cachedPlanetekFlowRunBase]
+  // Try the cached-good base first (the common case — zero wasted probes),
+  // but still fall through to the other candidate within this same call if
+  // it fails, instead of only self-healing on the *next* call.
+  const orderedBases = cachedPlanetekFlowRunBase
+    ? [
+        cachedPlanetekFlowRunBase,
+        ...PLANETEK_FLOW_RUN_URL_CANDIDATES.filter(
+          (b) => b !== cachedPlanetekFlowRunBase
+        ),
+      ]
     : PLANETEK_FLOW_RUN_URL_CANDIDATES;
 
   let lastErr;
-  for (const base of bases) {
+  for (const base of orderedBases) {
     try {
       const res = await fetch(`${base}/${flowRunId}`, {
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
@@ -632,6 +699,7 @@ async function fetchPlanetekFlowRun(flowRunId) {
       lastErr = err;
     }
   }
+  cachedPlanetekFlowRunBase = null;
   throw new Error(`Planetek flow run fetch failed on all endpoints: ${lastErr}`);
 }
 
