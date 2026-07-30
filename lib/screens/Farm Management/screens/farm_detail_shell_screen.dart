@@ -8,6 +8,7 @@ import 'package:coffeecore/screens/Farm%20Management/providers/farm_finance_prov
 import 'package:coffeecore/screens/Farm%20Management/providers/inventory_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/providers/planetek_eudr_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/providers/yield_provider.dart';
+import 'package:coffeecore/screens/Farm%20Management/services/climate_satellite_service.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/farm_mapping_service.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
@@ -145,6 +146,14 @@ class _FarmDetailShellScreenState extends State<FarmDetailShellScreen> {
     );
     if (confirmed != true || !mounted) return;
     try {
+      final agroPolyId = _farm?.agroMonitoringPolyId;
+      if (agroPolyId != null) {
+        // Best-effort: AgroMonitoring's quota counts every registered
+        // polygon forever, so this must run before the farm record (and
+        // its polyId) disappears — but a failure here must never block
+        // deleting the farm itself.
+        await ClimateSatelliteService().deleteAgroPolygon(agroPolyId);
+      }
       await _mappingService.deleteFarm(widget.farmId);
       if (!mounted) return;
       Navigator.of(context).pop();

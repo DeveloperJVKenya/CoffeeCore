@@ -21,9 +21,11 @@ class PlanetekDeforestationService {
   final Logger _log = Logger(printer: PrettyPrinter());
 
   /// A flow run can take a while (submit → poll → complete); the Cloud
-  /// Function itself is configured for up to 300s, so the client timeout
-  /// must be at least that long or callers see a false "unavailable".
-  static const Duration _callableTimeout = Duration(seconds: 320);
+  /// Function itself is configured for up to 540s (raised from 300s once
+  /// live traffic started seeing the Prefect flow run itself exceed the
+  /// old 4-minute poll budget), so the client timeout must be at least
+  /// that long or callers see a false "unavailable"/"deadline-exceeded".
+  static const Duration _callableTimeout = Duration(seconds: 560);
 
   Future<PlanetekAnalysisData> runCertifiedAnalysis({
     required List<LatLng> coordinates,
@@ -37,11 +39,12 @@ class PlanetekDeforestationService {
     }
 
     final featureCollection = _buildFeatureCollection(coordinates, aoiName);
+    final callStart = DateTime.now();
 
     try {
       _log.i(
         'Planetek: submitting certified deforestation analysis '
-        '(${coordinates.length} pts)',
+        '(${coordinates.length} pts, client timeout ${_callableTimeout.inSeconds}s)',
       );
       final callable = FirebaseFunctions.instance.httpsCallable(
         'runPlanetekDeforestationAnalysis',
@@ -50,20 +53,27 @@ class PlanetekDeforestationService {
       final response = await callable.call(<String, dynamic>{
         'featureCollection': featureCollection,
       });
+      final elapsed = DateTime.now().difference(callStart);
 
       final data = Map<String, dynamic>.from(response.data as Map);
       final result = PlanetekAnalysisData.fromCallableResult(data);
       _log.i(
-        'Planetek: analysis complete — certified=${result.deforestationCertified}, '
+        'Planetek: analysis complete in ${elapsed.inSeconds}s — '
+        'certified=${result.deforestationCertified}, '
         'signatureVerified=${result.signatureVerified}',
       );
       return result;
     } on FirebaseFunctionsException catch (e, st) {
-      _log.e('Planetek analysis failed: ${e.code} ${e.message}',
-          stackTrace: st);
+      final elapsed = DateTime.now().difference(callStart);
+      _log.e(
+        'Planetek analysis failed after ${elapsed.inSeconds}s: ${e.code} ${e.message}',
+        stackTrace: st,
+      );
       throw _mapError(e);
     } catch (e, st) {
-      _log.e('Planetek analysis failed: $e', stackTrace: st);
+      final elapsed = DateTime.now().difference(callStart);
+      _log.e('Planetek analysis failed after ${elapsed.inSeconds}s: $e',
+          stackTrace: st);
       throw ServiceUnavailableException(
         isNetworkError(e)
             ? 'Could not reach the Planetek deforestation analysis service — check your internet connection.'

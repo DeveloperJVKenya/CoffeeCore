@@ -80,4 +80,88 @@ class GeoMath {
         pts.map((LatLng c) => c.longitude).reduce((a, b) => a + b) / pts.length;
     return LatLng(lat, lng);
   }
+
+  // ── Polygon overlap detection ───────────────────────────────
+  //
+  // Two different farmers registering overlapping physical land is a real
+  // EUDR fraud/data-integrity signal (the same physical plot can't
+  // legitimately back two independent deforestation-free claims) — this
+  // powers BoundaryOverlapService. Uses raw lat/lng for the topological
+  // tests below (orientation and containment, not distance), which is
+  // valid at the local scale of a single farm plot.
+
+  static double _cross(LatLng o, LatLng a, LatLng b) {
+    return (a.longitude - o.longitude) * (b.latitude - o.latitude) -
+        (a.latitude - o.latitude) * (b.longitude - o.longitude);
+  }
+
+  static bool _onSegment(LatLng p, LatLng q, LatLng r) {
+    return q.longitude <= math.max(p.longitude, r.longitude) &&
+        q.longitude >= math.min(p.longitude, r.longitude) &&
+        q.latitude <= math.max(p.latitude, r.latitude) &&
+        q.latitude >= math.min(p.latitude, r.latitude);
+  }
+
+  /// True if segment p1-p2 crosses segment p3-p4 (standard orientation
+  /// test, including the collinear-overlap edge cases).
+  static bool segmentsIntersect(LatLng p1, LatLng p2, LatLng p3, LatLng p4) {
+    final double d1 = _cross(p3, p4, p1);
+    final double d2 = _cross(p3, p4, p2);
+    final double d3 = _cross(p1, p2, p3);
+    final double d4 = _cross(p1, p2, p4);
+
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+        ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+      return true;
+    }
+    if (d1 == 0 && _onSegment(p3, p1, p4)) return true;
+    if (d2 == 0 && _onSegment(p3, p2, p4)) return true;
+    if (d3 == 0 && _onSegment(p1, p3, p2)) return true;
+    if (d4 == 0 && _onSegment(p1, p4, p2)) return true;
+    return false;
+  }
+
+  /// Standard ray-casting point-in-polygon test. `polygon` need not be
+  /// explicitly closed (first point repeated as last) — both are handled.
+  static bool pointInPolygon(LatLng point, List<LatLng> polygon) {
+    if (polygon.length < 3) return false;
+    bool inside = false;
+    for (int i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      final LatLng pi = polygon[i];
+      final LatLng pj = polygon[j];
+      final bool intersects =
+          ((pi.latitude > point.latitude) != (pj.latitude > point.latitude)) &&
+              (point.longitude <
+                  (pj.longitude - pi.longitude) *
+                          (point.latitude - pi.latitude) /
+                          (pj.latitude - pi.latitude) +
+                      pi.longitude);
+      if (intersects) inside = !inside;
+    }
+    return inside;
+  }
+
+  /// True if two simple (non-self-intersecting) polygons overlap at all —
+  /// any edge crossing, or one polygon fully containing the other.
+  /// Both inputs may be open or closed rings.
+  static bool polygonsOverlap(List<LatLng> a, List<LatLng> b) {
+    if (a.length < 3 || b.length < 3) return false;
+
+    for (int i = 0; i < a.length; i++) {
+      final LatLng a1 = a[i];
+      final LatLng a2 = a[(i + 1) % a.length];
+      for (int j = 0; j < b.length; j++) {
+        final LatLng b1 = b[j];
+        final LatLng b2 = b[(j + 1) % b.length];
+        if (segmentsIntersect(a1, a2, b1, b2)) return true;
+      }
+    }
+
+    // No edges cross — either fully separate, or one fully contains the
+    // other. A single containment test each way is enough since we've
+    // already ruled out any boundary crossing.
+    if (pointInPolygon(a.first, b)) return true;
+    if (pointInPolygon(b.first, a)) return true;
+    return false;
+  }
 }

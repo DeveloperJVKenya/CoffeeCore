@@ -282,6 +282,39 @@ class ClimateSatelliteService {
     }
   }
 
+  // ── AGRONOMIC SATELLITE – DELETE POLYGON ────────────────────
+  //
+  // AgroMonitoring's plan quota is on total registered polygon count/area,
+  // not just active use — a polygon left registered for a deleted farm
+  // still counts against it forever. Called from farm deletion so the
+  // quota doesn't leak every time a farm is removed. Best-effort: logs and
+  // swallows failures instead of throwing, since a stale remote polygon
+  // must never block deleting the farm record itself.
+  Future<void> deleteAgroPolygon(String agroPolyId) async {
+    if (_isPlaceholderKey(_agroApiKey)) return;
+    try {
+      _log.i(
+        'ClimateSatelliteService.deleteAgroPolygon: '
+        'Deleting polyId=$agroPolyId',
+      );
+      final res = await http
+          .delete(
+              Uri.parse('$_agroBase/polygons/$agroPolyId?appid=$_agroApiKey'))
+          .timeout(_timeout);
+      if (res.statusCode != 200 && res.statusCode != 204) {
+        _log.w(
+          'ClimateSatelliteService.deleteAgroPolygon: '
+          'HTTP ${res.statusCode} – ${res.body}',
+        );
+      }
+    } catch (e, st) {
+      _log.e(
+        'ClimateSatelliteService.deleteAgroPolygon: Error – $e',
+        stackTrace: st,
+      );
+    }
+  }
+
   // ── NDVI / SATELLITE DATA ───────────────────────────────────
 
   Future<SatelliteData> fetchLatestNdvi({required String agroPolyId}) async {

@@ -282,6 +282,34 @@ class FarmMappingService {
     }
   }
 
+  // ── UPDATE (partial – boundary overlap flags) ───────────────
+  //
+  // Two different farmers' polygons overlapping is a real EUDR
+  // fraud/data-integrity signal (see BoundaryOverlapService) — kept as its
+  // own field, independent of eudrCompliance/planetekAnalysis, since it's
+  // a geometry check against sibling farms, not a deforestation check.
+
+  Future<void> updateBoundaryOverlap(
+      String farmId, List<String> overlappingFarmIds) async {
+    try {
+      _log.i(
+        'FarmMappingService.updateBoundaryOverlap: '
+        'Farm $farmId overlaps with ${overlappingFarmIds.length} other farm(s)',
+      );
+      await _firestore.collection(_collection).doc(farmId).update({
+        'overlapsWithFarmIds': overlappingFarmIds,
+        'overlapCheckedAt': Timestamp.fromDate(DateTime.now()),
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      });
+    } catch (e, st) {
+      _log.e(
+        'FarmMappingService.updateBoundaryOverlap: Error – $e',
+        stackTrace: st,
+      );
+      rethrow;
+    }
+  }
+
   // ── NDVI/NDWI HISTORY (subcollection) ───────────────────────
   //
   // Each satellite refresh appends a snapshot here so trends (e.g. for the

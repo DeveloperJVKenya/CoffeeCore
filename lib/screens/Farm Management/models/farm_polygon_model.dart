@@ -92,6 +92,13 @@ class FarmPolygon {
   final EudrComplianceData? eudrCompliance;
   final PlanetekAnalysisData? planetekAnalysis;
   final String? activeCycleId;
+  // ── EUDR / DDS traceability fields ──────────────────────────
+  // farmIds of other registered farms whose polygon geometrically overlaps
+  // this one, as of overlapCheckedAt — see BoundaryOverlapService. Two
+  // different farmers claiming the same physical land is a real EUDR
+  // fraud/data-integrity signal, distinct from either deforestation check.
+  final List<String> overlapsWithFarmIds;
+  final DateTime? overlapCheckedAt;
 
   const FarmPolygon({
     this.farmId,
@@ -109,6 +116,8 @@ class FarmPolygon {
     this.eudrCompliance,
     this.planetekAnalysis,
     this.activeCycleId,
+    this.overlapsWithFarmIds = const [],
+    this.overlapCheckedAt,
   });
 
   // ── Firestore deserialization ───────────────────────────────
@@ -155,6 +164,12 @@ class FarmPolygon {
           ? SatelliteData.fromMap(data['satelliteData'] as Map<String, dynamic>)
           : null,
       activeCycleId: data['activeCycleId'] as String?,
+      overlapsWithFarmIds:
+          (data['overlapsWithFarmIds'] as List<dynamic>?)?.cast<String>() ??
+              const [],
+      overlapCheckedAt: data['overlapCheckedAt'] != null
+          ? (data['overlapCheckedAt'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -180,6 +195,10 @@ class FarmPolygon {
       if (climateData != null) 'climateData': climateData!.toMap(),
       if (satelliteData != null) 'satelliteData': satelliteData!.toMap(),
       if (activeCycleId != null) 'activeCycleId': activeCycleId,
+      if (overlapsWithFarmIds.isNotEmpty)
+        'overlapsWithFarmIds': overlapsWithFarmIds,
+      if (overlapCheckedAt != null)
+        'overlapCheckedAt': Timestamp.fromDate(overlapCheckedAt!),
     };
   }
 
@@ -198,6 +217,8 @@ class FarmPolygon {
     EudrComplianceData? eudrCompliance,
     PlanetekAnalysisData? planetekAnalysis,
     String? activeCycleId,
+    List<String>? overlapsWithFarmIds,
+    DateTime? overlapCheckedAt,
   }) {
     return FarmPolygon(
       farmId: farmId ?? this.farmId,
@@ -215,6 +236,8 @@ class FarmPolygon {
       eudrCompliance: eudrCompliance ?? this.eudrCompliance,
       planetekAnalysis: planetekAnalysis ?? this.planetekAnalysis,
       activeCycleId: activeCycleId ?? this.activeCycleId,
+      overlapsWithFarmIds: overlapsWithFarmIds ?? this.overlapsWithFarmIds,
+      overlapCheckedAt: overlapCheckedAt ?? this.overlapCheckedAt,
     );
   }
 
@@ -242,6 +265,14 @@ class FarmPolygon {
     }
     return '${perimeterMeters.toStringAsFixed(0)} m';
   }
+
+  /// EUDR geolocation rule: plots >=4 ha must submit a full boundary
+  /// polygon; smaller plots may submit a single point instead. We always
+  /// have the full polygon on file regardless, but TRACES-facing exports
+  /// branch on this to match what the regulation actually requires.
+  bool get requiresPolygonGeolocation => areaHectares >= 4.0;
+
+  bool get hasBoundaryOverlap => overlapsWithFarmIds.isNotEmpty;
 }
 
 // ── Climate / weather snapshot ────────────────────────────────

@@ -4,6 +4,7 @@ const { defineSecret, defineString } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const crypto = require("crypto");
+const logger = require("firebase-functions/logger");
 
 // Lazy-initialized — NOT called at module load time. Firebase CLI's local
 // deploy-time discovery step requires this file just to read the exported
@@ -568,9 +569,11 @@ const PLANETEK_TOKEN_REFRESH_BUFFER_SECONDS = 8;
 
 async function getPlanetekToken() {
   if (cachedPlanetekToken && Date.now() < cachedPlanetekTokenExpiry) {
+    logger.info("planetek.token: cache hit");
     return cachedPlanetekToken;
   }
 
+  const t0 = Date.now();
   const res = await fetch(PLANETEK_TOKEN_URL, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -582,6 +585,7 @@ async function getPlanetekToken() {
     }),
   });
   const text = await res.text();
+  logger.info(`planetek.token: HTTP ${res.status} in ${Date.now() - t0}ms`);
   if (!res.ok) {
     throw new Error(`Planetek token request failed (HTTP ${res.status}): ${text}`);
   }
@@ -598,12 +602,17 @@ async function getPlanetekToken() {
 }
 
 async function resolvePlanetekDeploymentId({ forceRefresh = false } = {}) {
-  if (cachedPlanetekDeploymentId && !forceRefresh) return cachedPlanetekDeploymentId;
+  if (cachedPlanetekDeploymentId && !forceRefresh) {
+    logger.info("planetek.deployment: cache hit");
+    return cachedPlanetekDeploymentId;
+  }
   const token = await getPlanetekToken();
+  const t0 = Date.now();
   const res = await fetch(`${PLANETEK_DEPLOYMENT_URL}/${PLANETEK_DEPLOYMENT_NAME}`, {
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
   });
   const text = await res.text();
+  logger.info(`planetek.deployment: HTTP ${res.status} in ${Date.now() - t0}ms (forceRefresh=${forceRefresh})`);
   if (!res.ok) {
     throw new Error(`Planetek deployment lookup failed (HTTP ${res.status}): ${text}`);
   }
@@ -618,6 +627,7 @@ async function resolvePlanetekDeploymentId({ forceRefresh = false } = {}) {
 async function submitPlanetekRun(featureCollection) {
   const deploymentId = await resolvePlanetekDeploymentId();
   const token = await getPlanetekToken();
+  const t0 = Date.now();
   const res = await fetch(
     `${PLANETEK_DEPLOYMENT_RUN_URL}/${deploymentId}/create_flow_run`,
     {
@@ -630,13 +640,16 @@ async function submitPlanetekRun(featureCollection) {
       body: JSON.stringify({ parameters: { feature_collection: featureCollection } }),
     }
   );
+  logger.info(`planetek.submit: HTTP ${res.status} in ${Date.now() - t0}ms (deploymentId=${deploymentId})`);
 
   // Self-heal against a stale cached deployment ID (e.g. after Planetek
   // rotates the deployment on an algorithm upgrade): re-resolve once and
   // retry, instead of failing outright on a seeded/cached UUID gone stale.
   if (res.status === 404) {
+    logger.warn("planetek.submit: 404 on cached deploymentId, re-resolving and retrying once");
     const freshDeploymentId = await resolvePlanetekDeploymentId({ forceRefresh: true });
     const retryToken = await getPlanetekToken();
+    const retryT0 = Date.now();
     const retryRes = await fetch(
       `${PLANETEK_DEPLOYMENT_RUN_URL}/${freshDeploymentId}/create_flow_run`,
       {
@@ -650,6 +663,7 @@ async function submitPlanetekRun(featureCollection) {
       }
     );
     const retryText = await retryRes.text();
+    logger.info(`planetek.submit.retry: HTTP ${retryRes.status} in ${Date.now() - retryT0}ms (deploymentId=${freshDeploymentId})`);
     if (!retryRes.ok) {
       throw new Error(`Planetek create_flow_run failed (HTTP ${retryRes.status}): ${retryText}`);
     }
@@ -657,6 +671,7 @@ async function submitPlanetekRun(featureCollection) {
     if (!retryParsed.id) {
       throw new Error("Planetek create_flow_run response missing id");
     }
+    logger.info(`planetek.submit: flowRunId=${retryParsed.id}`);
     return retryParsed.id;
   }
 
@@ -668,6 +683,7 @@ async function submitPlanetekRun(featureCollection) {
   if (!parsed.id) {
     throw new Error("Planetek create_flow_run response missing id");
   }
+  logger.info(`planetek.submit: flowRunId=${parsed.id}`);
   return parsed.id;
 }
 
@@ -687,15 +703,18 @@ async function fetchPlanetekFlowRun(flowRunId) {
 
   let lastErr;
   for (const base of orderedBases) {
+    const t0 = Date.now();
     try {
       const res = await fetch(`${base}/${flowRunId}`, {
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       });
       const text = await res.text();
+      logger.info(`planetek.poll: HTTP ${res.status} in ${Date.now() - t0}ms (base=${base})`);
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
       cachedPlanetekFlowRunBase = base;
       return JSON.parse(text);
     } catch (err) {
+      logger.warn(`planetek.poll: base ${base} failed in ${Date.now() - t0}ms: ${err}`);
       lastErr = err;
     }
   }
@@ -800,10 +819,16 @@ exports.runPlanetekDeforestationAnalysis = onCall(
   {
     region: "us-central1",
     secrets: [planetekClientId, planetekClientSecret],
-    timeoutSeconds: 300,
+    // Raised from 300s -> 540s: live traffic is now regularly seeing the
+    // Prefect flow run itself (not our auth/submit overhead — see the
+    // planetek.* timing logs) take longer than the old 4-minute poll
+    // budget, which surfaced as a false "deadline-exceeded" even though
+    // the analysis was still legitimately running. See docs/planetek_eudr/.
+    timeoutSeconds: 540,
     memory: "256MiB",
   },
   async (request) => {
+    const requestStart = Date.now();
     if (!request.auth) {
       throw new HttpsError(
         "unauthenticated",
@@ -824,24 +849,36 @@ exports.runPlanetekDeforestationAnalysis = onCall(
       );
     }
 
+    logger.info(
+      `planetek.run: starting for uid=${request.auth.uid}, features=${featureCollection.features.length}`
+    );
+
     let flowRunId;
+    const submitStart = Date.now();
     try {
       flowRunId = await submitPlanetekRun(featureCollection);
     } catch (err) {
+      logger.error(`planetek.run: submit failed after ${Date.now() - submitStart}ms: ${err}`);
       throw new HttpsError(
         "unavailable",
         `Could not submit the certified deforestation analysis to Planetek: ${err}`
       );
     }
+    logger.info(`planetek.run: submitted in ${Date.now() - submitStart}ms, flowRunId=${flowRunId}`);
 
     const pollIntervalMs = 5000;
-    const maxPolls = 48; // ~4 minutes total, within the 300s function timeout
+    const maxPolls = 96; // ~8 minutes of polling, within the 540s function timeout
     let finalRun = null;
     for (let attempt = 0; attempt < maxPolls; attempt++) {
       let run;
+      const pollStart = Date.now();
       try {
         run = await fetchPlanetekFlowRun(flowRunId);
       } catch (err) {
+        logger.error(
+          `planetek.run: status check failed on attempt ${attempt + 1}/${maxPolls} ` +
+            `(elapsed ${Date.now() - requestStart}ms): ${err}`
+        );
         throw new HttpsError(
           "unavailable",
           `Could not check the Planetek analysis status: ${err}`
@@ -849,6 +886,10 @@ exports.runPlanetekDeforestationAnalysis = onCall(
       }
 
       const stateType = run.state && run.state.type;
+      logger.info(
+        `planetek.run: attempt ${attempt + 1}/${maxPolls} state=${stateType} ` +
+          `(poll took ${Date.now() - pollStart}ms, total elapsed ${Date.now() - requestStart}ms)`
+      );
       if (stateType === "COMPLETED") {
         finalRun = run;
         break;
@@ -871,6 +912,9 @@ exports.runPlanetekDeforestationAnalysis = onCall(
     }
 
     if (!finalRun) {
+      logger.error(
+        `planetek.run: gave up after ${maxPolls} polls, total elapsed ${Date.now() - requestStart}ms`
+      );
       throw new HttpsError(
         "deadline-exceeded",
         "The Planetek deforestation analysis is taking longer than expected. Please try again shortly."
@@ -903,6 +947,11 @@ exports.runPlanetekDeforestationAnalysis = onCall(
         : `Signature NOT verified: ${result.reason}`;
     }
 
+    logger.info(
+      `planetek.run: done in ${Date.now() - requestStart}ms total, ` +
+        `certified=${data.deforestation_certified}, signatureVerified=${signatureVerified}`
+    );
+
     return {
       aoi: data.aoi ?? null,
       deforestationCertified: data.deforestation_certified ?? null,
@@ -915,6 +964,97 @@ exports.runPlanetekDeforestationAnalysis = onCall(
       flowRunId,
       signatureVerified,
       signatureNote,
+    };
+  }
+);
+
+// ── EUDR Due Diligence Statement (DDS) — exporter handoff package ───────
+//
+// JV Almacis is NOT a TRACES participant. It never registers with TRACES,
+// never holds TRACES credentials, and never submits anything to the EU's
+// Information System — that is entirely the exporter's own process, on
+// the exporter's own TRACES account (or their own chosen authorised
+// representative), invisible to this codebase. See docs/planetek_eudr/
+// and the TRACES integration notes for the full reasoning.
+//
+// What JV Almacis DOES do is generate the evidence handoff package an
+// exporter needs for their own filing — plot geolocation
+// (TracesDdsExportService's FeatureCollection, built client-side) plus
+// operator/commodity data, shaped to (approximately) match what a DDS
+// requires. This function just assembles and returns that package; it
+// makes no network calls and needs no secrets, because there is nothing
+// external to authenticate against — the exporter is the one who takes
+// this and enters/imports it into their own TRACES account.
+//
+// UNVERIFIED CAVEAT: the exact field names/structure below are assembled
+// from Planetek's tutorial plus public EUDR/TRACES documentation (blog
+// posts, a third-party Node client's example payload) — NOT the
+// authoritative CIRCABC API spec (which only the exporter, as a
+// registered TRACES operator, can access). Treat this as a best-current
+// draft of "what a DDS needs," useful for a human to review or an
+// exporter's own system to consume — not a guaranteed-correct schema.
+
+function buildEudrDdsPayload({ featureCollection, operator, commodity }) {
+  return {
+    statement: {
+      internalReferenceNumber: `coffeecore-${Date.now()}`,
+      activityType: "EXPORT",
+      countryOfActivity: (operator && operator.country) || null,
+      // Per the third-party TRACES client example: whether geolocation is
+      // withheld from downstream lookups. Defaulting to visible (false) —
+      // revisit once the real spec confirms this is even the right field.
+      geoLocationConfidential: false,
+    },
+    operator: {
+      eori: (operator && operator.eori) || null,
+      name: (operator && operator.name) || null,
+      address: (operator && operator.address) || null,
+      country: (operator && operator.country) || null,
+    },
+    commodity: {
+      hsHeading: (commodity && commodity.hsCode) || null,
+      description: (commodity && commodity.tradeName) || "Coffee",
+      descriptors: {
+        deforestationBaseline: "2020-12-31",
+      },
+    },
+    geolocation: featureCollection || null,
+    // Upstream DDS reference/verification numbers this statement builds
+    // on (plot → cooperative → exporter chaining) — always empty until a
+    // real upstream DDS has actually been filed and its numbers recorded
+    // via DdsExportBatchService.recordSubmission.
+    associatedStatements: [],
+  };
+}
+
+exports.generateEudrDdsHandoffPackage = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Sign in to generate a Due Diligence Statement handoff package."
+      );
+    }
+
+    const { featureCollection, operator, commodity } = request.data || {};
+    if (!featureCollection || featureCollection.type !== "FeatureCollection") {
+      throw new HttpsError(
+        "invalid-argument",
+        "featureCollection must be a valid GeoJSON FeatureCollection."
+      );
+    }
+
+    const payload = buildEudrDdsPayload({ featureCollection, operator, commodity });
+
+    return {
+      package: payload,
+      submittedByJvAlmacis: false,
+      note:
+        "This is an evidence handoff package for the exporter's own TRACES " +
+        "filing — JV Almacis does not submit to TRACES itself. Field names " +
+        "are a best-current draft pending confirmation against the " +
+        "exporter's own CIRCABC API spec access.",
     };
   }
 );

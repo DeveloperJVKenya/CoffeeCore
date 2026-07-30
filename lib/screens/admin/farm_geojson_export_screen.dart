@@ -2,9 +2,12 @@ import 'dart:convert';
 import 'dart:io' show File, Platform;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:coffeecore/screens/Farm%20Management/models/dds_readiness_model.dart';
 import 'package:coffeecore/screens/Farm%20Management/models/farm_polygon_model.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/farm_mapping_service.dart';
+import 'package:coffeecore/screens/Farm%20Management/services/field_ledger_pdf_service.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/geojson_export_service.dart';
+import 'package:coffeecore/screens/Farm%20Management/services/pdf_download_helper.dart';
 import 'package:coffeecore/screens/admin/file_save_stub.dart'
     if (dart.library.html) 'package:coffeecore/screens/admin/file_save_web.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -214,6 +217,59 @@ class _FarmGeoJsonExportScreenState extends State<FarmGeoJsonExportScreen> {
     }
   }
 
+  /// Generates and downloads/shares a single Field Ledger PDF covering
+  /// every currently-selected farm — the multi-plot equivalent of the
+  /// single-farm download on the EUDR tab (eudr_compliance_tab.dart).
+  /// Works cross-platform via PdfDownloadHelper (browser download on web,
+  /// saved file + Share action natively), same as the GeoJSON export above.
+  Future<void> _generateFieldLedgerPdf() async {
+    final allFarms = _groups.expand((g) => g.farms).toList();
+    final selectedFarms =
+        allFarms.where((f) => _included[f.farmId] ?? false).toList();
+    if (selectedFarms.isEmpty) return;
+
+    try {
+      final readinessByFarmId = <String, DdsReadiness>{
+        for (final farm in selectedFarms)
+          farm.farmId!: DdsReadiness.evaluate(farm),
+      };
+
+      final bytes = await FieldLedgerPdfService.buildMultiFarmLedger(
+        selectedFarms,
+        readinessByFarmId,
+      );
+      final fileName =
+          'coffeecore_field_ledger_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final file = await PdfDownloadHelper.saveBytes(bytes, fileName);
+
+      if (!mounted) return;
+      if (file == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Downloaded $fileName')),
+        );
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Saved $fileName'),
+          action: SnackBarAction(
+            label: 'Share',
+            onPressed: () => PdfDownloadHelper.share(
+              file,
+              text: 'CoffeeCore Field Ledger (${selectedFarms.length} plot(s))',
+            ),
+          ),
+        ),
+      );
+    } catch (e, st) {
+      _logger.e('Error generating Field Ledger PDF: $e', stackTrace: st);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error generating Field Ledger: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -248,12 +304,28 @@ class _FarmGeoJsonExportScreenState extends State<FarmGeoJsonExportScreen> {
       body: _buildBody(),
       floatingActionButton: (_loading || _groups.isEmpty)
           ? null
-          : FloatingActionButton.extended(
-              onPressed: _selectedCount == 0 ? null : _generateAndShare,
-              backgroundColor: Colors.brown[700],
-              icon: const Icon(Icons.file_download, color: Colors.white),
-              label: Text('Generate ($_selectedCount)',
-                  style: const TextStyle(color: Colors.white)),
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton.extended(
+                  heroTag: 'geojson-export',
+                  onPressed: _selectedCount == 0 ? null : _generateAndShare,
+                  backgroundColor: Colors.brown[700],
+                  icon: const Icon(Icons.file_download, color: Colors.white),
+                  label: Text('GeoJSON ($_selectedCount)',
+                      style: const TextStyle(color: Colors.white)),
+                ),
+                const SizedBox(height: 12),
+                FloatingActionButton.extended(
+                  heroTag: 'field-ledger-export',
+                  onPressed:
+                      _selectedCount == 0 ? null : _generateFieldLedgerPdf,
+                  backgroundColor: Colors.brown[900],
+                  icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                  label: Text('Field Ledger ($_selectedCount)',
+                      style: const TextStyle(color: Colors.white)),
+                ),
+              ],
             ),
     );
   }
