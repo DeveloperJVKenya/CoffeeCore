@@ -21,7 +21,19 @@
       "Bash(firebase functions:delete previewEudrDueDiligenceStatement --project coffeecore-7111a --force)",
       "Bash(curl -s -X POST https://us-central1-coffeecore-7111a.cloudfunctions.net/generateEudrDdsHandoffPackage -H 'Content-Type: application/json' -d '{\"data\": {}}')",
       "Bash(firebase functions:log --only runPlanetekDeforestationAnalysis -n 200)",
-      "Bash(firebase functions:log --only runPlanetekDeforestationAnalysis -n 300)"
+      "Bash(firebase functions:log --only runPlanetekDeforestationAnalysis -n 300)",
+      "Read(//c//**)",
+      "Bash(xargs -I{} grep -l \"class CustomPaint\" {})",
+      "Read(//c/Users/Administrator/AppData/Local/Pub/Cache/hosted/pub.dev/pdf-3.11.3/lib/src/widgets/**)",
+      "Read(//c/Users/Administrator/AppData/Local/Pub/Cache/hosted/pub.dev/pdf-3.11.3/lib/src/pdf/**)",
+      "Bash(grep -n \"class PdfColor\" -A 40 \"C:\\\\Users\\\\Administrator\\\\AppData\\\\Local\\\\Pub\\\\Cache\\\\hosted\\\\pub.dev\\\\pdf-3.11.3\\\\lib\\\\src\\\\pdf\\\\color.dart\" | head -60)",
+      "Bash(command -v pdftoppm)",
+      "Bash(command -v magick)",
+      "Bash(command -v convert)",
+      "Bash(dart run *)",
+      "Bash(cp \"C:/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-PROJECTFlutter-JVA-Projects-coffeecore/f56ed819-50d6-448f-ab4f-e3f5a7e0cfce/scratchpad/ledger_smoke_test.dart\" \"c:/Users/Administrator/PROJECTFlutter/JVA Projects/coffeecore/ledger_smoke_test_tmp.dart\")",
+      "Bash(flutter test *)",
+      "Bash(firebase functions:log --only runPlanetekDeforestationAnalysis -n 400)"
     ]
   }
 }
