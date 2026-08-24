@@ -1,8 +1,10 @@
 import 'dart:developer' as developer;
 import 'package:coffeecore/models/coffee_soil_data.dart';
+import 'package:coffeecore/models/fertilization_week.dart';
 import 'package:coffeecore/screens/Field%20Data/gemini_soil_ai_service.dart';
 import 'package:coffeecore/screens/Field%20Data/helpers/nutrient_analysis_helper.dart';
 import 'package:coffeecore/screens/Field%20Data/coffee_soil_summary_page.dart';
+import 'package:coffeecore/screens/Field%20Data/fertilization_plan_tracker_screen.dart';
 import 'package:coffeecore/screens/Weather%20Station/nuasense_service.dart';
 import 'package:coffeecore/screens/Weather%20Station/weather_station_inline_panel.dart';
 import 'package:flutter/material.dart';
@@ -672,6 +674,13 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
               _interventionFollowUpDate!,
               'Check soil after: $_interventionMethod',
             );
+
+            // Track each week as its own document + reminder — this is
+            // what powers the fertilization plan tracker screen, the
+            // scheduled push backstop (functions/index.js), and AgriPoints
+            // scoring. Independent of the plan-overview array above, which
+            // remains untouched for the existing summary/dialog UI.
+            await _createFertilizationWeekRecords(docId, plan.weeks);
           }
 
           // Show plan dialog.
@@ -842,6 +851,22 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Got it',
                 style: TextStyle(color: Color(0xFF4A2C2A))),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const FertilizationPlanTrackerScreen()),
+              );
+            },
+            icon: const Icon(Icons.checklist, size: 18),
+            label: const Text('Track Weekly Progress'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF3A5F0B),
+              foregroundColor: Colors.white,
+            ),
           ),
         ],
       ),
@@ -1894,6 +1919,62 @@ class _CoffeeSoilFormState extends State<CoffeeSoilForm> {
       );
     } catch (e, st) {
       developer.log('Error scheduling reminder: $e',
+          name: 'CoffeeSoilForm', error: e, stackTrace: st);
+    }
+  }
+
+  /// One `fertilization_weeks` document + one local notification per week,
+  /// due date spaced 7 days apart starting now (week 1 due immediately).
+  Future<void> _createFertilizationWeekRecords(
+      String soilDataId, List<FertilizationWeek> weeks) async {
+    final now = DateTime.now();
+    for (final week in weeks) {
+      final dueAt = now.add(Duration(days: 7 * (week.week - 1)));
+      try {
+        final record = FertilizationWeekRecord(
+          userId: widget.userId,
+          soilDataId: soilDataId,
+          weekNumber: week.week,
+          action: week.action,
+          product: week.product,
+          quantityKgPerAcre: week.quantityKgPerAcre,
+          quantityGPerPlant: week.quantityGPerPlant,
+          timing: week.timing,
+          notes: week.notes,
+          dueAt: dueAt,
+        );
+        final docRef = await FirebaseFirestore.instance
+            .collection('fertilization_weeks')
+            .add(record.toMap());
+        await _scheduleFertilizationWeekReminder(docRef.id, week, dueAt);
+      } catch (e, st) {
+        developer.log('Error creating fertilization week record: $e',
+            name: 'CoffeeSoilForm', error: e, stackTrace: st);
+      }
+    }
+  }
+
+  Future<void> _scheduleFertilizationWeekReminder(
+      String recordId, FertilizationWeek week, DateTime dueAt) async {
+    try {
+      const androidDetails = AndroidNotificationDetails(
+        'coffee_fertilizer_followup_channel',
+        'Fertilization Reminders',
+        channelDescription: 'Reminders for scheduled fertilizer applications',
+        importance: Importance.max,
+        priority: Priority.high,
+      );
+      const notificationDetails = NotificationDetails(android: androidDetails);
+      await widget.notificationsPlugin.zonedSchedule(
+        id: recordId.hashCode,
+        title: 'Week ${week.week} fertilization due',
+        body: '${week.action} — ${week.product}',
+        scheduledDate: tz.TZDateTime.from(dueAt, tz.local),
+        notificationDetails: notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      );
+    } catch (e, st) {
+      developer.log('Error scheduling fertilization week reminder: $e',
           name: 'CoffeeSoilForm', error: e, stackTrace: st);
     }
   }

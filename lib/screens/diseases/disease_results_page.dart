@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:coffeecore/screens/diseases/coffee_disease_intervention_page.dart';
 import 'package:coffeecore/screens/diseases/coffee_disease_management_page.dart';
 import 'package:coffeecore/screens/diseases/coffee_disease_models.dart';
 import 'package:coffeecore/screens/diseases/gemini_disease_ai_service.dart';
@@ -1188,6 +1189,44 @@ class _DiseaseResultsPageState extends State<DiseaseResultsPage>
               style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w700, fontSize: 14),
             ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              if (_resolvedDisease == null) return;
+              final localData = widget.localDiseaseData;
+              if (localData == null) {
+                debugPrint('[DiseaseResultsPage] ⚠️ Cannot open intervention — '
+                    'no local data found for "$_resolvedDisease".');
+                return;
+              }
+              debugPrint('[DiseaseResultsPage] 🌿 Opening intervention plan '
+                  'for "$_resolvedDisease".');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CoffeeDiseaseInterventionPage(
+                    diseaseData: localData,
+                    cropStage: _resolvedStage,
+                    notificationsPlugin: widget.notificationsPlugin,
+                  ),
+                ),
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _darkBrown,
+              side: const BorderSide(color: _darkBrown, width: 1.5),
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+            icon: const Icon(Icons.agriculture_rounded, size: 18),
+            label: Text('Start Intervention Plan',
+                style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w700, fontSize: 14)),
           ),
         ),
         const SizedBox(height: 12),

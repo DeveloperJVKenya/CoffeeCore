@@ -1,13 +1,30 @@
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:coffeecore/authentication/splashscreen.dart';
 import 'package:coffeecore/authentication/login.dart';
 import 'package:coffeecore/authentication/registration.dart';
 import 'package:coffeecore/home.dart';
+import 'package:coffeecore/services/push_notification_service.dart';
+import 'package:coffeecore/services/app_check_debug.dart';
 import 'firebase_options.dart';
 import 'package:flutter/services.dart';
+
+// Registered in Firebase Console > App Check > Web app > reCAPTCHA Enterprise.
+// Public site key — safe to embed client-side (same trust model as the Maps
+// key already hardcoded in web/index.html).
+const String _recaptchaEnterpriseSiteKey =
+    '6LfHZI8tAAAAAMJbmkWdhn14fUg1_uRo5f6qmYPK';
+
+/// App-level navigator key — needed so a notification tap (which has no
+/// BuildContext, especially on a cold start) can still push a screen. See
+/// PushNotificationService._handleTap.
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +40,31 @@ void main() async {
   } on FirebaseException catch (e) {
     if (e.code != 'duplicate-app') rethrow;
   }
+
+  // Must be activated before any Firebase AI Logic call (soil, pest, disease,
+  // chat) or the backend rejects the request with an App Check enforcement
+  // error. Debug provider is used in debug builds so local runs work without
+  // a registered attestation token; release builds use the real attesters
+  // configured in Firebase Console > App Check.
+  try {
+    if (kDebugMode) enableAppCheckDebugTokenForWeb();
+    await FirebaseAppCheck.instance.activate(
+      providerAndroid: kDebugMode
+          ? const AndroidDebugProvider()
+          : const AndroidPlayIntegrityProvider(),
+      providerApple: kDebugMode
+          ? const AppleDebugProvider()
+          : const AppleAppAttestProvider(),
+      providerWeb: ReCaptchaEnterpriseProvider(_recaptchaEnterpriseSiteKey),
+    );
+  } catch (e, stack) {
+    developer.log('Firebase App Check activation failed',
+        error: e, stackTrace: stack, name: 'main');
+  }
+
+  // Must be registered before runApp() so the plugin can dispatch to it
+  // when a push arrives with the app backgrounded/terminated.
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   // Enable edge-to-edge mode globally
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -48,6 +90,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'CoffeeCore',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -84,6 +127,7 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   bool _splashFinished = false;
+  bool _pushInitialized = false;
 
   // Captured once — FirebaseAuth.authStateChanges() returns a NEW Stream
   // object on every call (confirmed in firebase_auth's source; it isn't
@@ -121,6 +165,12 @@ class _AuthGateState extends State<AuthGate> {
         }
 
         if (snapshot.hasData && snapshot.data != null) {
+          if (!_pushInitialized) {
+            _pushInitialized = true;
+            // Fire-and-forget — a failure here (e.g. iOS not yet configured)
+            // must never block reaching HomePage.
+            PushNotificationService.initialize(navigatorKey);
+          }
           return const HomePage();
         }
 

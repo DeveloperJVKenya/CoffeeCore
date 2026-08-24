@@ -3,23 +3,26 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DISEASE IMAGE SEARCH SERVICE  —  v1
+// DISEASE IMAGE SEARCH SERVICE  —  v2
 //
 // Mirrors PestImageSearchService architecture exactly.
-// Sources (tried in order; only verified images are ever returned):
+// Source (the only one — every result is verified on coffee):
 //
-//   1. iNaturalist Observations API  — research-grade verified photos of pathogens
-//      and disease symptoms on coffee plants. Free · no API key.
+//   iNaturalist Observations API, coffee-qualified free-text search
+//      Research-grade verified photos of pathogens and disease symptoms,
+//      queried with a "coffee"/"Coffea" qualifier (or an explicit symptom
+//      query) so every result is confirmed to actually be on coffee — not
+//      just the correct pathogen photographed on an unrelated host plant.
+//      Free · no API key.
 //      https://api.inaturalist.org/v1/observations
 //
-//   2. iNaturalist Taxa API          — canonical representative photo per pathogen taxon.
-//      Free · no API key.
-//      https://api.inaturalist.org/v1/taxa
-//
-//   3. Wikipedia / Wikimedia Commons — disease article lead image (infobox thumbnail).
-//      Returns exactly 1 image per disease. Always correct by definition.
-//      Free · no API key.
-//      https://en.wikipedia.org/w/api.php
+// HOST-AGNOSTIC FALLBACKS REMOVED ENTIRELY (v2):
+//   Earlier versions fell back to a bare taxon_name query, the iNaturalist
+//   Taxa API's species-representative photo, and a Wikipedia infobox image
+//   when the coffee-qualified search came up short. All three can return the
+//   correct pathogen photographed on an unrelated host plant, which a farmer
+//   has no way to distinguish from a genuine coffee photo — so a disease with
+//   weak coffee-specific coverage now shows a "no images" state instead.
 //
 // DISEASE-SPECIFIC NOTES:
 //   • Many coffee diseases are caused by microscopic fungi — iNaturalist has
@@ -30,17 +33,14 @@ import 'package:http/http.dart' as http;
 // ─────────────────────────────────────────────────────────────────────────────
 
 const String _kINatBaseUrl = 'https://api.inaturalist.org/v1';
-const String _kWikiBaseUrl = 'https://en.wikipedia.org/w/api.php';
 const String _kUserAgent =
     'CoffeeCore/1.0 (Flutter; East Africa coffee disease management)';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PER-DISEASE CONFIGURATION
 //
-// taxonNames     Scientific name(s) for iNaturalist observations/taxa queries.
+// taxonNames     Scientific name(s) for iNaturalist observations queries.
 //                Use pathogen name — iNaturalist has observations of fungi/bacteria.
-//
-// wikipediaTitle Exact Wikipedia article title. Verified fallback image.
 //
 // symptomQuery   Optional plain-text search for iNaturalist observations of the
 //                disease symptoms on coffee plants where pathogen taxon is obscure.
@@ -48,12 +48,10 @@ const String _kUserAgent =
 
 class _DiseaseConfig {
   final List<String> taxonNames;
-  final String? wikipediaTitle;
   final String? symptomQuery;
 
   const _DiseaseConfig({
     required this.taxonNames,
-    this.wikipediaTitle,
     this.symptomQuery,
   });
 }
@@ -66,7 +64,6 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
       'Hemileia vastatrix', // coffee leaf rust — the specific pathogen
       'Hemileia', // genus — all Hemileia are rusts on coffee
     ],
-    wikipediaTitle: 'Coffee leaf rust',
     symptomQuery: 'coffee leaf rust orange spots Coffea arabica',
   ),
 
@@ -75,7 +72,6 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
       'Colletotrichum kahawae', // CBD pathogen — specific to coffee berries
       'Colletotrichum gloeosporioides', // broad Colletotrichum — anthracnose group
     ],
-    wikipediaTitle: 'Coffee berry disease',
     symptomQuery: 'Colletotrichum kahawae coffee berry black',
   ),
 
@@ -85,7 +81,6 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
       'Fusarium xylarioides', // anamorph — same fungus
       'Fusarium', // genus — wilt fusaria
     ],
-    wikipediaTitle: 'Coffee wilt disease',
   ),
 
   'Coffee Root Rot': _DiseaseConfig(
@@ -94,7 +89,6 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
       'Pythium', // damping-off / root rot genus
       'Fusarium solani', // fusarium root rot
     ],
-    wikipediaTitle: 'Phytophthora cinnamomi',
     symptomQuery: 'Phytophthora root rot coffee',
   ),
 
@@ -103,7 +97,6 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
       'Cercospora coffeicola', // brown eye spot pathogen — specific
       'Cercospora', // genus — all produce leaf spots
     ],
-    wikipediaTitle: 'Cercospora coffeicola',
     symptomQuery: 'Cercospora coffee leaf spot brown',
   ),
 
@@ -112,7 +105,6 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
       'Pythium', // primary damping-off genus
       'Rhizoctonia solani', // secondary damping-off fungus
     ],
-    wikipediaTitle: 'Damping off',
     symptomQuery: 'coffee seedling damping off nursery Pythium',
   ),
 
@@ -122,7 +114,6 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
       'Cladosporium', // broad sooty mold genus
       'Capnodiales', // sooty mold order — all are sooty molds
     ],
-    wikipediaTitle: 'Sooty mold',
     symptomQuery: 'sooty mold coffee black coating leaves',
   ),
 
@@ -130,7 +121,6 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
     taxonNames: [
       'Pseudomonas syringae', // bacterial blight pathogen group
     ],
-    wikipediaTitle: 'Pseudomonas syringae',
     symptomQuery: 'Pseudomonas coffee bacterial blight leaf spot',
   ),
 
@@ -139,7 +129,6 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
       'Colletotrichum gloeosporioides', // primary anthracnose species
       'Colletotrichum', // genus — all cause anthracnose
     ],
-    wikipediaTitle: 'Anthracnose',
     symptomQuery: 'Colletotrichum anthracnose coffee berry lesion',
   ),
 
@@ -148,7 +137,6 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
       'Rhizoctonia solani', // primary nursery blight pathogen
       'Pythium', // secondary damping-off pathogen
     ],
-    wikipediaTitle: 'Rhizoctonia solani',
     symptomQuery: 'Rhizoctonia seedling blight nursery',
   ),
 
@@ -159,7 +147,6 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
       'Penicillium', // green/blue mold genus — primary coffee storage mold
       'Aspergillus', // co-occurrence in storage
     ],
-    wikipediaTitle: 'Penicillium',
     symptomQuery: 'Penicillium mold green stored coffee beans',
   ),
 
@@ -169,7 +156,6 @@ const Map<String, _DiseaseConfig> _diseaseConfig = {
       'Aspergillus ochraceus', // secondary OTA producer
       'Aspergillus', // genus fallback
     ],
-    wikipediaTitle: 'Ochratoxin A',
     symptomQuery: 'Aspergillus coffee beans mold storage',
   ),
 };
@@ -220,49 +206,28 @@ class DiseaseImageSearchService {
     final urls = <String>[];
 
     if (config != null) {
-      // ── Source 1: iNaturalist Observations ──────────────────────────────
+      // ── Coffee-qualified text search only (symptom query, or an
+      //    auto-built "<taxon> coffee Coffea" fallback) ───────────────────
+      // The bare taxon_name, iNaturalist-Taxa-default-photo, and Wikipedia-
+      // infobox fallback tiers were removed entirely — genus-level entries
+      // (e.g. "Fusarium", "Aspergillus", "Pythium") are broad enough that an
+      // unqualified search returns that pathogen on ANY host worldwide, and a
+      // farmer has no way to tell that apart from a genuine coffee photo.
+      // Fewer images, but every one is confirmed to actually be on coffee.
       for (final taxon in config.taxonNames) {
         if (urls.length >= maxResults) break;
-        final fetched = await _iNatObservations(
-            taxonName: taxon, maxResults: maxResults - urls.length);
-        _mergeUnique(urls, fetched, maxResults);
-      }
-
-      // ── Source 1b: Symptom query observations ────────────────────────────
-      if (urls.length < maxResults && config.symptomQuery != null) {
+        final query = config.symptomQuery ?? '$taxon coffee Coffea';
         final fetched = await _iNatObservationsByText(
-            query: config.symptomQuery!, maxResults: maxResults - urls.length);
+            query: query, maxResults: maxResults - urls.length);
         _mergeUnique(urls, fetched, maxResults);
-      }
-
-      // ── Source 2: iNaturalist Taxa default photos ─────────────────────────
-      if (urls.length < maxResults) {
-        for (final taxon in config.taxonNames) {
-          if (urls.length >= maxResults) break;
-          final fetched = await _iNatTaxa(
-              query: taxon, maxResults: maxResults - urls.length);
-          _mergeUnique(urls, fetched, maxResults);
-        }
-      }
-
-      // ── Source 3: Wikipedia infobox image ────────────────────────────────
-      if (urls.length < maxResults && config.wikipediaTitle != null) {
-        final wikiUrl = await _wikipediaImage(config.wikipediaTitle!);
-        if (wikiUrl != null) _mergeUnique(urls, [wikiUrl], maxResults);
       }
     } else {
-      // ── Unknown disease — generic text search fallback ────────────────────
+      // ── Unknown disease — generic coffee-qualified text search ─────────────
       debugPrint('[DiseaseImageSearch] ℹ️ No config for "$diseaseName" — '
-          'using generic iNaturalist text search.');
+          'using generic coffee-qualified iNaturalist text search.');
       final generic = await _iNatObservationsByText(
           query: '$diseaseName coffee plant', maxResults: maxResults);
       _mergeUnique(urls, generic, maxResults);
-
-      // Wikipedia fallback using disease name directly
-      if (urls.length < maxResults) {
-        final wikiUrl = await _wikipediaImage(diseaseName);
-        if (wikiUrl != null) _mergeUnique(urls, [wikiUrl], maxResults);
-      }
     }
 
     debugPrint('[DiseaseImageSearch] ✅ Found ${urls.length} images for '
@@ -272,65 +237,11 @@ class DiseaseImageSearchService {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // SOURCE 1a — iNaturalist Observations by taxon name
-  // ══════════════════════════════════════════════════════════════════════════
-
-  static Future<List<String>> _iNatObservations({
-    required String taxonName,
-    required int maxResults,
-  }) async {
-    try {
-      final uri = Uri.parse('$_kINatBaseUrl/observations').replace(
-        queryParameters: {
-          'taxon_name': taxonName,
-          'quality_grade': 'research',
-          'photos': 'true',
-          'per_page': maxResults.clamp(1, 20).toString(),
-          'order_by': 'votes',
-          'order': 'desc',
-          'photo_licensed': 'true',
-        },
-      );
-
-      final response = await _client.get(uri, headers: {
-        'Accept': 'application/json',
-        'User-Agent': _kUserAgent,
-      }).timeout(const Duration(seconds: 14));
-
-      if (response.statusCode != 200) {
-        debugPrint('[DiseaseImageSearch] iNat obs HTTP ${response.statusCode} '
-            'for "$taxonName"');
-        return [];
-      }
-
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final results = (json['results'] as List<dynamic>?) ?? [];
-      final urls = <String>[];
-
-      for (final obs in results) {
-        if (urls.length >= maxResults) break;
-        final photos = (obs['photos'] as List<dynamic>?) ?? [];
-        for (final photo in photos) {
-          if (urls.length >= maxResults) break;
-          final raw = photo['url'] as String?;
-          if (raw == null || raw.isEmpty) continue;
-          final med = raw.contains('/square.')
-              ? raw.replaceFirst('/square.', '/medium.')
-              : raw;
-          if (med.startsWith('https://')) urls.add(med);
-        }
-      }
-
-      debugPrint('[DiseaseImageSearch] iNat obs "$taxonName" → ${urls.length}');
-      return urls;
-    } catch (e) {
-      debugPrint('[DiseaseImageSearch] iNat obs error "$taxonName": $e');
-      return [];
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // SOURCE 1b — iNaturalist Observations by plain text (symptom query)
+  // SOURCE — iNaturalist Observations by coffee-qualified plain text
+  //
+  // The only image source in this service — see the removal note where this
+  // is called for why the host-agnostic fallback tiers (bare taxon_name, iNat
+  // Taxa default photo, Wikipedia infobox) were dropped entirely.
   // ══════════════════════════════════════════════════════════════════════════
 
   static Future<List<String>> _iNatObservationsByText({
@@ -384,107 +295,6 @@ class DiseaseImageSearchService {
     } catch (e) {
       debugPrint('[DiseaseImageSearch] iNat text error "$query": $e');
       return [];
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // SOURCE 2 — iNaturalist Taxa API (default representative photo)
-  // ══════════════════════════════════════════════════════════════════════════
-
-  static Future<List<String>> _iNatTaxa({
-    required String query,
-    required int maxResults,
-  }) async {
-    try {
-      final uri = Uri.parse('$_kINatBaseUrl/taxa').replace(
-        queryParameters: {
-          'q': query,
-          'photos': 'true',
-          'per_page': maxResults.clamp(1, 5).toString(),
-        },
-      );
-
-      final response = await _client.get(uri, headers: {
-        'Accept': 'application/json',
-        'User-Agent': _kUserAgent,
-      }).timeout(const Duration(seconds: 12));
-
-      if (response.statusCode != 200) {
-        debugPrint('[DiseaseImageSearch] iNat taxa HTTP ${response.statusCode} '
-            'for "$query"');
-        return [];
-      }
-
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final results = (json['results'] as List<dynamic>?) ?? [];
-      final urls = <String>[];
-
-      for (final taxon in results) {
-        if (urls.length >= maxResults) break;
-        final dp = taxon['default_photo'] as Map<String, dynamic>?;
-        if (dp == null) continue;
-        String? url = (dp['medium_url'] ?? dp['url']) as String?;
-        if (url == null || url.isEmpty) continue;
-        if (url.contains('/square.')) {
-          url = url.replaceFirst('/square.', '/medium.');
-        }
-        if (url.startsWith('https://')) urls.add(url);
-      }
-
-      debugPrint('[DiseaseImageSearch] iNat taxa "$query" → ${urls.length}');
-      return urls;
-    } catch (e) {
-      debugPrint('[DiseaseImageSearch] iNat taxa error "$query": $e');
-      return [];
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // SOURCE 3 — Wikipedia page infobox image
-  // ══════════════════════════════════════════════════════════════════════════
-
-  static Future<String?> _wikipediaImage(String articleTitle) async {
-    try {
-      final uri = Uri.parse(_kWikiBaseUrl).replace(
-        queryParameters: {
-          'action': 'query',
-          'titles': articleTitle,
-          'prop': 'pageimages',
-          'format': 'json',
-          'pithumbsize': '640',
-          'pilicense': 'any',
-          'redirects': '1',
-        },
-      );
-
-      final response = await _client.get(uri, headers: {
-        'Accept': 'application/json',
-        'User-Agent': _kUserAgent,
-      }).timeout(const Duration(seconds: 12));
-
-      if (response.statusCode != 200) {
-        debugPrint('[DiseaseImageSearch] Wikipedia HTTP ${response.statusCode} '
-            'for "$articleTitle"');
-        return null;
-      }
-
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final pages = (json['query']?['pages'] as Map<String, dynamic>?) ?? {};
-
-      for (final page in pages.values) {
-        final source = page['thumbnail']?['source'] as String?;
-        if (source == null || source.isEmpty) continue;
-        if (!source.startsWith('https://')) continue;
-        final larger =
-            source.replaceAllMapped(RegExp(r'/(\d+)px-'), (_) => '/800px-');
-        debugPrint(
-            '[DiseaseImageSearch] Wikipedia ✅ image found for "$articleTitle"');
-        return larger;
-      }
-      return null;
-    } catch (e) {
-      debugPrint('[DiseaseImageSearch] Wikipedia error "$articleTitle": $e');
-      return null;
     }
   }
 

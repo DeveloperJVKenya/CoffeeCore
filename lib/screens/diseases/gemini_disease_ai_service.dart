@@ -3,11 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_ai/firebase_ai.dart';
 import '../../services/ai_error_helper.dart';
+import 'coffee_disease_management_page.dart' show kDiseaseDetails;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEMINI DISEASE AI SERVICE
 //
-// ✅ Uses firebase_ai package (FirebaseAI.googleAI()) — mirrors GeminiPestAiService.
+// ✅ Uses firebase_ai package (FirebaseAI.vertexAI()) — mirrors GeminiPestAiService.
 //    All prompts are tuned specifically for coffee diseases in East Africa.
 //    Supports:
 //      1. generateManagementDetails()  — full disease treatment plan (Paths A, B & Custom)
@@ -51,7 +52,7 @@ class GeminiDiseaseAiService {
 
     lastErrorMessage = null;
     try {
-      final model = FirebaseAI.googleAI().generativeModel(
+      final model = FirebaseAI.vertexAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.3,
@@ -135,7 +136,7 @@ class GeminiDiseaseAiService {
 
     lastErrorMessage = null;
     try {
-      final model = FirebaseAI.googleAI().generativeModel(
+      final model = FirebaseAI.vertexAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.2,
@@ -193,13 +194,47 @@ class GeminiDiseaseAiService {
   // PROMPT BUILDERS
   // ══════════════════════════════════════════════════════════════════════════
 
+  /// Builds the "VERIFIED REFERENCE DATA" grounding block from the static
+  /// `kDiseaseDetails` catalog when $diseaseName has a curated entry — the
+  /// retrieval half of this service's retrieval-augmented prompting.
+  static String _buildGroundingBlock(String diseaseName) {
+    final entry = kDiseaseDetails[diseaseName];
+    if (entry == null) return '';
+
+    final description = entry['description'] as String? ?? '';
+    final symptoms = entry['symptoms'] as String? ?? '';
+    final chemical = (entry['chemicalControls'] as List?)?.join(', ') ?? '';
+    final biological = (entry['biologicalControls'] as List?)?.join(', ') ?? '';
+    final cultural = (entry['culturalControls'] as List?)?.join(', ') ?? '';
+    final causes = (entry['possibleCauses'] as List?)?.join(', ') ?? '';
+    final preventive = (entry['preventiveMeasures'] as List?)?.join(', ') ?? '';
+
+    return '''
+
+VERIFIED REFERENCE DATA for "$diseaseName" (curated, confirmed accurate — use this as ground truth and stay consistent with it; you may add detail and rephrase for clarity, but do not contradict it):
+- Description: $description
+- Symptoms: $symptoms
+- Known chemical controls: $chemical
+- Known biological controls: $biological
+- Known cultural controls: $cultural
+- Known causes: $causes
+- Known preventive measures: $preventive
+''';
+  }
+
   static String _buildManagementPrompt(String diseaseName, String stage) {
+    final grounding = _buildGroundingBlock(diseaseName);
     return '''
 You are a specialist agricultural AI for coffee farming in East Africa (Kenya, Uganda, Tanzania, Ethiopia).
 
 Generate comprehensive disease management details for "$diseaseName" affecting coffee during the "$stage" stage.
 
 Your audience is a smallholder coffee farmer — use clear, practical, actionable language. Avoid overly academic terminology.
+$grounding
+SCOPE AND ACCURACY RULES:
+- Only describe how "$diseaseName" affects COFFEE specifically — do not describe its effects on other crops.
+- If "$diseaseName" is not a disease you can confidently confirm affects coffee plants, say so plainly in the "description" field (e.g. "This is not a commonly documented coffee disease in East Africa; the following is general guidance only") rather than inventing coffee-specific details you are not confident about.
+- Do not fabricate fungicide/bactericide product names — only list controls you have reasonable confidence are real, registered agricultural products.
 
 Return ONLY a valid JSON object with NO markdown, NO code fences, NO backticks. Start your response directly with { and end with }:
 

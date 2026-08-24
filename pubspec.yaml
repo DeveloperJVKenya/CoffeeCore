@@ -59,6 +59,8 @@ dependencies:
   flutter_riverpod: ^3.3.2
   riverpod_annotation: ^4.0.3
   cloud_functions: ^6.3.5
+  firebase_messaging: ^16.5.0
+  firebase_app_check: ^0.4.5+2
 
 dev_dependencies:
   flutter_test:

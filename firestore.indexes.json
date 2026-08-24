@@ -1,6 +1,24 @@
 {
   "indexes": [
     {
+      "collectionGroup": "fertilization_weeks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "completed", "order": "ASCENDING" },
+        { "fieldPath": "pushSent", "order": "ASCENDING" },
+        { "fieldPath": "dueAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fertilization_weeks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "dueAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "coffee_disease_interventions",
       "queryScope": "COLLECTION",
       "fields": [
@@ -23,6 +41,15 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "isDeleted", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "coffee_disease_interventions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "followUpCompleted", "order": "ASCENDING" },
+        { "fieldPath": "followUpPushSent", "order": "ASCENDING" },
+        { "fieldPath": "followUpDueAt", "order": "ASCENDING" }
       ]
     },
     {
@@ -58,6 +85,15 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "isDeleted", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "coffee_pest_interventions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "followUpCompleted", "order": "ASCENDING" },
+        { "fieldPath": "followUpPushSent", "order": "ASCENDING" },
+        { "fieldPath": "followUpDueAt", "order": "ASCENDING" }
       ]
     },
     {
@@ -343,6 +379,14 @@
       "fields": [
         { "fieldPath": "itemId", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "community_posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "upvote_count", "order": "DESCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
       ]
     },
     {

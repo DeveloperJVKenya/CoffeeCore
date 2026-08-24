@@ -1,5 +1,6 @@
 import 'package:coffeecore/screens/Symptom%20Analysis/coffee_symptom_checker_page.dart';
 import 'package:coffeecore/screens/diseases/coffee_disease_management_page.dart';
+import 'package:coffeecore/screens/farmer_compliance_screen.dart';
 import 'package:coffeecore/screens/pests/coffee_pest_management_page.dart';
 import 'package:flutter/material.dart';
 
@@ -9,6 +10,7 @@ const Color _coffeeBrown = Color(0xFF7B4B2A); // mid brown – brand
 const Color _cream = Color(0xFFF5EFE6); // warm off-white – background
 const Color _leafGreen = Color(0xFF5B8A4A); // plant / disease accent
 const Color _sapphire = Color(0xFF2C6E9B); // symptom-checker accent
+const Color _gold = Color(0xFFB0763F); // IPM score accent
 
 class PestDiseaseHomePage extends StatelessWidget {
   const PestDiseaseHomePage({super.key});
@@ -232,6 +234,16 @@ class _ActionCardsSection extends StatelessWidget {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const CoffeeSymptomCheckerPage()),
+        ),
+      ),
+      _ActionData(
+        title: 'My IPM Score',
+        subtitle: 'See how well you follow suggested solutions',
+        emoji: '🏆',
+        accentColor: _gold,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FarmerComplianceScreen()),
         ),
       ),
     ];

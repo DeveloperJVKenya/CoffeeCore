@@ -1,5 +1,6 @@
 import 'package:coffeecore/screens/Symptom%20Analysis/coffee_disease_symptom_analysis_page.dart';
 import 'package:coffeecore/screens/Symptom%20Analysis/coffee_pest_symptom_analysis_page.dart';
+import 'package:coffeecore/screens/Symptom%20Analysis/nutrient_deficiency_results_page.dart';
 import 'package:coffeecore/screens/Symptom%20Analysis/symptom_checker_ai_service.dart';
 import 'package:flutter/material.dart';
 
@@ -411,6 +412,73 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
           'cluster': 'unique'
         },
       ],
+      'Nutrient Deficiencies': [
+        {
+          'symptom': 'Uniform yellowing of older (lower) leaves',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Overall pale green foliage color, no spots or lesions',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Interveinal yellowing on older leaves (veins stay green)',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': '"Christmas tree" pattern of yellowing on the leaf blade',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Yellowing at leaf margins or tips of older leaves',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Brown, scorched leaf edges with no insects present',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Dark green leaves with a purple or reddish tinge',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Small, narrow leaves clustered at branch tips',
+          'weight': 1.0,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Interveinal chlorosis on young (new) leaves',
+          'weight': 0.8,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Distorted or hooked young leaves',
+          'weight': 0.9,
+          'cluster': 'unique'
+        },
+        {
+          'symptom': 'Brittle, malformed young leaves',
+          'weight': 0.7,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Premature leaf drop with no visible pest or lesion',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
+        {
+          'symptom': 'Stunted overall growth, no insect signs or lesions',
+          'weight': 0.6,
+          'cluster': 'shared'
+        },
+      ],
     },
     'Fruits': {
       'Pests': [
@@ -633,8 +701,9 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
   void initState() {
     super.initState();
     symptoms.forEach((section, categories) {
-      int totalSymptoms =
-          categories['Pests']!.length + categories['Diseases']!.length;
+      int totalSymptoms = categories['Pests']!.length +
+          categories['Diseases']!.length +
+          (categories['Nutrient Deficiencies']?.length ?? 0);
       selectedSymptoms[section] = List.filled(totalSymptoms, false);
     });
 
@@ -675,14 +744,20 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
 
     double pestScore = 0.0;
     double diseaseScore = 0.0;
+    double nutrientScore = 0.0;
     int totalSelected = 0;
     Map<String, List<Map<String, dynamic>>> symptomDetails = {};
 
     symptoms.forEach((section, categories) {
+      final nutrientSymptoms =
+          categories['Nutrient Deficiencies'] ?? const <Map<String, dynamic>>[];
       List<Map<String, dynamic>> allSymptoms = [
         ...categories['Pests']!,
-        ...categories['Diseases']!
+        ...categories['Diseases']!,
+        ...nutrientSymptoms,
       ];
+      final pestsLength = categories['Pests']!.length;
+      final diseasesEnd = pestsLength + categories['Diseases']!.length;
       symptomDetails[section] = [];
       for (int i = 0; i < allSymptoms.length; i++) {
         if (selectedSymptoms[section]![i]) {
@@ -692,10 +767,12 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
           if (allSymptoms[i]['cluster'] == 'unique') {
             weight *= 1.2; // Boost unique symptoms
           }
-          if (i < categories['Pests']!.length) {
+          if (i < pestsLength) {
             pestScore += weight;
-          } else {
+          } else if (i < diseasesEnd) {
             diseaseScore += weight;
+          } else {
+            nutrientScore += weight;
           }
         }
       }
@@ -708,11 +785,13 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
       resultMessage = 'Please select at least one symptom to analyze.';
       navigationButton = const SizedBox.shrink();
     } else {
-      double totalScore = pestScore + diseaseScore;
+      double totalScore = pestScore + diseaseScore + nutrientScore;
       double pestPercentage =
           totalScore > 0 ? (pestScore / totalScore) * 100 : 0;
       double diseasePercentage =
           totalScore > 0 ? (diseaseScore / totalScore) * 100 : 0;
+      double nutrientPercentage =
+          totalScore > 0 ? (nutrientScore / totalScore) * 100 : 0;
 
       StringBuffer details = StringBuffer();
       symptomDetails.forEach((section, symptoms) {
@@ -721,6 +800,7 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
           for (var symptom in symptoms) {
             bool isPest = false;
             bool isDisease = false;
+            bool isNutrient = false;
             if (this
                 .symptoms[section]!['Pests']!
                 .any((s) => s['symptom'] == symptom['symptom'])) {
@@ -731,22 +811,30 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
                 .any((s) => s['symptom'] == symptom['symptom'])) {
               isDisease = true;
             }
-            String type = isPest && isDisease
-                ? 'Pest & Disease'
-                : isPest
-                    ? 'Pest'
-                    : 'Disease';
+            if ((this.symptoms[section]!['Nutrient Deficiencies'] ??
+                    const <Map<String, dynamic>>[])
+                .any((s) => s['symptom'] == symptom['symptom'])) {
+              isNutrient = true;
+            }
+            final types = [
+              if (isPest) 'Pest',
+              if (isDisease) 'Disease',
+              if (isNutrient) 'Nutrient Deficiency',
+            ];
+            final type = types.isEmpty ? 'Unknown' : types.join(' & ');
             details.writeln(
                 '  • ${symptom['symptom']} ($type, Weight: ${symptom['weight']}, Cluster: ${symptom['cluster']})');
           }
         }
       });
 
-      // ── Sequential first distinguishment: pest or disease? ──────────────
+      // ── Sequential first distinguishment: pest, disease, or nutrient
+      // deficiency? ─────────────────────────────────────────────────────
       // RAG-grounded: retrieval (keyword overlap over kPestDetails/
-      // kDiseaseDetails) + Gemini reasoning, replacing the old fixed-margin
-      // score comparison as the primary decision. Falls back to that same
-      // arithmetic when offline or the AI call fails.
+      // kDiseaseDetails/kNutrientDeficiencyDetails) + Gemini reasoning,
+      // replacing the old fixed-margin score comparison as the primary
+      // decision. Falls back to that same arithmetic when offline or the
+      // AI call fails.
       final flatSymptoms = <String>[
         for (final list in symptomDetails.values)
           for (final s in list) s['symptom'] as String,
@@ -758,15 +846,20 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
 
       bool routePest;
       bool routeDisease;
+      bool routeNutrient;
       String aiNote;
       if (classification != null) {
         routePest = classification.category == 'pest';
         routeDisease = classification.category == 'disease';
+        routeNutrient = classification.category == 'nutrient_deficiency';
         aiNote = '\n\nAI analysis (${classification.confidence}% '
             'confidence): ${classification.reasoning}';
       } else {
-        routePest = pestScore > diseaseScore + 0.5;
-        routeDisease = diseaseScore > pestScore + 0.5;
+        final maxScore = [pestScore, diseaseScore, nutrientScore]
+            .reduce((a, b) => a > b ? a : b);
+        routePest = maxScore > 0 && pestScore >= maxScore - 0.5;
+        routeDisease = maxScore > 0 && diseaseScore >= maxScore - 0.5;
+        routeNutrient = maxScore > 0 && nutrientScore >= maxScore - 0.5;
         final offlineReason = SymptomCheckerAiService.lastErrorMessage;
         aiNote = '\n\n(Standard matching used — '
             '${offlineReason ?? "AI insight unavailable offline"}.)';
@@ -774,79 +867,83 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
 
       resultMessage = 'Analysis Results:\n'
           'Pest-related symptoms: ${pestPercentage.toStringAsFixed(1)}% (Score: ${pestScore.toStringAsFixed(1)})\n'
-          'Disease-related symptoms: ${diseasePercentage.toStringAsFixed(1)}% (Score: ${diseaseScore.toStringAsFixed(1)})\n\n'
+          'Disease-related symptoms: ${diseasePercentage.toStringAsFixed(1)}% (Score: ${diseaseScore.toStringAsFixed(1)})\n'
+          'Nutrient deficiency indicators: ${nutrientPercentage.toStringAsFixed(1)}% (Score: ${nutrientScore.toStringAsFixed(1)})\n\n'
           'Selected Symptoms:\n${details.toString()}';
 
-      if (routePest && !routeDisease) {
+      final routedCount =
+          [routePest, routeDisease, routeNutrient].where((r) => r).length;
+      if (routedCount == 1) {
+        final label = routePest
+            ? 'pest'
+            : routeDisease
+                ? 'disease'
+                : 'nutrient deficiency';
         resultMessage +=
-            '\nThe symptoms lean toward a pest issue. Proceed to pest analysis for details.$aiNote';
-        navigationButton = ElevatedButton(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CoffeePestSymptomAnalysisPage(
-                  selectedSymptoms: _getSelectedSymptoms()),
-            ),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: coffeeBrown,
-            foregroundColor: Colors.white,
-          ),
-          child: const Text('Analyze Pests Further'),
-        );
-      } else if (routeDisease && !routePest) {
-        resultMessage +=
-            '\nThe symptoms lean toward a disease issue. Proceed to disease analysis for details.$aiNote';
-        navigationButton = ElevatedButton(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CoffeeDiseaseSymptomAnalysisPage(
-                  selectedSymptoms: _getSelectedSymptoms()),
-            ),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: coffeeBrown,
-            foregroundColor: Colors.white,
-          ),
-          child: const Text('Analyze Diseases Further'),
-        );
+            '\nThe symptoms lean toward a $label issue. Proceed below for details.$aiNote';
       } else {
         resultMessage +=
-            '\nThe symptoms are inconclusive due to overlap. Explore both pest and disease analysis.$aiNote';
-        navigationButton = Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => CoffeePestSymptomAnalysisPage(
-                        selectedSymptoms: _getSelectedSymptoms())),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: coffeeBrown,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Pests'),
-            ),
-            const SizedBox(width: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => CoffeeDiseaseSymptomAnalysisPage(
-                        selectedSymptoms: _getSelectedSymptoms())),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: coffeeBrown,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Diseases'),
-            ),
-          ],
-        );
+            '\nThe symptoms are inconclusive due to overlap. Explore the options below.$aiNote';
       }
+
+      final buttons = <Widget>[
+        if (routePest)
+          ElevatedButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CoffeePestSymptomAnalysisPage(
+                    selectedSymptoms: _getSelectedSymptoms()),
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: coffeeBrown,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(routedCount == 1 ? 'Analyze Pests Further' : 'Pests'),
+          ),
+        if (routeDisease)
+          ElevatedButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CoffeeDiseaseSymptomAnalysisPage(
+                    selectedSymptoms: _getSelectedSymptoms()),
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: coffeeBrown,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+                routedCount == 1 ? 'Analyze Diseases Further' : 'Diseases'),
+          ),
+        if (routeNutrient)
+          ElevatedButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => NutrientDeficiencyResultsPage(
+                    selectedSymptoms: flatSymptoms),
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: coffeeBrown,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+                routedCount == 1 ? 'Check Nutrient Deficiency' : 'Nutrients'),
+          ),
+      ];
+
+      navigationButton = buttons.isEmpty
+          ? const SizedBox.shrink()
+          : Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 16,
+              runSpacing: 8,
+              children: buttons,
+            );
     }
 
     setState(() => _isLoading = false);
@@ -902,7 +999,9 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
     symptoms.forEach((section, categories) {
       List<Map<String, dynamic>> allSymptoms = [
         ...categories['Pests']!,
-        ...categories['Diseases']!
+        ...categories['Diseases']!,
+        ...(categories['Nutrient Deficiencies'] ??
+            const <Map<String, dynamic>>[]),
       ];
       selected[section] = allSymptoms
           .asMap()
@@ -997,7 +1096,13 @@ class _CoffeeSymptomCheckerPageState extends State<CoffeeSymptomCheckerPage>
   Widget _buildSection(String section) {
     final pestSymptoms = symptoms[section]!['Pests']!;
     final diseaseSymptoms = symptoms[section]!['Diseases']!;
-    final allSymptoms = [...pestSymptoms, ...diseaseSymptoms];
+    final nutrientSymptoms = symptoms[section]!['Nutrient Deficiencies'] ??
+        const <Map<String, dynamic>>[];
+    final allSymptoms = [
+      ...pestSymptoms,
+      ...diseaseSymptoms,
+      ...nutrientSymptoms
+    ];
 
     return Card(
       elevation: 4,

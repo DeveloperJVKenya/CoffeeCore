@@ -1,3 +1,4 @@
+import 'package:coffeecore/home.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,6 +22,8 @@ import 'create_post_screen.dart';
 /// Breakpoint above which the feed switches from a single column to a
 /// responsive grid — tablets and unfolded foldables land above this.
 const _tabletBreakpoint = 700.0;
+const _kHeaderDark = Color(0xFF4E342E);
+const _kHeaderLight = Color(0xFFA1785C);
 
 class CommunityFeedScreen extends ConsumerStatefulWidget {
   const CommunityFeedScreen({super.key});
@@ -99,6 +102,7 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
     final strings = CommunityStrings.of(ref);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F0EE),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 250),
         switchInCurve: Curves.easeOut,
@@ -122,8 +126,79 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
               controller: _scrollController,
               slivers: [
                 SliverAppBar(
+                  expandedHeight: 130,
+                  floating: true,
                   pinned: true,
-                  title: Text(strings.communityTitle),
+                  elevation: 0,
+                  backgroundColor: _kHeaderDark,
+                  automaticallyImplyLeading: false,
+                  iconTheme: const IconThemeData(color: Colors.white),
+                  leading: InkResponse(
+                    onTap: () => Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const HomePage()),
+                      (route) => false,
+                    ),
+                    radius: 20,
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child:
+                          Icon(Icons.arrow_back, color: Colors.white, size: 22),
+                    ),
+                  ),
+                  flexibleSpace: FlexibleSpaceBar(
+                    titlePadding:
+                        const EdgeInsets.only(left: 45, right: 20, bottom: 16),
+                    title: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.forum_rounded,
+                            color: Colors.white, size: 22),
+                        const SizedBox(width: 10),
+                        Text(
+                          strings.communityTitle,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                    background: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [_kHeaderLight, _kHeaderDark],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            right: -30,
+                            top: -20,
+                            child: Icon(Icons.local_cafe,
+                                size: 180,
+                                color: Colors.white.withValues(alpha: 0.08)),
+                          ),
+                          Positioned(
+                            left: 45,
+                            bottom: 56,
+                            child: Text(
+                              'Grow together, ask, share, thrive',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.white.withValues(alpha: 0.7),
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   actions: [
                     _LocaleToggleAction(),
                     _NotificationBellAction(),
@@ -138,28 +213,81 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
                       icon: const Icon(Icons.mail_outline),
                       tooltip: strings.directMessages,
                     ),
+                    const SizedBox(width: 4),
                   ],
-                  bottom: PreferredSize(
-                    preferredSize: const Size.fromHeight(90),
-                    child: FilterBarWidget(
-                      sort: state.sort,
-                      categoryFilter: state.categoryFilter,
-                      cropFilter: state.cropFilter,
-                      onSortChanged: (SortOption sort) => ref
-                          .read(communityFeedProvider.notifier)
-                          .updateSort(sort),
-                      onCategoryChanged: (category) => ref
-                          .read(communityFeedProvider.notifier)
-                          .updateCategoryFilter(category),
-                      onCropChanged: (crop) => ref
-                          .read(communityFeedProvider.notifier)
-                          .updateCropFilter(crop),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.shade300.withValues(alpha: 0.5),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: FilterBarWidget(
+                        sort: state.sort,
+                        categoryFilter: state.categoryFilter,
+                        cropFilter: state.cropFilter,
+                        onSortChanged: (SortOption sort) => ref
+                            .read(communityFeedProvider.notifier)
+                            .updateSort(sort),
+                        onCategoryChanged: (category) => ref
+                            .read(communityFeedProvider.notifier)
+                            .updateCategoryFilter(category),
+                        onCropChanged: (crop) => ref
+                            .read(communityFeedProvider.notifier)
+                            .updateCropFilter(crop),
+                      ),
                     ),
                   ),
                 ),
                 if (state.posts.isEmpty)
                   SliverFillRemaining(
-                    child: Center(child: Text(strings.noPostsYet)),
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: _kHeaderLight.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.forum_outlined,
+                                  size: 40, color: Colors.brown[400]),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              strings.noPostsYet,
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.brown[700]),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Be the first to share something with the community.',
+                              style: TextStyle(
+                                  fontSize: 13, color: Colors.grey[600]),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   )
                 else
                   _ResponsivePostList(
@@ -181,8 +309,14 @@ class _CommunityFeedScreenState extends ConsumerState<CommunityFeedScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openCreatePost(context),
+        backgroundColor: Colors.brown[700],
+        foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: Text(strings.newPost),
+        label: Text(
+          strings.newPost,
+          style:
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }

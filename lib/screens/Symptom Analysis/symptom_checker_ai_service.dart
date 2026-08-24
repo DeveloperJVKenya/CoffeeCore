@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../../services/ai_error_helper.dart';
 import '../pests/coffee_pest_management_page.dart' show kPestDetails;
 import '../diseases/coffee_disease_management_page.dart' show kDiseaseDetails;
+import 'nutrient_deficiency_details.dart' show kNutrientDeficiencyDetails;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SYMPTOM CHECKER AI SERVICE
@@ -29,9 +30,10 @@ import '../diseases/coffee_disease_management_page.dart' show kDiseaseDetails;
 // signature — see GeminiSoilAiService for the same caching convention.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Result of the pest-vs-disease classification step.
+/// Result of the pest/disease/nutrient-deficiency classification step.
 class PestOrDiseaseClassification {
-  final String category; // 'pest' | 'disease' | 'uncertain'
+  final String
+      category; // 'pest' | 'disease' | 'nutrient_deficiency' | 'uncertain'
   final int confidence; // 0-100
   final String reasoning;
 
@@ -135,6 +137,17 @@ class SymptomCheckerAiService {
   }) =>
       _rank(selectedSymptoms, kDiseaseDetails, topK);
 
+  /// Deliberately no equivalent `identifySpecificMatch` caller for nutrients
+  /// — see the module doc comment in nutrient_deficiency_details.dart. Two
+  /// deficiencies can look nearly identical from visual symptoms alone, so
+  /// the result page shows the top-ranked candidates rather than forcing a
+  /// single best match the way pests/diseases do.
+  static List<SymptomCandidate> rankNutrientCandidates(
+    List<String> selectedSymptoms, {
+    int topK = 2,
+  }) =>
+      _rank(selectedSymptoms, kNutrientDeficiencyDetails, topK);
+
   static List<SymptomCandidate> _rank(
     List<String> selectedSymptoms,
     Map<String, Map<String, dynamic>> catalog,
@@ -196,7 +209,10 @@ class SymptomCheckerAiService {
 
     final pestCandidates = rankPestCandidates(selectedSymptoms);
     final diseaseCandidates = rankDiseaseCandidates(selectedSymptoms);
-    if (pestCandidates.isEmpty && diseaseCandidates.isEmpty) {
+    final nutrientCandidates = rankNutrientCandidates(selectedSymptoms);
+    if (pestCandidates.isEmpty &&
+        diseaseCandidates.isEmpty &&
+        nutrientCandidates.isEmpty) {
       debugPrint('[SymptomCheckerAI] ⚠️ No local candidates to ground '
           'classification — skipping AI call.');
       return null;
@@ -214,14 +230,15 @@ class SymptomCheckerAiService {
       return null;
     }
 
-    debugPrint('[SymptomCheckerAI] 🤖 Calling Gemini — pest-vs-disease '
+    debugPrint('[SymptomCheckerAI] 🤖 Calling Gemini — symptom '
         'classification (${selectedSymptoms.length} symptoms, '
         '${pestCandidates.length} pest / ${diseaseCandidates.length} '
-        'disease candidates retrieved)');
+        'disease / ${nutrientCandidates.length} nutrient candidates '
+        'retrieved)');
 
     lastErrorMessage = null;
     try {
-      final model = FirebaseAI.googleAI().generativeModel(
+      final model = FirebaseAI.vertexAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.2,
@@ -230,8 +247,8 @@ class SymptomCheckerAiService {
       );
 
       final response = await model.generateContent([
-        Content.text(_buildClassificationPrompt(
-            selectedSymptoms, pestCandidates, diseaseCandidates)),
+        Content.text(_buildClassificationPrompt(selectedSymptoms,
+            pestCandidates, diseaseCandidates, nutrientCandidates)),
       ]);
       final rawText = response.text ?? '';
       if (rawText.isEmpty) {
@@ -297,7 +314,7 @@ class SymptomCheckerAiService {
 
     lastErrorMessage = null;
     try {
-      final model = FirebaseAI.googleAI().generativeModel(
+      final model = FirebaseAI.vertexAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.2,
@@ -365,6 +382,7 @@ class SymptomCheckerAiService {
     List<String> selectedSymptoms,
     List<SymptomCandidate> pestCandidates,
     List<SymptomCandidate> diseaseCandidates,
+    List<SymptomCandidate> nutrientCandidates,
   ) {
     return '''
 You are an expert coffee crop-health diagnostician for East African smallholder farms (Kenya, Uganda, Tanzania, Ethiopia).
@@ -378,11 +396,14 @@ ${pestCandidates.isEmpty ? '(none closely matched)' : _candidateBlock(pestCandid
 Candidate DISEASES (fungal/bacterial/viral) that share some of these symptoms:
 ${diseaseCandidates.isEmpty ? '(none closely matched)' : _candidateBlock(diseaseCandidates)}
 
-Task: decide whether these symptoms, taken together, more likely point to a PEST problem or a DISEASE problem — or whether it is genuinely ambiguous given the overlap. Base your reasoning on real agronomic patterns (e.g. clean entry holes/frass/visible insects point to pests; lesions/mold/wilting-with-no-insect-signs point to disease).
+Candidate NUTRIENT DEFICIENCIES that share some of these symptoms:
+${nutrientCandidates.isEmpty ? '(none closely matched)' : _candidateBlock(nutrientCandidates)}
+
+Task: decide whether these symptoms, taken together, more likely point to a PEST problem, a DISEASE problem, a NUTRIENT DEFICIENCY — or whether it is genuinely ambiguous given the overlap. Base your reasoning on real agronomic patterns: clean entry holes/frass/visible insects point to pests; lesions/mold/wilting-with-no-insect-signs point to disease; symmetric, gradual, whole-plant discoloration patterns (especially confined to older OR only younger leaves, without lesions or insect signs) point to a nutrient deficiency.
 
 Return ONLY valid JSON. Start with { and end with }. No markdown, no code fences.
 {
-  "category": "<pest|disease|uncertain>",
+  "category": "<pest|disease|nutrient_deficiency|uncertain>",
   "confidence": <integer 0-100>,
   "reasoning": "<1-2 sentence practical explanation a smallholder farmer can understand, no jargon>"
 }

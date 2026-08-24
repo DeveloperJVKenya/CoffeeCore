@@ -27,7 +27,9 @@ service cloud.firestore {
     }
 
     function getCoopAdminCooperative() {
-      return get(/databases/$(database)/documents/CoopAdmins/$(request.auth.uid)).data.cooperative;
+      return exists(/databases/$(database)/documents/CoopAdmins/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/CoopAdmins/$(request.auth.uid)).data.cooperative
+        : null;
     }
 
     function isAnyCoopAdmin() {
@@ -442,10 +444,12 @@ service cloud.firestore {
                       (resource.data.userId != null &&
                         isCoopAdmin(getCoopAdminCooperative()) &&
                         isUserInCoop(getCoopAdminCooperative(), resource.data.userId)));
-      allow delete: if isAdmin() ||
+      allow delete: if isAuthenticated() &&
+                      (request.auth.uid == resource.data.userId ||
+                      isAdmin() ||
                       (resource.data.userId != null &&
                       isCoopAdmin(getCoopAdminCooperative()) &&
-                      isUserInCoop(getCoopAdminCooperative(), resource.data.userId));
+                      isUserInCoop(getCoopAdminCooperative(), resource.data.userId)));
     }
 
     // Coffee disease interventions
@@ -474,6 +478,55 @@ service cloud.firestore {
                       (resource.data.userId != null &&
                         isCoopAdmin(getCoopAdminCooperative()) &&
                         isUserInCoop(getCoopAdminCooperative(), resource.data.userId)));
+    }
+
+    // Pest diagnoses (AI-scanned pest history) — one document per user,
+    // sub-collection of individual diagnosis records.
+    match /pest_diagnoses/{userId} {
+      match /diagnoses/{diagnosisId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow read: if isAdmin();
+        allow read: if isCoopAdmin(getCoopAdminCooperative()) &&
+                      isUserInCoop(getCoopAdminCooperative(), userId);
+        allow create, update, delete: if isAuthenticated() && request.auth.uid == userId;
+      }
+    }
+
+    // Disease diagnoses (AI-scanned disease history) — mirrors pest_diagnoses.
+    match /disease_diagnoses/{userId} {
+      match /diagnoses/{diagnosisId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow read: if isAdmin();
+        allow read: if isCoopAdmin(getCoopAdminCooperative()) &&
+                      isUserInCoop(getCoopAdminCooperative(), userId);
+        allow create, update, delete: if isAuthenticated() && request.auth.uid == userId;
+      }
+    }
+
+    // Fertilization plan weeks (per-week follow-up tracking)
+    match /fertilization_weeks/{documentId} {
+      allow read: if isAuthenticated() &&
+                  (request.auth.uid == resource.data.userId ||
+                    isAdmin() ||
+                    (resource.data.userId != null &&
+                    isCoopAdmin(getCoopAdminCooperative()) &&
+                    isUserInCoop(getCoopAdminCooperative(), resource.data.userId)));
+      allow create: if isAuthenticated() &&
+                      (request.auth.uid == request.resource.data.userId ||
+                      isAdmin() ||
+                      (request.resource.data.userId != null &&
+                        isCoopAdmin(getCoopAdminCooperative()) &&
+                        isUserInCoop(getCoopAdminCooperative(), request.resource.data.userId)));
+      allow update: if isAuthenticated() &&
+                      (request.auth.uid == resource.data.userId ||
+                      isAdmin() ||
+                      (resource.data.userId != null &&
+                        isCoopAdmin(getCoopAdminCooperative()) &&
+                        isUserInCoop(getCoopAdminCooperative(), resource.data.userId)));
+      allow delete: if isAdmin() ||
+                      (resource.data.userId != null &&
+                      isCoopAdmin(getCoopAdminCooperative()) &&
+                      isUserInCoop(getCoopAdminCooperative(), resource.data.userId));
     }
 
     // Admin logs

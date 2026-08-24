@@ -17,6 +17,7 @@ class CoffeeDiseaseData {
   final List<String> possibleCauses;
   final List<String> preventiveMeasures;
   final List<String> lifecycleImages;
+  final List<String> mechanicalControls;
 
   const CoffeeDiseaseData({
     required this.name,
@@ -28,7 +29,7 @@ class CoffeeDiseaseData {
     required this.possibleCauses,
     required this.preventiveMeasures,
     required this.lifecycleImages,
-    required List<dynamic> mechanicalControls,
+    required this.mechanicalControls,
   });
 
   /// Converts the local data into the same map format returned by Gemini AI
@@ -55,6 +56,7 @@ class CoffeeDiseaseData {
     List<String>? possibleCauses,
     List<String>? preventiveMeasures,
     List<String>? lifecycleImages,
+    List<String>? mechanicalControls,
   }) {
     return CoffeeDiseaseData(
       name: name ?? this.name,
@@ -66,7 +68,7 @@ class CoffeeDiseaseData {
       possibleCauses: possibleCauses ?? this.possibleCauses,
       preventiveMeasures: preventiveMeasures ?? this.preventiveMeasures,
       lifecycleImages: lifecycleImages ?? this.lifecycleImages,
-      mechanicalControls: [],
+      mechanicalControls: mechanicalControls ?? this.mechanicalControls,
     );
   }
 

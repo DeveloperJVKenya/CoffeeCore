@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:coffeecore/models/coffee_pest_models.dart';
+import 'package:coffeecore/screens/pests/pest_followup_checkin_page.dart';
 import 'package:logger/logger.dart';
 import 'package:timezone/timezone.dart' as tz;
 
@@ -108,6 +109,25 @@ class _CoffeeViewInterventionsPageState
                             'Area: ${intervention.area ?? "N/A"} ${intervention.areaUnit}'),
                         Text(
                             'Saved: ${intervention.timestamp.toDate().toString()}'),
+                        if (intervention.followUpDueAt != null &&
+                            !intervention.followUpCompleted) ...[
+                          const SizedBox(height: 8),
+                          _FollowUpBadge(
+                            dueAt: intervention.followUpDueAt!,
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PestFollowUpCheckinPage(
+                                    intervention: intervention,
+                                    notificationsPlugin:
+                                        widget.notificationsPlugin,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -351,5 +371,52 @@ class _CoffeeViewInterventionsPageState
         }
       }
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// "Due for follow-up check-in" badge — amber once overdue, grey beforehand.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FollowUpBadge extends StatelessWidget {
+  final DateTime dueAt;
+  final VoidCallback onTap;
+
+  const _FollowUpBadge({required this.dueAt, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final overdue = DateTime.now().isAfter(dueAt);
+    final color = overdue ? Colors.orange.shade800 : Colors.blueGrey;
+    return Material(
+      color: color.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                  overdue
+                      ? Icons.notifications_active_rounded
+                      : Icons.schedule_rounded,
+                  size: 14,
+                  color: color),
+              const SizedBox(width: 6),
+              Text(
+                overdue
+                    ? 'Check-in due — tap to update'
+                    : 'Check-in scheduled: ${dueAt.day}/${dueAt.month}/${dueAt.year}',
+                style: TextStyle(
+                    fontSize: 11.5, fontWeight: FontWeight.w700, color: color),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

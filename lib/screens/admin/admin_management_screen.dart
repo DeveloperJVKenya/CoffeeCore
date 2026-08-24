@@ -6,6 +6,7 @@ import 'package:coffeecore/screens/admin/filter_users_screen.dart';
 import 'package:logger/logger.dart';
 import 'package:coffeecore/screens/admin/collection_management_screen.dart';
 import 'package:coffeecore/screens/admin/farm_geojson_export_screen.dart';
+import 'package:coffeecore/screens/admin/pest_disease_trends_screen.dart';
 
 class AdminManagementScreen extends StatefulWidget {
   const AdminManagementScreen({super.key});
@@ -212,6 +213,13 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                 context,
                 MaterialPageRoute(
                     builder: (context) => const FarmGeoJsonExportScreen()))),
+        _buildOptionCard(
+            'Pest & Disease Trends',
+            Icons.query_stats,
+            () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const PestDiseaseTrendsScreen()))),
       ],
     );
   }

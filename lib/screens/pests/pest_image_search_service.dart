@@ -3,27 +3,24 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PEST IMAGE SEARCH SERVICE  —  v4
+// PEST IMAGE SEARCH SERVICE  —  v5
 //
-// SOURCES (tried in order; only verified images are ever returned):
+// SOURCE (the only one — every result is verified on coffee):
 //
-//   1. iNaturalist Observations API  — research-grade verified photos
-//      Every photo is peer-reviewed by multiple expert identifiers.
-//      Accuracy is guaranteed at the data-source level — wrong images are
-//      impossible because "Spodoptera exigua larva" can ONLY be that species.
+//   iNaturalist Observations API, coffee-qualified free-text search
+//      Every photo is peer-reviewed by multiple expert identifiers AND the
+//      query is qualified with "coffee Coffea", so a returned observation is
+//      both the correct species and actually on a coffee plant.
 //      Free · no API key · 100 req/min
 //      https://api.inaturalist.org/v1/observations
 //
-//   2. iNaturalist Taxa API          — canonical species representative photo
-//      The single best community-selected image per species/genus.
-//      Free · no API key
-//      https://api.inaturalist.org/v1/taxa
-//
-//   3. Wikipedia / Wikimedia Commons — guaranteed-correct article lead image
-//      The infobox photo from the species Wikipedia article.
-//      Returns exactly 1 image per pest. Always correct by definition.
-//      Free · no API key
-//      https://en.wikipedia.org/w/api.php
+// HOST-AGNOSTIC FALLBACKS REMOVED ENTIRELY (v5):
+//   Earlier versions fell back to a bare taxon_name query, the iNaturalist
+//   Taxa API's species-representative photo, and a Wikipedia infobox image
+//   when the coffee-qualified search came up short. All three can return the
+//   correct species/pathogen photographed on an unrelated host plant, which a
+//   farmer has no way to distinguish from a genuine coffee photo — so a pest
+//   with weak coffee-specific coverage now shows a "no images" state instead.
 //
 // PIXABAY REMOVED ENTIRELY (v4):
 //   A general stock photography site has almost no correctly-tagged photos of
@@ -39,7 +36,6 @@ import 'package:http/http.dart' as http;
 // ─────────────────────────────────────────────────────────────────────────────
 
 const String _kINatBaseUrl = 'https://api.inaturalist.org/v1';
-const String _kWikiBaseUrl = 'https://en.wikipedia.org/w/api.php';
 const String _kUserAgent =
     'CoffeeCore/4.0 (Flutter; East Africa coffee pest management)';
 
@@ -54,9 +50,6 @@ const String _kValueLarva = '6'; // term_value_id = "Larva" / caterpillar
 // taxonNames     Scientific names for iNaturalist, ordered most-specific first.
 //                NEVER use order-level names (e.g. Lepidoptera) — too broad.
 //
-// wikipediaTitle Exact Wikipedia article title. Provides 1 image as fallback.
-//                Verify at: https://en.wikipedia.org/w/index.php?search=...
-//
 // filterToLarva  When true, adds term_id=1 & term_value_id=6 to iNaturalist
 //                observations query → Larva life stage ONLY.
 //                Set only for pests whose adult form is a different wrong insect.
@@ -64,12 +57,10 @@ const String _kValueLarva = '6'; // term_value_id = "Larva" / caterpillar
 
 class _PestConfig {
   final List<String> taxonNames;
-  final String? wikipediaTitle;
   final bool filterToLarva;
 
   const _PestConfig({
     required this.taxonNames,
-    this.wikipediaTitle,
     this.filterToLarva = false,
   });
 }
@@ -82,7 +73,6 @@ const Map<String, _PestConfig> _pestConfig = {
       'Leucoptera coffeella', // coffee leaf miner — primary East Africa species
       'Leucoptera', // genus — all Leucoptera are leaf miners
     ],
-    wikipediaTitle: 'Leucoptera coffeella',
   ),
 
   'Coffee Stem Borer': _PestConfig(
@@ -91,7 +81,6 @@ const Map<String, _PestConfig> _pestConfig = {
       'Xylotrechus', // genus — all are bark/stem borers
       'Cerambycidae', // longhorn beetle family — all bore into wood
     ],
-    wikipediaTitle: 'Xylotrechus quadripes',
   ),
 
   'Root-Knot Nematodes': _PestConfig(
@@ -99,7 +88,6 @@ const Map<String, _PestConfig> _pestConfig = {
       'Meloidogyne incognita', // most common coffee root-knot nematode species
       'Meloidogyne', // genus — all produce characteristic root galls
     ],
-    wikipediaTitle: 'Root-knot nematode',
   ),
 
   'White Flies': _PestConfig(
@@ -108,7 +96,6 @@ const Map<String, _PestConfig> _pestConfig = {
       'Trialeurodes vaporariorum', // greenhouse whitefly — common secondary
       'Aleyrodidae', // whitefly family — all species are whiteflies
     ],
-    wikipediaTitle: 'Whitefly',
   ),
 
   'Coffee Mealybug': _PestConfig(
@@ -116,7 +103,6 @@ const Map<String, _PestConfig> _pestConfig = {
       'Planococcus citri', // coffee/citrus mealybug — primary species
       'Pseudococcidae', // mealybug family — all have the waxy coating
     ],
-    wikipediaTitle: 'Mealybug',
   ),
 
   'Caterpillars': _PestConfig(
@@ -145,7 +131,6 @@ const Map<String, _PestConfig> _pestConfig = {
       'Helicoverpa armigera', // cotton bollworm larva — polyphagous pest
     ],
     filterToLarva: true,
-    wikipediaTitle: 'Spodoptera exigua', // armyworm article shows larval photos
   ),
 
   'Ants': _PestConfig(
@@ -154,7 +139,6 @@ const Map<String, _PestConfig> _pestConfig = {
       'Solenopsis', // fire ants — attack coffee roots and stem base
       'Formicidae', // ant family — all life stages are ants
     ],
-    wikipediaTitle: 'Ant',
   ),
 
   'Scale Insects': _PestConfig(
@@ -163,7 +147,6 @@ const Map<String, _PestConfig> _pestConfig = {
       'Coccidae', // soft scale insects — common on coffee branches
       'Coccoidea', // scale insect superfamily — broadest safe fallback
     ],
-    wikipediaTitle: 'Scale insect',
   ),
 
   'Thrips': _PestConfig(
@@ -172,7 +155,6 @@ const Map<String, _PestConfig> _pestConfig = {
       'Thrips tabaci', // coffee/onion thrips — primary East Africa
       'Thysanoptera', // thrips ORDER — contains ONLY thrips species
     ],
-    wikipediaTitle: 'Thrips',
   ),
 
   // ── Flowering & Fruit Development ───────────────────────────────────────────
@@ -182,7 +164,6 @@ const Map<String, _PestConfig> _pestConfig = {
       'Hypothenemus hampei', // coffee berry borer — globally documented
       'Scolytinae', // bark and ambrosia beetle subfamily
     ],
-    wikipediaTitle: 'Coffee berry borer',
   ),
 
   'Coffee Antestia Bug': _PestConfig(
@@ -191,7 +172,6 @@ const Map<String, _PestConfig> _pestConfig = {
       'Antestiopsis', // genus — all species attack coffee berries
       'Pentatomidae', // stink/shield bug family — correct body shape
     ],
-    wikipediaTitle: 'Antestiopsis',
   ),
 
   // ── Post-harvest / Storage ──────────────────────────────────────────────────
@@ -202,7 +182,6 @@ const Map<String, _PestConfig> _pestConfig = {
       'Araecerus', // genus fallback
       'Curculionidae', // weevil family — distinctive snout shape
     ],
-    wikipediaTitle: 'Araecerus fasciculatus',
   ),
 };
 
@@ -263,43 +242,29 @@ class PestImageSearchService {
 
     final collected = <String>[];
 
-    // ── Source 1: iNaturalist Observations ───────────────────────────────────
+    // ── Source: iNaturalist Observations, coffee-qualified only ──────────────
+    // Every query is qualified with "coffee Coffea" — genus/family/order-level
+    // fallback entries (e.g. "Formicidae", "Aspergillus") are broad enough that
+    // an unqualified taxon query returns that organism on ANY host plant
+    // worldwide, not specifically on coffee. The old bare-taxon / iNat-Taxa /
+    // Wikipedia fallback tiers were removed entirely (not just deprioritized)
+    // because they could silently surface a correct species photographed on an
+    // unrelated host plant — a farmer has no way to tell that apart from a
+    // genuine coffee photo. Fewer images but every one is actually on coffee —
+    // a pest with weak iNaturalist coverage on coffee specifically may now show
+    // a "no images" state instead of a wrong-host photo.
     for (final taxon in config.taxonNames) {
       if (collected.length >= clampedMax) break;
-      debugPrint('[PestImageSearch] 🌿 iNat obs: "$taxon"'
+      debugPrint('[PestImageSearch] 🌿 iNat obs (coffee-qualified): "$taxon"'
           '${config.filterToLarva ? " [larva-only]" : ""}');
-      final urls = await _iNatObservations(
-        taxonName: taxon,
+      final textUrls = await _iNatObservationsByText(
+        query: '$taxon coffee Coffea',
         maxResults: clampedMax - collected.length,
         filterLarva: config.filterToLarva,
       );
-      _mergeUnique(collected, urls, clampedMax);
-      if (collected.length >= 2) break;
+      _mergeUnique(collected, textUrls, clampedMax);
     }
     debugPrint('[PestImageSearch] ↳ After iNat obs: ${collected.length}');
-
-    // ── Source 2: iNaturalist Taxa ────────────────────────────────────────────
-    if (collected.length < clampedMax) {
-      for (final taxon in config.taxonNames) {
-        if (collected.length >= clampedMax) break;
-        debugPrint('[PestImageSearch] 🌿 iNat taxa: "$taxon"');
-        final urls = await _iNatTaxa(
-          query: taxon,
-          maxResults: clampedMax - collected.length,
-        );
-        _mergeUnique(collected, urls, clampedMax);
-        if (collected.isNotEmpty) break;
-      }
-      debugPrint('[PestImageSearch] ↳ After iNat taxa: ${collected.length}');
-    }
-
-    // ── Source 3: Wikipedia ───────────────────────────────────────────────────
-    if (collected.length < clampedMax && config.wikipediaTitle != null) {
-      debugPrint('[PestImageSearch] 📖 Wikipedia: "${config.wikipediaTitle}"');
-      final url = await _wikipediaImage(config.wikipediaTitle!);
-      if (url != null) _mergeUnique(collected, [url], clampedMax);
-      debugPrint('[PestImageSearch] ↳ After Wikipedia: ${collected.length}');
-    }
 
     if (collected.isEmpty) {
       debugPrint('[PestImageSearch] ℹ️ All sources: 0 images for "$pestName". '
@@ -315,7 +280,15 @@ class PestImageSearchService {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // SOURCE 1 — iNaturalist Observations API
+  // SOURCE — iNaturalist Observations by coffee-qualified plain text
+  //
+  // Uses the free-text `q` parameter (not `taxon_name`) so a host-plant
+  // qualifier ("coffee Coffea") narrows results to observations actually
+  // tagged/described as being on coffee, instead of the organism on any host
+  // anywhere in the world. This is the only image source in this service —
+  // see the removal note where this is called for why the host-agnostic
+  // fallback tiers (bare taxon_name, iNat Taxa default photo, Wikipedia
+  // infobox) were dropped entirely rather than kept as a lower-priority tier.
   //
   // quality_grade=research : peer-reviewed, multi-identifier agreement required.
   // order_by=votes         : most-confirmed observations appear first.
@@ -325,14 +298,14 @@ class PestImageSearchService {
   // URL transform: "/square." (75 px) → "/medium." (500 px).
   // ══════════════════════════════════════════════════════════════════════════
 
-  static Future<List<String>> _iNatObservations({
-    required String taxonName,
+  static Future<List<String>> _iNatObservationsByText({
+    required String query,
     required int maxResults,
     bool filterLarva = false,
   }) async {
     try {
       final params = <String, String>{
-        'taxon_name': taxonName,
+        'q': query,
         'quality_grade': 'research',
         'photos': 'true',
         'per_page': maxResults.clamp(1, 20).toString(),
@@ -354,8 +327,8 @@ class PestImageSearchService {
       }).timeout(const Duration(seconds: 14));
 
       if (response.statusCode != 200) {
-        debugPrint('[PestImageSearch] iNat obs HTTP ${response.statusCode} '
-            'for "$taxonName"');
+        debugPrint('[PestImageSearch] iNat text HTTP ${response.statusCode} '
+            'for "$query"');
         return [];
       }
 
@@ -377,117 +350,11 @@ class PestImageSearchService {
         }
       }
 
-      debugPrint('[PestImageSearch] iNat obs "$taxonName" → ${urls.length}');
+      debugPrint('[PestImageSearch] iNat text "$query" → ${urls.length}');
       return urls;
     } catch (e) {
-      debugPrint('[PestImageSearch] iNat obs error "$taxonName": $e');
+      debugPrint('[PestImageSearch] iNat text error "$query": $e');
       return [];
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // SOURCE 2 — iNaturalist Taxa API
-  //
-  // Returns the "default_photo" — the community-curated best image per taxon.
-  // medium_url preferred (500 px); falls back to url (square, 75 px upgraded).
-  // ══════════════════════════════════════════════════════════════════════════
-
-  static Future<List<String>> _iNatTaxa({
-    required String query,
-    required int maxResults,
-  }) async {
-    try {
-      final uri = Uri.parse('$_kINatBaseUrl/taxa').replace(
-        queryParameters: {
-          'q': query,
-          'photos': 'true',
-          'per_page': maxResults.clamp(1, 5).toString(),
-        },
-      );
-
-      final response = await _client.get(uri, headers: {
-        'Accept': 'application/json',
-        'User-Agent': _kUserAgent,
-      }).timeout(const Duration(seconds: 12));
-
-      if (response.statusCode != 200) {
-        debugPrint('[PestImageSearch] iNat taxa HTTP ${response.statusCode} '
-            'for "$query"');
-        return [];
-      }
-
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final results = (json['results'] as List<dynamic>?) ?? [];
-      final urls = <String>[];
-
-      for (final taxon in results) {
-        if (urls.length >= maxResults) break;
-        final dp = taxon['default_photo'] as Map<String, dynamic>?;
-        if (dp == null) continue;
-        String? url = (dp['medium_url'] ?? dp['url']) as String?;
-        if (url == null || url.isEmpty) continue;
-        if (url.contains('/square.')) {
-          url = url.replaceFirst('/square.', '/medium.');
-        }
-        if (url.startsWith('https://')) urls.add(url);
-      }
-
-      debugPrint('[PestImageSearch] iNat taxa "$query" → ${urls.length}');
-      return urls;
-    } catch (e) {
-      debugPrint('[PestImageSearch] iNat taxa error "$query": $e');
-      return [];
-    }
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // SOURCE 3 — Wikipedia page image
-  //
-  // prop=pageimages returns the article infobox thumbnail.
-  // CDN URL width token is replaced with "800px" for a larger image.
-  // ══════════════════════════════════════════════════════════════════════════
-
-  static Future<String?> _wikipediaImage(String articleTitle) async {
-    try {
-      final uri = Uri.parse(_kWikiBaseUrl).replace(
-        queryParameters: {
-          'action': 'query',
-          'titles': articleTitle,
-          'prop': 'pageimages',
-          'format': 'json',
-          'pithumbsize': '640',
-          'pilicense': 'any',
-          'redirects': '1',
-        },
-      );
-
-      final response = await _client.get(uri, headers: {
-        'Accept': 'application/json',
-        'User-Agent': _kUserAgent,
-      }).timeout(const Duration(seconds: 12));
-
-      if (response.statusCode != 200) {
-        debugPrint('[PestImageSearch] Wikipedia HTTP ${response.statusCode} '
-            'for "$articleTitle"');
-        return null;
-      }
-
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final pages = (json['query']?['pages'] as Map<String, dynamic>?) ?? {};
-
-      for (final page in pages.values) {
-        final source = page['thumbnail']?['source'] as String?;
-        if (source == null || source.isEmpty) continue;
-        if (!source.startsWith('https://')) continue;
-        final larger =
-            source.replaceAllMapped(RegExp(r'/(\d+)px-'), (_) => '/800px-');
-        debugPrint('[PestImageSearch] Wikipedia ✅ image found');
-        return larger;
-      }
-      return null;
-    } catch (e) {
-      debugPrint('[PestImageSearch] Wikipedia error "$articleTitle": $e');
-      return null;
     }
   }
 

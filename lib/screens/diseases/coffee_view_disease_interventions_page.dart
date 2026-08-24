@@ -1,18 +1,31 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:coffeecore/models/coffee_pest_models.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:coffeecore/models/coffee_disease_models.dart';
+import 'package:coffeecore/screens/diseases/coffee_disease_models.dart'
+    show CoffeeDiseaseData;
+import 'package:coffeecore/screens/diseases/disease_followup_checkin_page.dart';
 import 'package:logger/logger.dart';
+import 'package:timezone/timezone.dart' as tz;
 
-class CoffeeUserPestHistoryPage extends StatefulWidget {
-  const CoffeeUserPestHistoryPage({super.key});
+class CoffeeViewDiseaseInterventionsPage extends StatefulWidget {
+  final CoffeeDiseaseData diseaseData;
+  final FlutterLocalNotificationsPlugin notificationsPlugin;
+
+  const CoffeeViewDiseaseInterventionsPage({
+    required this.diseaseData,
+    required this.notificationsPlugin,
+    super.key,
+  });
 
   @override
-  State<CoffeeUserPestHistoryPage> createState() =>
-      _CoffeeUserPestHistoryPageState();
+  State<CoffeeViewDiseaseInterventionsPage> createState() =>
+      _CoffeeViewDiseaseInterventionsPageState();
 }
 
-class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
+class _CoffeeViewDiseaseInterventionsPageState
+    extends State<CoffeeViewDiseaseInterventionsPage> {
   final _logger = Logger();
 
   @override
@@ -21,47 +34,47 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
     if (user == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('My Pest Management History',
+          title: const Text('Saved Disease Interventions',
               style:
                   TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: const Color(0xFF6F4E37),
           foregroundColor: Colors.white,
         ),
-        body: const Center(child: Text('Please log in to view history.')),
+        body: const Center(child: Text('Please log in to view interventions.')),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Pest Management History',
+        title: const Text('Saved Disease Interventions',
             style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF6F4E37),
         foregroundColor: Colors.white,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('coffee_pest_interventions')
+            .collection('coffee_disease_interventions')
             .where('userId', isEqualTo: user.uid)
+            .where('diseaseName', isEqualTo: widget.diseaseData.name)
             .where('isDeleted', isEqualTo: false)
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            _logger.e('Error fetching history: ${snapshot.error}');
+            _logger.e('Error fetching interventions: ${snapshot.error}');
             return Center(child: Text('Error: ${snapshot.error}'));
           }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-                child: Text('No pest management history available.'));
+            return const Center(child: Text('No interventions saved yet.'));
           }
 
           final interventions = snapshot.data!.docs
               .map((doc) {
                 try {
-                  return CoffeePestIntervention.fromFirestore(
+                  return CoffeeDiseaseIntervention.fromFirestore(
                       doc as DocumentSnapshot<Map<String, dynamic>>, null);
                 } catch (e) {
                   _logger.e('Error parsing intervention ${doc.id}: $e');
@@ -69,7 +82,7 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
                 }
               })
               .where((item) => item != null)
-              .cast<CoffeePestIntervention>()
+              .cast<CoffeeDiseaseIntervention>()
               .toList();
 
           return Container(
@@ -87,7 +100,7 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Pest: ${intervention.pestName}',
+                        Text('Disease: ${intervention.diseaseName}',
                             style:
                                 const TextStyle(fontWeight: FontWeight.bold)),
                         Text('Stage: ${intervention.cropStage}'),
@@ -98,6 +111,25 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
                             'Area: ${intervention.area ?? "N/A"} ${intervention.areaUnit}'),
                         Text(
                             'Saved: ${intervention.timestamp.toDate().toString()}'),
+                        if (intervention.followUpDueAt != null &&
+                            !intervention.followUpCompleted) ...[
+                          const SizedBox(height: 8),
+                          _FollowUpBadge(
+                            dueAt: intervention.followUpDueAt!,
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => DiseaseFollowUpCheckinPage(
+                                    intervention: intervention,
+                                    notificationsPlugin:
+                                        widget.notificationsPlugin,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -109,6 +141,11 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () =>
                                   _deleteIntervention(intervention),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.notifications,
+                                  color: Colors.green),
+                              onPressed: () => _scheduleFollowUp(intervention),
                             ),
                           ],
                         ),
@@ -124,7 +161,7 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
     );
   }
 
-  Future<void> _editIntervention(CoffeePestIntervention intervention) async {
+  Future<void> _editIntervention(CoffeeDiseaseIntervention intervention) async {
     final controller = TextEditingController(text: intervention.intervention);
     final amountController =
         TextEditingController(text: intervention.amount ?? '');
@@ -178,7 +215,7 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
     if (result == true && mounted) {
       try {
         await FirebaseFirestore.instance
-            .collection('coffee_pest_interventions')
+            .collection('coffee_disease_interventions')
             .doc(intervention.id)
             .update({
           'intervention': controller.text,
@@ -193,10 +230,10 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
         await FirebaseFirestore.instance.collection('User_logs').add({
           'userId': intervention.userId,
           'action': 'edit',
-          'collection': 'coffee_pest_interventions',
+          'collection': 'coffee_disease_interventions',
           'documentId': intervention.id,
           'timestamp': Timestamp.now(),
-          'details': 'Updated intervention for ${intervention.pestName}',
+          'details': 'Updated intervention for ${intervention.diseaseName}',
         });
 
         if (mounted) {
@@ -212,7 +249,8 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
     }
   }
 
-  Future<void> _deleteIntervention(CoffeePestIntervention intervention) async {
+  Future<void> _deleteIntervention(
+      CoffeeDiseaseIntervention intervention) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final confirm = await showDialog<bool>(
       context: context,
@@ -235,7 +273,7 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
     if (confirm == true && mounted) {
       try {
         await FirebaseFirestore.instance
-            .collection('coffee_pest_interventions')
+            .collection('coffee_disease_interventions')
             .doc(intervention.id)
             .update({
           'isDeleted': true,
@@ -244,10 +282,11 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
         await FirebaseFirestore.instance.collection('User_logs').add({
           'userId': intervention.userId,
           'action': 'delete',
-          'collection': 'coffee_pest_interventions',
+          'collection': 'coffee_disease_interventions',
           'documentId': intervention.id,
           'timestamp': Timestamp.now(),
-          'details': 'Soft-deleted intervention for ${intervention.pestName}',
+          'details':
+              'Soft-deleted intervention for ${intervention.diseaseName}',
         });
 
         if (mounted) {
@@ -261,5 +300,127 @@ class _CoffeeUserPestHistoryPageState extends State<CoffeeUserPestHistoryPage> {
         }
       }
     }
+  }
+
+  Future<void> _scheduleFollowUp(CoffeeDiseaseIntervention intervention) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    DateTime? date = DateTime.now().add(const Duration(days: 7));
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Set Follow-Up Reminder'),
+        content: StatefulBuilder(
+          builder: (context, setState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text('Date: ${date!.toString().substring(0, 10)}'),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: date!,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime(2030),
+                  );
+                  if (picked != null) setState(() => date = picked);
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, {'date': date}),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && mounted) {
+      final tzDateTime =
+          tz.TZDateTime.from(result['date'] as DateTime, tz.local);
+      const androidDetails = AndroidNotificationDetails(
+        'coffee_disease_followup_channel',
+        'Coffee Disease Follow-Up Reminders',
+        channelDescription:
+            'Reminders for coffee disease intervention follow-ups',
+        importance: Importance.max,
+        priority: Priority.high,
+      );
+      const notificationDetails = NotificationDetails(android: androidDetails);
+
+      try {
+        await widget.notificationsPlugin.zonedSchedule(
+          id: intervention.id.hashCode,
+          title: 'Follow-Up for ${intervention.diseaseName}',
+          body: 'Evaluate effectiveness of ${intervention.intervention}',
+          scheduledDate: tzDateTime,
+          notificationDetails: notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        );
+        if (mounted) {
+          scaffoldMessenger.showSnackBar(
+              const SnackBar(content: Text('Follow-up reminder scheduled')));
+        }
+      } catch (e) {
+        if (mounted) {
+          scaffoldMessenger.showSnackBar(
+              SnackBar(content: Text('Error scheduling reminder: $e')));
+        }
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// "Due for follow-up check-in" badge — amber once overdue, grey beforehand.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FollowUpBadge extends StatelessWidget {
+  final DateTime dueAt;
+  final VoidCallback onTap;
+
+  const _FollowUpBadge({required this.dueAt, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final overdue = DateTime.now().isAfter(dueAt);
+    final color = overdue ? Colors.orange.shade800 : Colors.blueGrey;
+    return Material(
+      color: color.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                  overdue
+                      ? Icons.notifications_active_rounded
+                      : Icons.schedule_rounded,
+                  size: 14,
+                  color: color),
+              const SizedBox(width: 6),
+              Text(
+                overdue
+                    ? 'Check-in due — tap to update'
+                    : 'Check-in scheduled: ${dueAt.day}/${dueAt.month}/${dueAt.year}',
+                style: TextStyle(
+                    fontSize: 11.5, fontWeight: FontWeight.w700, color: color),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

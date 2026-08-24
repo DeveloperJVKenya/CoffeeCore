@@ -4,9 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:coffeecore/models/coffee_pest_models.dart';
-//import 'package:coffeecore/screens/Pest%20Management/pest_scan_page.dart';
-//import 'package:coffeecore/screens/Pest%20Management/pest_results_page.dart';
-import 'package:coffeecore/screens/Pest%20Management/coffee_user_pest_history.dart';
+import 'package:coffeecore/screens/pests/coffee_user_pest_history.dart';
+import 'package:coffeecore/services/push_notification_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHARED PEST DATA — accessed by PestResultsPage as a local fallback
@@ -359,7 +358,7 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
   String? _selectedPest;
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+      PushNotificationService.localPlugin;
   final ScrollController _scrollController = ScrollController();
 
   // ── Animations ─────────────────────────────────────────────────────────────
@@ -387,7 +386,7 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
         CurvedAnimation(parent: _panelController, curve: Curves.easeOut);
 
     _heroController.forward();
-    _initializeNotifications();
+    PushNotificationService.ensureLocalPluginInitialized();
 
     // Deep-link: arrived with preset pest + stage
     if (widget.pestName != null && widget.coffeeStage != null) {
@@ -411,17 +410,6 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
     _panelController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  Future<void> _initializeNotifications() async {
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidSettings);
-    await _notificationsPlugin.initialize(settings: initSettings);
-    await _notificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
   }
 
   void _setMode(_DetectionMode mode) {
@@ -636,7 +624,8 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (_) => const CoffeeUserPestHistoryPage()),
+                builder: (_) => CoffeeUserPestHistoryPage(
+                    notificationsPlugin: _notificationsPlugin)),
           ),
           icon: const Icon(Icons.history_rounded, color: Colors.white),
         ),
@@ -1111,7 +1100,9 @@ class _CoffeePestManagementPageState extends State<CoffeePestManagementPage>
     return OutlinedButton.icon(
       onPressed: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const CoffeeUserPestHistoryPage()),
+        MaterialPageRoute(
+            builder: (_) => CoffeeUserPestHistoryPage(
+                notificationsPlugin: _notificationsPlugin)),
       ),
       style: OutlinedButton.styleFrom(
         foregroundColor: _darkBrown,

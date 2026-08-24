@@ -97,17 +97,16 @@ Guidelines:
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  INIT GEMINI  (Firebase AI — Google AI / Gemini Developer API)
+  //  INIT GEMINI  (Firebase AI — Vertex AI in Firebase backend)
   // ─────────────────────────────────────────────────────────────────────────
 
   void _initGemini() {
-    // ✅ FIX 2 — use FirebaseAI.googleAI() instead of FirebaseVertexAI.instance
-    //    This uses the Gemini Developer API (free tier, no billing required).
-    //    Your old code used the Vertex AI backend which needs extra project setup
-    //    and a Blaze billing plan — that's why you got the "model not found" error.
-    _model = FirebaseAI.googleAI().generativeModel(
+    // ✅ Uses FirebaseAI.vertexAI() — Vertex AI in Firebase backend, billed
+    //    through the project's Blaze plan (not a separate Gemini Developer
+    //    API prepaid balance, which was the cause of the "prepayment credits
+    //    depleted" errors seen when this used the googleAI() backend).
+    _model = FirebaseAI.vertexAI().generativeModel(
       // ✅ gemini-2.5-flash — the stable, confirmed model name for Firebase AI Logic.
-      //    No preview suffix or date suffix. Works on the Gemini Developer API free tier.
       //    Source: https://firebase.google.com/docs/ai-logic/models
       model: 'gemini-2.5-flash',
       systemInstruction: Content.system(_systemInstruction),

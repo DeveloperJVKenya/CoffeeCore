@@ -1,10 +1,11 @@
-import 'package:coffeecore/screens/Disease%20Management/coffee_user_disease_history_page.dart';
+import 'package:coffeecore/screens/diseases/coffee_user_disease_history_page.dart';
 import 'package:coffeecore/screens/diseases/disease_results_page.dart';
 import 'package:coffeecore/screens/diseases/disease_scan_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:coffeecore/screens/diseases/coffee_disease_models.dart';
+import 'package:coffeecore/services/push_notification_service.dart';
 //import 'package:coffeecore/screens/diseases/coffee_user_disease_history.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -587,7 +588,7 @@ class _CoffeeDiseaseManagementPageState
   String? _selectedDisease;
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+      PushNotificationService.localPlugin;
   final ScrollController _scrollController = ScrollController();
 
   // ── Animations ─────────────────────────────────────────────────────────────
@@ -615,7 +616,7 @@ class _CoffeeDiseaseManagementPageState
         CurvedAnimation(parent: _panelController, curve: Curves.easeOut);
 
     _heroController.forward();
-    _initializeNotifications();
+    PushNotificationService.ensureLocalPluginInitialized();
 
     // Deep-link: arrived with preset disease + stage
     if (widget.diseaseName != null && widget.coffeeStage != null) {
@@ -639,17 +640,6 @@ class _CoffeeDiseaseManagementPageState
     _panelController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  Future<void> _initializeNotifications() async {
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidSettings);
-    await _notificationsPlugin.initialize(settings: initSettings);
-    await _notificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
   }
 
   void _setMode(_DetectionMode mode) {
@@ -720,7 +710,9 @@ class _CoffeeDiseaseManagementPageState
       possibleCauses: List<String>.from(d['possibleCauses']),
       preventiveMeasures: List<String>.from(d['preventiveMeasures']),
       lifecycleImages: List<String>.from(d['lifecycleImages']),
-      mechanicalControls: [],
+      mechanicalControls: d['mechanicalControls'] != null
+          ? List<String>.from(d['mechanicalControls'])
+          : const [],
     );
   }
 
@@ -1321,7 +1313,8 @@ class _CoffeeDiseaseManagementPageState
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => const CoffeeUserDiseaseHistoryPage()),
+              builder: (_) => CoffeeUserDiseaseHistoryPage(
+                  notificationsPlugin: _notificationsPlugin)),
         ),
         style: OutlinedButton.styleFrom(
           foregroundColor: _darkBrown,

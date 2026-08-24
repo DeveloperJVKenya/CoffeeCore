@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:logger/logger.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PEST FIRESTORE SERVICE
@@ -93,6 +93,7 @@ class PestFirestoreService {
 
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final Logger _logger = Logger(printer: PrettyPrinter());
 
   // ── Max records stored per user (prevents unbounded growth) ───────────────
   static const int _maxHistoryRecords = 100;
@@ -133,8 +134,8 @@ class PestFirestoreService {
     double? aiConfidence,
     String? aiReasoning,
   }) async {
-    debugPrint('[PestFirestore] 💾 Saving diagnosis for '
-        '"$pestName" | stage="$stage" | mode="$detectionMode"');
+    _logger.i('Saving pest diagnosis for "$pestName" | '
+        'stage="$stage" | mode="$detectionMode"');
 
     final record = PestDiagnosisRecord(
       id: '', // Firestore will assign
@@ -154,11 +155,11 @@ class PestFirestoreService {
     // ── Write to Firestore ─────────────────────────────────────────────────
     try {
       final docRef = await _diagnosesRef.add(record.toMap());
-      debugPrint('[PestFirestore] ✅ Saved with Firestore ID: ${docRef.id}');
+      _logger.i('Saved pest diagnosis with Firestore ID: ${docRef.id}');
       return docRef.id;
     } on FirebaseException catch (e) {
-      debugPrint('[PestFirestore] ❌ Firestore write error: '
-          'code=${e.code} message="${e.message}"');
+      _logger.e('Firestore write error saving pest diagnosis',
+          error: e, stackTrace: StackTrace.current);
       rethrow;
     }
   }
@@ -174,7 +175,7 @@ class PestFirestoreService {
   static Future<List<PestDiagnosisRecord>> loadHistory({
     int limit = 20,
   }) async {
-    debugPrint('[PestFirestore] 📋 Loading history (limit=$limit)');
+    _logger.i('Loading pest diagnosis history (limit=$limit)');
 
     try {
       final snapshot = await _diagnosesRef
@@ -186,17 +187,18 @@ class PestFirestoreService {
           .map((doc) => PestDiagnosisRecord.fromFirestore(doc))
           .toList();
 
-      debugPrint('[PestFirestore] ✅ Loaded ${records.length} records.');
+      _logger.i('Loaded ${records.length} pest diagnosis records.');
       return records;
     } on _AuthException {
-      debugPrint('[PestFirestore] ⚠️ Not signed in — returning empty history.');
+      _logger.w('loadHistory — user not signed in, returning empty history.');
       return [];
     } on FirebaseException catch (e) {
-      debugPrint('[PestFirestore] ❌ Firestore load error: '
-          'code=${e.code} message="${e.message}"');
+      _logger.e('Firestore error loading pest history',
+          error: e, stackTrace: StackTrace.current);
       return [];
-    } catch (e) {
-      debugPrint('[PestFirestore] ❌ Unexpected loadHistory error: $e');
+    } catch (e, st) {
+      _logger.e('Unexpected error loading pest history',
+          error: e, stackTrace: st);
       return [];
     }
   }
@@ -208,22 +210,21 @@ class PestFirestoreService {
   /// Fetches a single diagnosis record by its Firestore document ID.
   /// Returns null if not found or on error.
   static Future<PestDiagnosisRecord?> loadById(String diagnosisId) async {
-    debugPrint(
-        '[PestFirestore] 🔍 Loading single record by ID: "$diagnosisId"');
+    _logger.i('Loading pest diagnosis by ID: "$diagnosisId"');
     try {
       final doc = await _diagnosesRef.doc(diagnosisId).get();
       if (!doc.exists || doc.data() == null) {
-        debugPrint('[PestFirestore] ⚠️ Record "$diagnosisId" not found '
-            'or has no data.');
+        _logger.w('Pest diagnosis "$diagnosisId" not found or has no data.');
         return null;
       }
-      debugPrint('[PestFirestore] ✅ Loaded record "$diagnosisId".');
+      _logger.i('Loaded pest diagnosis "$diagnosisId".');
       return PestDiagnosisRecord.fromFirestore(doc);
     } on _AuthException {
-      debugPrint('[PestFirestore] ⚠️ loadById failed — user not signed in.');
+      _logger.w('loadById failed — user not signed in.');
       return null;
-    } catch (e) {
-      debugPrint('[PestFirestore] ❌ loadById error for "$diagnosisId": $e');
+    } catch (e, st) {
+      _logger.e('Error loading pest diagnosis "$diagnosisId"',
+          error: e, stackTrace: st);
       return null;
     }
   }
@@ -235,17 +236,16 @@ class PestFirestoreService {
   /// Deletes a single diagnosis record by its Firestore document ID.
   /// The farmer can call this from the pest history screen.
   static Future<void> deleteDiagnosis(String diagnosisId) async {
-    debugPrint('[PestFirestore] 🗑 Deleting diagnosis "$diagnosisId"');
+    _logger.i('Deleting pest diagnosis "$diagnosisId"');
     try {
       await _diagnosesRef.doc(diagnosisId).delete();
-      debugPrint('[PestFirestore] ✅ Deleted "$diagnosisId".');
+      _logger.i('Deleted pest diagnosis "$diagnosisId".');
     } on _AuthException {
-      debugPrint(
-          '[PestFirestore] ❌ deleteDiagnosis failed — user not signed in.');
+      _logger.e('deleteDiagnosis failed — user not signed in.');
       rethrow;
     } on FirebaseException catch (e) {
-      debugPrint('[PestFirestore] ❌ Delete error for "$diagnosisId": '
-          'code=${e.code} message="${e.message}"');
+      _logger.e('Error deleting pest diagnosis "$diagnosisId"',
+          error: e, stackTrace: StackTrace.current);
       rethrow;
     }
   }
@@ -258,8 +258,7 @@ class PestFirestoreService {
   /// Use this in CoffeeUserPestHistoryPage with a StreamBuilder for
   /// real-time updates when a new diagnosis is saved elsewhere.
   static Stream<List<PestDiagnosisRecord>> historyStream({int limit = 30}) {
-    debugPrint('[PestFirestore] 🔴 Opening real-time history stream '
-        '(limit=$limit)');
+    _logger.i('Opening real-time pest history stream (limit=$limit)');
     try {
       return _diagnosesRef
           .orderBy('savedAt', descending: true)
@@ -271,10 +270,49 @@ class PestFirestoreService {
                 .toList(),
           );
     } on _AuthException {
-      debugPrint('[PestFirestore] ⚠️ historyStream — user not signed in. '
-          'Returning empty stream.');
+      _logger.w('historyStream — user not signed in, returning empty stream.');
       return const Stream.empty();
     }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PUBLIC METHOD 5b — Admin trend analytics: every diagnosis for a known set
+  // of user IDs (Main Admin passes every user, Coop Admin passes only their
+  // cooperative's users — the caller resolves that list; see
+  // pest_disease_trends_screen.dart). Each read targets one known
+  // pest_diagnoses/{userId}/diagnoses path directly (not a collectionGroup
+  // scan) since Firestore's security-rule evaluation for collectionGroup
+  // queries requires the rule to be provable for the query as a whole and
+  // does not reliably honour a plain isAdmin()-style rule the way a query
+  // against a single, known parent path does — this mirrors the same rule
+  // structure that already works for the owner's own historyStream() above.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  static Future<List<PestDiagnosisRecord>> diagnosesForUsers(
+    List<String> userIds,
+  ) async {
+    _logger.i('Loading pest diagnoses for ${userIds.length} visible users');
+    final records = <PestDiagnosisRecord>[];
+    final futures = userIds.map((uid) async {
+      try {
+        final snapshot = await _db
+            .collection(_rootCollection)
+            .doc(uid)
+            .collection('diagnoses')
+            .get();
+        return snapshot.docs
+            .map((doc) => PestDiagnosisRecord.fromFirestore(doc))
+            .toList();
+      } on FirebaseException catch (e) {
+        _logger.w('Skipping pest diagnoses for user "$uid"', error: e);
+        return <PestDiagnosisRecord>[];
+      }
+    });
+    for (final result in await Future.wait(futures)) {
+      records.addAll(result);
+    }
+    _logger.i('Loaded ${records.length} pest diagnoses across visible users');
+    return records;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -285,7 +323,7 @@ class PestFirestoreService {
   /// Used by a "Clear History" option in settings.
   /// Runs in batches of 500 to respect Firestore batch write limits.
   static Future<void> clearAllHistory() async {
-    debugPrint('[PestFirestore] 🗑 Clearing ALL history for user "$_userId"');
+    _logger.i('Clearing ALL pest history for user "$_userId"');
     try {
       const batchSize = 400;
       int totalDeleted = 0;
@@ -299,17 +337,17 @@ class PestFirestoreService {
         }
         await batch.commit();
         totalDeleted += snapshot.docs.length;
-        debugPrint('[PestFirestore] 🗑 Batch deleted ${snapshot.docs.length} '
-            'records (total so far: $totalDeleted).');
+        _logger.i('Batch deleted ${snapshot.docs.length} pest records '
+            '(total so far: $totalDeleted).');
       }
-      debugPrint('[PestFirestore] ✅ All history cleared. '
-          'Total records deleted: $totalDeleted.');
+      _logger
+          .i('All pest history cleared. Total records deleted: $totalDeleted.');
     } on _AuthException {
-      debugPrint('[PestFirestore] ❌ clearAllHistory — user not signed in.');
+      _logger.e('clearAllHistory — user not signed in.');
       rethrow;
     } on FirebaseException catch (e) {
-      debugPrint('[PestFirestore] ❌ clearAllHistory error: '
-          'code=${e.code} message="${e.message}"');
+      _logger.e('clearAllHistory error',
+          error: e, stackTrace: StackTrace.current);
       rethrow;
     }
   }
@@ -325,14 +363,13 @@ class PestFirestoreService {
       // count() uses Firestore's aggregation query — does NOT read all docs
       final result = await _diagnosesRef.count().get();
       final count = result.count ?? 0;
-      debugPrint('[PestFirestore] 🔢 Diagnosis count for current user: $count');
+      _logger.i('Diagnosis count for current user: $count');
       return count;
     } on _AuthException {
-      debugPrint('[PestFirestore] ⚠️ diagnosisCount — user not signed in. '
-          'Returning 0.');
+      _logger.w('diagnosisCount — user not signed in, returning 0.');
       return 0;
-    } catch (e) {
-      debugPrint('[PestFirestore] ❌ diagnosisCount error: $e');
+    } catch (e, st) {
+      _logger.e('diagnosisCount error', error: e, stackTrace: st);
       return 0;
     }
   }
@@ -347,13 +384,10 @@ class PestFirestoreService {
     try {
       final count = await diagnosisCount();
       if (count < _maxHistoryRecords) {
-        debugPrint(
-            '[PestFirestore] 📊 Record count $count / $_maxHistoryRecords '
-            '— within limit, no deletion needed.');
         return;
       }
 
-      debugPrint('[PestFirestore] ⚠️ Record limit reached ($count records). '
+      _logger.w('Pest record limit reached ($count records). '
           'Deleting oldest record before saving new one.');
 
       // Find the oldest record
@@ -365,17 +399,18 @@ class PestFirestoreService {
       if (oldest.docs.isNotEmpty) {
         final oldestId = oldest.docs.first.id;
         await oldest.docs.first.reference.delete();
-        debugPrint('[PestFirestore] 🗑 Oldest record "$oldestId" deleted '
-            'to enforce $_maxHistoryRecords record limit.');
+        _logger.i('Oldest pest record "$oldestId" deleted to enforce '
+            '$_maxHistoryRecords record limit.');
       }
     } on _AuthException {
-      debugPrint(
-          '[PestFirestore] ⚠️ _enforceRecordLimit — user not signed in.');
-    } catch (e) {
+      _logger.w('_enforceRecordLimit — user not signed in.');
+    } catch (e, st) {
       // Non-critical — proceed with save even if limit check fails
-      debugPrint(
-          '[PestFirestore] ⚠️ Record limit check failed (non-critical): $e '
-          '— proceeding with save anyway.');
+      _logger.w(
+          'Record limit check failed (non-critical), '
+          'proceeding with save anyway.',
+          error: e,
+          stackTrace: st);
     }
   }
 }

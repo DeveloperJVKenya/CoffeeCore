@@ -166,7 +166,7 @@ class _PestScanPageState extends State<PestScanPage>
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // COFFEECORE AI VISION ANALYSIS  — firebase_ai package, FirebaseAI.googleAI()
+  // COFFEECORE AI VISION ANALYSIS  — firebase_ai package, FirebaseAI.vertexAI()
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> _analyseImage() async {
@@ -181,7 +181,7 @@ class _PestScanPageState extends State<PestScanPage>
               ? 'image/png'
               : 'image/jpeg');
 
-      final model = FirebaseAI.googleAI().generativeModel(
+      final model = FirebaseAI.vertexAI().generativeModel(
         model: 'gemini-2.5-flash',
         generationConfig: GenerationConfig(
           temperature: 0.3,
@@ -305,7 +305,7 @@ If image is unclear:
               ? 'image/png'
               : 'image/jpeg');
 
-      final model = FirebaseAI.googleAI().generativeModel(
+      final model = FirebaseAI.vertexAI().generativeModel(
         model: 'gemini-2.5-flash',
         generationConfig:
             GenerationConfig(temperature: 0.3, maxOutputTokens: 1200),

@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:coffeecore/models/pest_disease_model.dart';
+import 'package:coffeecore/models/coffee_pest_models.dart';
 import 'package:logger/logger.dart';
 
 class AdminPestManagementPage extends StatefulWidget {
@@ -26,7 +26,7 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('pestinterventiondata')
+            .collection('coffee_pest_interventions')
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -44,7 +44,7 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
           final interventions = snapshot.data!.docs
               .map((doc) {
                 try {
-                  return PestIntervention.fromFirestore(
+                  return CoffeePestIntervention.fromFirestore(
                       doc as DocumentSnapshot<Map<String, dynamic>>, null);
                 } catch (e) {
                   _logger.e('Error parsing intervention ${doc.id}: $e');
@@ -52,7 +52,7 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
                 }
               })
               .where((item) => item != null)
-              .cast<PestIntervention>()
+              .cast<CoffeePestIntervention>()
               .toList();
 
           return Container(
@@ -75,7 +75,6 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
                             style:
                                 const TextStyle(fontWeight: FontWeight.bold)),
                         Text('Pest: ${intervention.pestName}'),
-                        Text('Crop: ${intervention.cropType}'),
                         Text('Stage: ${intervention.cropStage}'),
                         Text(
                             'Intervention: ${intervention.intervention.isNotEmpty ? intervention.intervention : "None"}'),
@@ -117,11 +116,11 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
     );
   }
 
-  Future<void> _restoreIntervention(PestIntervention intervention) async {
+  Future<void> _restoreIntervention(CoffeePestIntervention intervention) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       await FirebaseFirestore.instance
-          .collection('pestinterventiondata')
+          .collection('coffee_pest_interventions')
           .doc(intervention.id)
           .update({
         'isDeleted': false,
@@ -130,7 +129,7 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
       await FirebaseFirestore.instance.collection('User_logs').add({
         'userId': FirebaseAuth.instance.currentUser!.uid,
         'action': 'restore',
-        'collection': 'pestinterventiondata',
+        'collection': 'coffee_pest_interventions',
         'documentId': intervention.id,
         'timestamp': Timestamp.now(),
         'details': 'Restored intervention for user ${intervention.userId}',
@@ -148,7 +147,8 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
     }
   }
 
-  Future<void> _hardDeleteIntervention(PestIntervention intervention) async {
+  Future<void> _hardDeleteIntervention(
+      CoffeePestIntervention intervention) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final confirm = await showDialog<bool>(
       context: context,
@@ -171,14 +171,14 @@ class _AdminPestManagementPageState extends State<AdminPestManagementPage> {
     if (confirm == true && mounted) {
       try {
         await FirebaseFirestore.instance
-            .collection('pestinterventiondata')
+            .collection('coffee_pest_interventions')
             .doc(intervention.id)
             .delete();
 
         await FirebaseFirestore.instance.collection('User_logs').add({
           'userId': FirebaseAuth.instance.currentUser!.uid,
           'action': 'hard_delete',
-          'collection': 'pestinterventiondata',
+          'collection': 'coffee_pest_interventions',
           'documentId': intervention.id,
           'timestamp': Timestamp.now(),
           'details':

@@ -3,13 +3,26 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_ai/firebase_ai.dart';
 import '../../services/ai_error_helper.dart';
+import 'coffee_pest_management_page.dart' show kPestDetails;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEMINI PEST AI SERVICE
 //
-// ✅ Uses firebase_ai package (FirebaseAI.googleAI()) — matches the rest of
+// ✅ Uses firebase_ai package (FirebaseAI.vertexAI()) — matches the rest of
 //    the project as seen in coffee_ai_chat_screen.dart.
 //    The deprecated firebase_vertexai / FirebaseVertexAI has been removed.
+//
+// Retrieval-Augmented Generation:
+//   • Retrieval — when $pestName has an entry in the static `kPestDetails`
+//     catalog (curated, verified reference data), that entry is retrieved
+//     and injected into the prompt as grounding context.
+//   • Augmentation — Gemini is instructed to stay consistent with the
+//     retrieved facts rather than invent contradicting details, which keeps
+//     generated text aligned with the same verified data the rest of the app
+//     already displays for that pest.
+//   • When no catalog entry exists, Gemini is explicitly told to flag
+//     uncertainty rather than fabricate specifics for an unfamiliar pest —
+//     see the scope/negative-constraint rules in _buildManagementPrompt.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class GeminiPestAiService {
@@ -49,8 +62,8 @@ class GeminiPestAiService {
 
     lastErrorMessage = null;
     try {
-      // ✅ FirebaseAI.googleAI() — replaces deprecated FirebaseVertexAI.instance
-      final model = FirebaseAI.googleAI().generativeModel(
+      // ✅ FirebaseAI.vertexAI() — replaces deprecated FirebaseVertexAI.instance
+      final model = FirebaseAI.vertexAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.3,
@@ -140,8 +153,8 @@ class GeminiPestAiService {
 
     lastErrorMessage = null;
     try {
-      // ✅ FirebaseAI.googleAI()
-      final model = FirebaseAI.googleAI().generativeModel(
+      // ✅ FirebaseAI.vertexAI()
+      final model = FirebaseAI.vertexAI().generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.2,
@@ -196,13 +209,45 @@ class GeminiPestAiService {
   // PROMPT BUILDERS
   // ══════════════════════════════════════════════════════════════════════════
 
+  /// Builds the "VERIFIED REFERENCE DATA" grounding block from the static
+  /// `kPestDetails` catalog when $pestName has a curated entry — the
+  /// retrieval half of this service's retrieval-augmented prompting.
+  static String _buildGroundingBlock(String pestName) {
+    final entry = kPestDetails[pestName];
+    if (entry == null) return '';
+
+    final description = entry['description'] as String? ?? '';
+    final symptoms = entry['symptoms'] as String? ?? '';
+    final chemical = (entry['chemicalControls'] as List?)?.join(', ') ?? '';
+    final biological = (entry['biologicalControls'] as List?)?.join(', ') ?? '';
+    final causes = (entry['possibleCauses'] as List?)?.join(', ') ?? '';
+    final preventive = (entry['preventiveMeasures'] as List?)?.join(', ') ?? '';
+
+    return '''
+
+VERIFIED REFERENCE DATA for "$pestName" (curated, confirmed accurate — use this as ground truth and stay consistent with it; you may add detail and rephrase for clarity, but do not contradict it):
+- Description: $description
+- Symptoms: $symptoms
+- Known chemical controls: $chemical
+- Known biological controls: $biological
+- Known causes: $causes
+- Known preventive measures: $preventive
+''';
+  }
+
   static String _buildManagementPrompt(String pestName, String stage) {
+    final grounding = _buildGroundingBlock(pestName);
     return '''
 You are a specialist agricultural AI for coffee farming in East Africa (Kenya, Uganda, Tanzania, Ethiopia).
 
 Generate comprehensive pest management details for "$pestName" attacking coffee during the "$stage" stage.
 
 Your audience is a smallholder coffee farmer — use clear, practical, actionable language. Avoid overly academic terminology.
+$grounding
+SCOPE AND ACCURACY RULES:
+- Only describe how "$pestName" affects COFFEE specifically — do not describe its effects on other crops.
+- If "$pestName" is not a pest you can confidently confirm affects coffee plants, say so plainly in the "description" field (e.g. "This is not a commonly documented coffee pest in East Africa; the following is general guidance only") rather than inventing coffee-specific details you are not confident about.
+- Do not fabricate chemical product names — only list controls you have reasonable confidence are real, registered agricultural products.
 
 Return ONLY a valid JSON object with NO markdown formatting, NO code fences, NO backticks, NO explanation outside the JSON. Start your response directly with the opening brace { and end with the closing brace }. Use exactly this structure:
 

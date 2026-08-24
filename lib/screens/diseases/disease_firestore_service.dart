@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:logger/logger.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DISEASE FIRESTORE SERVICE
@@ -89,6 +89,7 @@ class DiseaseFirestoreService {
 
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final Logger _logger = Logger(printer: PrettyPrinter());
 
   static const int _maxHistoryRecords = 100;
   static const String _rootCollection = 'disease_diagnoses';
@@ -117,8 +118,8 @@ class DiseaseFirestoreService {
     double? aiConfidence,
     String? aiReasoning,
   }) async {
-    debugPrint('[DiseaseFirestore] 💾 Saving diagnosis for '
-        '"$diseaseName" | stage="$stage" | mode="$detectionMode"');
+    _logger.i('Saving disease diagnosis for "$diseaseName" | '
+        'stage="$stage" | mode="$detectionMode"');
 
     final record = DiseaseDiagnosisRecord(
       id: '',
@@ -136,11 +137,11 @@ class DiseaseFirestoreService {
 
     try {
       final docRef = await _diagnosesRef.add(record.toMap());
-      debugPrint('[DiseaseFirestore] ✅ Saved with Firestore ID: ${docRef.id}');
+      _logger.i('Saved disease diagnosis with Firestore ID: ${docRef.id}');
       return docRef.id;
     } on FirebaseException catch (e) {
-      debugPrint('[DiseaseFirestore] ❌ Firestore write error: '
-          'code=${e.code} message="${e.message}"');
+      _logger.e('Firestore write error saving disease diagnosis',
+          error: e, stackTrace: StackTrace.current);
       rethrow;
     }
   }
@@ -152,7 +153,7 @@ class DiseaseFirestoreService {
   static Future<List<DiseaseDiagnosisRecord>> loadHistory({
     int limit = 20,
   }) async {
-    debugPrint('[DiseaseFirestore] 📋 Loading history (limit=$limit)');
+    _logger.i('Loading disease diagnosis history (limit=$limit)');
 
     try {
       final snapshot = await _diagnosesRef
@@ -164,18 +165,18 @@ class DiseaseFirestoreService {
           .map((doc) => DiseaseDiagnosisRecord.fromFirestore(doc))
           .toList();
 
-      debugPrint('[DiseaseFirestore] ✅ Loaded ${records.length} records.');
+      _logger.i('Loaded ${records.length} disease diagnosis records.');
       return records;
     } on _AuthException {
-      debugPrint(
-          '[DiseaseFirestore] ⚠️ Not signed in — returning empty history.');
+      _logger.w('loadHistory — user not signed in, returning empty history.');
       return [];
     } on FirebaseException catch (e) {
-      debugPrint('[DiseaseFirestore] ❌ Firestore load error: '
-          'code=${e.code} message="${e.message}"');
+      _logger.e('Firestore error loading disease history',
+          error: e, stackTrace: StackTrace.current);
       return [];
-    } catch (e) {
-      debugPrint('[DiseaseFirestore] ❌ Unexpected loadHistory error: $e');
+    } catch (e, st) {
+      _logger.e('Unexpected error loading disease history',
+          error: e, stackTrace: st);
       return [];
     }
   }
@@ -185,19 +186,20 @@ class DiseaseFirestoreService {
   // ══════════════════════════════════════════════════════════════════════════
 
   static Future<DiseaseDiagnosisRecord?> loadById(String diagnosisId) async {
-    debugPrint('[DiseaseFirestore] 🔍 Loading single record: "$diagnosisId"');
+    _logger.i('Loading disease diagnosis by ID: "$diagnosisId"');
     try {
       final doc = await _diagnosesRef.doc(diagnosisId).get();
       if (!doc.exists || doc.data() == null) {
-        debugPrint('[DiseaseFirestore] ⚠️ Record "$diagnosisId" not found.');
+        _logger.w('Disease diagnosis "$diagnosisId" not found or has no data.');
         return null;
       }
       return DiseaseDiagnosisRecord.fromFirestore(doc);
     } on _AuthException {
-      debugPrint('[DiseaseFirestore] ⚠️ loadById failed — user not signed in.');
+      _logger.w('loadById failed — user not signed in.');
       return null;
-    } catch (e) {
-      debugPrint('[DiseaseFirestore] ❌ loadById error for "$diagnosisId": $e');
+    } catch (e, st) {
+      _logger.e('Error loading disease diagnosis "$diagnosisId"',
+          error: e, stackTrace: st);
       return null;
     }
   }
@@ -207,16 +209,16 @@ class DiseaseFirestoreService {
   // ══════════════════════════════════════════════════════════════════════════
 
   static Future<void> deleteDiagnosis(String diagnosisId) async {
-    debugPrint('[DiseaseFirestore] 🗑 Deleting diagnosis "$diagnosisId"');
+    _logger.i('Deleting disease diagnosis "$diagnosisId"');
     try {
       await _diagnosesRef.doc(diagnosisId).delete();
-      debugPrint('[DiseaseFirestore] ✅ Deleted "$diagnosisId".');
+      _logger.i('Deleted disease diagnosis "$diagnosisId".');
     } on _AuthException {
-      debugPrint('[DiseaseFirestore] ❌ deleteDiagnosis — user not signed in.');
+      _logger.e('deleteDiagnosis failed — user not signed in.');
       rethrow;
     } on FirebaseException catch (e) {
-      debugPrint('[DiseaseFirestore] ❌ Delete error for "$diagnosisId": '
-          'code=${e.code} message="${e.message}"');
+      _logger.e('Error deleting disease diagnosis "$diagnosisId"',
+          error: e, stackTrace: StackTrace.current);
       rethrow;
     }
   }
@@ -226,8 +228,7 @@ class DiseaseFirestoreService {
   // ══════════════════════════════════════════════════════════════════════════
 
   static Stream<List<DiseaseDiagnosisRecord>> historyStream({int limit = 30}) {
-    debugPrint(
-        '[DiseaseFirestore] 🔴 Opening real-time history stream (limit=$limit)');
+    _logger.i('Opening real-time disease history stream (limit=$limit)');
     try {
       return _diagnosesRef
           .orderBy('savedAt', descending: true)
@@ -239,9 +240,50 @@ class DiseaseFirestoreService {
                 .toList(),
           );
     } on _AuthException {
-      debugPrint('[DiseaseFirestore] ⚠️ historyStream — user not signed in.');
+      _logger.w('historyStream — user not signed in, returning empty stream.');
       return const Stream.empty();
     }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PUBLIC METHOD 5b — Admin trend analytics: every diagnosis for a known set
+  // of user IDs (Main Admin passes every user, Coop Admin passes only their
+  // cooperative's users — the caller resolves that list; see
+  // pest_disease_trends_screen.dart). Each read targets one known
+  // disease_diagnoses/{userId}/diagnoses path directly (not a collectionGroup
+  // scan) since Firestore's security-rule evaluation for collectionGroup
+  // queries requires the rule to be provable for the query as a whole and
+  // does not reliably honour a plain isAdmin()-style rule the way a query
+  // against a single, known parent path does — this mirrors the same rule
+  // structure that already works for the owner's own historyStream() above.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  static Future<List<DiseaseDiagnosisRecord>> diagnosesForUsers(
+    List<String> userIds,
+  ) async {
+    _logger.i('Loading disease diagnoses for ${userIds.length} visible users');
+    final records = <DiseaseDiagnosisRecord>[];
+    final futures = userIds.map((uid) async {
+      try {
+        final snapshot = await _db
+            .collection(_rootCollection)
+            .doc(uid)
+            .collection('diagnoses')
+            .get();
+        return snapshot.docs
+            .map((doc) => DiseaseDiagnosisRecord.fromFirestore(doc))
+            .toList();
+      } on FirebaseException catch (e) {
+        _logger.w('Skipping disease diagnoses for user "$uid"', error: e);
+        return <DiseaseDiagnosisRecord>[];
+      }
+    });
+    for (final result in await Future.wait(futures)) {
+      records.addAll(result);
+    }
+    _logger
+        .i('Loaded ${records.length} disease diagnoses across visible users');
+    return records;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -249,8 +291,7 @@ class DiseaseFirestoreService {
   // ══════════════════════════════════════════════════════════════════════════
 
   static Future<void> clearAllHistory() async {
-    debugPrint(
-        '[DiseaseFirestore] 🗑 Clearing ALL history for user "$_userId"');
+    _logger.i('Clearing ALL disease history for user "$_userId"');
     try {
       const batchSize = 400;
       int totalDeleted = 0;
@@ -263,18 +304,17 @@ class DiseaseFirestoreService {
         }
         await batch.commit();
         totalDeleted += snapshot.docs.length;
-        debugPrint(
-            '[DiseaseFirestore] 🗑 Batch deleted ${snapshot.docs.length} '
-            'records (total: $totalDeleted).');
+        _logger.i('Batch deleted ${snapshot.docs.length} disease records '
+            '(total so far: $totalDeleted).');
       }
-      debugPrint(
-          '[DiseaseFirestore] ✅ All history cleared. Total: $totalDeleted.');
+      _logger.i('All disease history cleared. '
+          'Total records deleted: $totalDeleted.');
     } on _AuthException {
-      debugPrint('[DiseaseFirestore] ❌ clearAllHistory — user not signed in.');
+      _logger.e('clearAllHistory — user not signed in.');
       rethrow;
     } on FirebaseException catch (e) {
-      debugPrint('[DiseaseFirestore] ❌ clearAllHistory error: '
-          'code=${e.code} message="${e.message}"');
+      _logger.e('clearAllHistory error',
+          error: e, stackTrace: StackTrace.current);
       rethrow;
     }
   }
@@ -287,13 +327,13 @@ class DiseaseFirestoreService {
     try {
       final result = await _diagnosesRef.count().get();
       final count = result.count ?? 0;
-      debugPrint('[DiseaseFirestore] 🔢 Diagnosis count: $count');
+      _logger.i('Disease diagnosis count for current user: $count');
       return count;
     } on _AuthException {
-      debugPrint('[DiseaseFirestore] ⚠️ diagnosisCount — user not signed in.');
+      _logger.w('diagnosisCount — user not signed in, returning 0.');
       return 0;
-    } catch (e) {
-      debugPrint('[DiseaseFirestore] ❌ diagnosisCount error: $e');
+    } catch (e, st) {
+      _logger.e('diagnosisCount error', error: e, stackTrace: st);
       return 0;
     }
   }
@@ -306,13 +346,10 @@ class DiseaseFirestoreService {
     try {
       final count = await diagnosisCount();
       if (count < _maxHistoryRecords) {
-        debugPrint(
-            '[DiseaseFirestore] 📊 Record count $count / $_maxHistoryRecords '
-            '— within limit.');
         return;
       }
-      debugPrint('[DiseaseFirestore] ⚠️ Record limit reached ($count). '
-          'Deleting oldest record.');
+      _logger.w('Disease record limit reached ($count records). '
+          'Deleting oldest record before saving new one.');
       final oldest = await _diagnosesRef
           .orderBy('savedAt', descending: false)
           .limit(1)
@@ -320,14 +357,17 @@ class DiseaseFirestoreService {
       if (oldest.docs.isNotEmpty) {
         final oldestId = oldest.docs.first.id;
         await oldest.docs.first.reference.delete();
-        debugPrint('[DiseaseFirestore] 🗑 Oldest record "$oldestId" deleted.');
+        _logger.i('Oldest disease record "$oldestId" deleted to enforce '
+            '$_maxHistoryRecords record limit.');
       }
     } on _AuthException {
-      debugPrint(
-          '[DiseaseFirestore] ⚠️ _enforceRecordLimit — user not signed in.');
-    } catch (e) {
-      debugPrint(
-          '[DiseaseFirestore] ⚠️ Record limit check failed (non-critical): $e');
+      _logger.w('_enforceRecordLimit — user not signed in.');
+    } catch (e, st) {
+      _logger.w(
+          'Record limit check failed (non-critical), '
+          'proceeding with save anyway.',
+          error: e,
+          stackTrace: st);
     }
   }
 }

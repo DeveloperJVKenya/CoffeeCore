@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 import 'package:coffeecore/models/coffee_soil_data.dart';
+import 'package:coffeecore/screens/Field%20Data/fertilization_plan_tracker_screen.dart';
 import 'package:coffeecore/screens/Field%20Data/gemini_soil_ai_service.dart';
 import 'package:coffeecore/screens/Field%20Data/helpers/nutrient_analysis_helper.dart';
 import 'package:coffeecore/screens/Field%20Data/soil_advisor_chat_sheet.dart';
@@ -1285,6 +1286,15 @@ class _CoffeeSoilSummaryPageState extends State<CoffeeSoilSummaryPage> {
           },
         ),
         actions: [
+          IconButton(
+            tooltip: 'Fertilization Plan Tracker',
+            icon: const Icon(Icons.checklist_rounded, color: Colors.white),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const FertilizationPlanTrackerScreen()),
+            ),
+          ),
           GestureDetector(
             onTap: () {
               setState(() => _isPerPlant = !_isPerPlant);

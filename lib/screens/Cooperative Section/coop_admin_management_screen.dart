@@ -9,6 +9,8 @@ import 'package:coffeecore/screens/learn_coffee_farming.dart';
 import 'package:coffeecore/screens/manuals_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/screens/farm_management_home_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/coop_collection_management_screen.dart';
+import 'package:coffeecore/screens/Cooperative%20Section/coop_overview_screen.dart';
+import 'package:coffeecore/screens/admin/pest_disease_trends_screen.dart';
 
 class CoopAdminManagementScreen extends StatefulWidget {
   const CoopAdminManagementScreen({super.key});
@@ -357,8 +359,12 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
   }
 
   void _showCombinedDataScreen() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Combined Data functionality coming soon!')),
+    if (_cooperativeName == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CoopOverviewScreen(cooperativeName: _cooperativeName!),
+      ),
     );
   }
 
@@ -660,8 +666,15 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
       children: [
         _buildOptionCard('Assign User Role', Icons.person_add,
             () => _showAssignUserRoleDialog()),
+        _buildOptionCard('Cooperative Overview', Icons.dashboard_rounded,
+            () => _showCombinedDataScreen()),
         _buildOptionCard(
-            'Combined Data', Icons.data_usage, () => _showCombinedDataScreen()),
+            'Pest & Disease Trends',
+            Icons.query_stats,
+            () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const PestDiseaseTrendsScreen()))),
       ],
     );
   }

@@ -1,8 +1,10 @@
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret, defineString } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
+const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestore");
+const { getMessaging } = require("firebase-admin/messaging");
 const crypto = require("crypto");
 const logger = require("firebase-functions/logger");
 
@@ -13,13 +15,26 @@ const logger = require("firebase-functions/logger");
 // GCE metadata server and blows past the CLI's 10s discovery timeout. Deferring
 // this to first actual invocation means it only ever runs inside Cloud
 // Functions itself, where ADC resolves immediately.
+let appInitialized = false;
+function ensureAppInitialized() {
+  if (!appInitialized) {
+    initializeApp();
+    appInitialized = true;
+  }
+}
+
 let firestoreDb;
 function db() {
-  if (!firestoreDb) {
-    initializeApp();
-    firestoreDb = getFirestore();
-  }
+  ensureAppInitialized();
+  if (!firestoreDb) firestoreDb = getFirestore();
   return firestoreDb;
+}
+
+let messaging;
+function fcm() {
+  ensureAppInitialized();
+  if (!messaging) messaging = getMessaging();
+  return messaging;
 }
 
 // Server-side pass-through proxies for third-party APIs that don't send
@@ -1086,5 +1101,140 @@ exports.onCommunityPostUpdated = onDocumentUpdated(
       .collection("community_comments")
       .doc(previousAcceptedId)
       .update({ is_accepted_solution: false });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Follow-up reminder push notifications
+//
+// The Flutter client already schedules a LOCAL on-device notification the
+// moment an intervention is logged (see _scheduleFollowUpReminder in
+// coffee_intervention_page.dart / coffee_disease_intervention_page.dart) —
+// that fires even while the app is backgrounded or closed, using the
+// device's own OS scheduler. What it can't do is guarantee delivery once the
+// exact-alarm permission is revoked, the device reboots, or the app is
+// force-stopped — and it has no concept of "only when the device is online",
+// which is specifically what push exists for. This scheduled function is
+// the reliability backstop: it runs hourly, finds interventions whose
+// 1-week follow-up is due and hasn't been pushed yet, and sends an FCM
+// message to every device token registered for that farmer. It intentionally
+// does NOT touch/cancel the local notification — both firing is fine.
+// ---------------------------------------------------------------------------
+
+const FOLLOWUP_COLLECTIONS = [
+  {
+    name: "coffee_pest_interventions",
+    type: "pest_followup",
+    completedField: "followUpCompleted",
+    pushSentField: "followUpPushSent",
+    dueAtField: "followUpDueAt",
+    buildMessage: (data) => ({
+      title: `Time to check on ${data.pestName || "your crop"}`,
+      body: "It's been a week — see how your crop responded and log the outcome.",
+    }),
+  },
+  {
+    name: "coffee_disease_interventions",
+    type: "disease_followup",
+    completedField: "followUpCompleted",
+    pushSentField: "followUpPushSent",
+    dueAtField: "followUpDueAt",
+    buildMessage: (data) => ({
+      title: `Time to check on ${data.diseaseName || "your crop"}`,
+      body: "It's been a week — see how your crop responded and log the outcome.",
+    }),
+  },
+  {
+    name: "fertilization_weeks",
+    type: "fertilizer_followup",
+    completedField: "completed",
+    pushSentField: "pushSent",
+    dueAtField: "dueAt",
+    buildMessage: (data) => ({
+      title: `Week ${data.weekNumber || ""} fertilization due`,
+      body: `${data.action || "Scheduled application"} — ${data.product || ""}`,
+    }),
+  },
+];
+
+async function sendFollowUpPush(userId, title, body, data) {
+  const userDoc = await db().collection("Users").doc(userId).get();
+  const tokens = (userDoc.exists && userDoc.data().fcmTokens) || [];
+  if (!Array.isArray(tokens) || tokens.length === 0) {
+    logger.info(`followupReminders: no fcmTokens for user ${userId}, skipping push`);
+    return;
+  }
+
+  const response = await fcm().sendEachForMulticast({
+    tokens,
+    notification: { title, body },
+    data,
+    android: { priority: "high" },
+  });
+
+  const deadTokens = [];
+  response.responses.forEach((r, i) => {
+    if (!r.success) {
+      const code = r.error && r.error.code;
+      if (
+        code === "messaging/registration-token-not-registered" ||
+        code === "messaging/invalid-argument"
+      ) {
+        deadTokens.push(tokens[i]);
+      } else {
+        logger.warn(`followupReminders: send failed for a token of ${userId}: ${code}`);
+      }
+    }
+  });
+
+  if (deadTokens.length > 0) {
+    await db()
+      .collection("Users")
+      .doc(userId)
+      .update({ fcmTokens: FieldValue.arrayRemove(...deadTokens) });
+    logger.info(`followupReminders: pruned ${deadTokens.length} dead token(s) for ${userId}`);
+  }
+}
+
+exports.sendFollowUpReminders = onSchedule(
+  { schedule: "every 60 minutes", region: "us-central1" },
+  async () => {
+    const now = Timestamp.now();
+
+    for (const collectionConfig of FOLLOWUP_COLLECTIONS) {
+      const { name, type, completedField, pushSentField, dueAtField, buildMessage } =
+        collectionConfig;
+      const snapshot = await db()
+        .collection(name)
+        .where(completedField, "==", false)
+        .where(pushSentField, "==", false)
+        .where(dueAtField, "<=", now)
+        .get();
+
+      logger.info(`followupReminders: ${snapshot.size} due in ${name}`);
+
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        const userId = data.userId;
+        if (!userId) continue;
+
+        const { title, body } = buildMessage(data);
+
+        try {
+          await sendFollowUpPush(userId, title, body, {
+            type,
+            interventionId: doc.id,
+            collection: name,
+          });
+        } catch (err) {
+          logger.error(`followupReminders: push failed for ${name}/${doc.id}: ${err}`);
+        }
+
+        // Mark attempted regardless of outcome — prevents an unreachable
+        // user (no tokens, or a persistent send error) from being re-queried
+        // and retried every single hour indefinitely.
+        await doc.ref.update({ [pushSentField]: true });
+      }
+    }
   }
 );
