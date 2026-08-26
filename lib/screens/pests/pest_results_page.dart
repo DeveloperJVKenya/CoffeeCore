@@ -110,6 +110,11 @@ class _PestResultsPageState extends State<PestResultsPage>
   String? _resolvedPest;
   String _resolvedStage = '';
   List<String> _onlinePestImages = [];
+  // Whether _onlinePestImages were confirmed as photographed on coffee, or
+  // came from PestImageSearchService's host-agnostic fallback tier. See
+  // PestImageSearchService.lastResultConfirmedOnCoffee for why the fallback
+  // tier can't guarantee the pest was photographed on a coffee plant.
+  bool _onlineImagesConfirmedOnCoffee = true;
   Map<String, dynamic>? _managementData;
 
   // ── Path B ─────────────────────────────────────────────────────────────────
@@ -191,11 +196,14 @@ class _PestResultsPageState extends State<PestResultsPage>
     try {
       final urls = await PestImageSearchService.searchPestImages(
           pestName: _resolvedPest!, stage: _resolvedStage);
+      final confirmed = PestImageSearchService.lastResultConfirmedOnCoffee;
       debugPrint('[PestResultsPage] 🅰️ Path A image fetch complete — '
-          '${urls.length} images for "${_resolvedPest!}"');
+          '${urls.length} images for "${_resolvedPest!}" '
+          '(confirmedOnCoffee=$confirmed)');
       if (!mounted) return;
       setState(() {
         _onlinePestImages = urls;
+        _onlineImagesConfirmedOnCoffee = confirmed;
         _pageState = _PageState.awaitingConfirmation;
       });
       _fadeController.forward(from: 0);
@@ -336,9 +344,15 @@ class _PestResultsPageState extends State<PestResultsPage>
     try {
       final urls = await PestImageSearchService.searchPestImages(
           pestName: pestName, stage: stage, maxResults: 8);
+      final confirmed = PestImageSearchService.lastResultConfirmedOnCoffee;
       debugPrint('[PestResultsPage] 🖼 ${urls.length} full-res images loaded '
-          'for "$pestName".');
-      if (mounted) setState(() => _onlinePestImages = urls);
+          'for "$pestName" (confirmedOnCoffee=$confirmed).');
+      if (mounted) {
+        setState(() {
+          _onlinePestImages = urls;
+          _onlineImagesConfirmedOnCoffee = confirmed;
+        });
+      }
     } catch (e) {
       debugPrint('[PestResultsPage] ⚠️ Full-res image fetch failed for '
           '"$pestName": $e — will use local assets if available.');
@@ -1167,7 +1181,42 @@ class _PestResultsPageState extends State<PestResultsPage>
             ),
           ),
         ],
+        if (!_onlineImagesConfirmedOnCoffee) ...[
+          const SizedBox(height: 10),
+          _buildUnconfirmedHostNotice(),
+        ],
       ],
+    );
+  }
+
+  Widget _buildUnconfirmedHostNotice() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded,
+              size: 16, color: Colors.amber.shade800),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Reference photos of this species — may not have been '
+              'photographed on a coffee plant specifically.',
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                color: Colors.amber.shade900,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

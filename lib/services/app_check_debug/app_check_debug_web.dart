@@ -9,6 +9,12 @@ external set _firebaseAppCheckDebugToken(JSAny? value);
 /// reCAPTCHA site key is restricted to registered production domains, not
 /// localhost — and since App Check enforcement covers the whole Firebase
 /// project, that failure blocks Auth as well as the AI Logic calls.
-void enableAppCheckDebugTokenForWeb() {
-  _firebaseAppCheckDebugToken = true.toJS;
+///
+/// A fixed [token] (registered once in Firebase Console > App Check > Manage
+/// debug tokens) is used instead of leaving this `true`, because `true` makes
+/// the SDK generate a new random token per browser storage origin — which
+/// changes on every `flutter run -d chrome` restart when the dev server picks
+/// a different port, requiring the token to be re-registered each time.
+void enableAppCheckDebugTokenForWeb(String token) {
+  _firebaseAppCheckDebugToken = token.toJS;
 }

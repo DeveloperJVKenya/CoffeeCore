@@ -12,6 +12,7 @@ import 'package:coffeecore/authentication/registration.dart';
 import 'package:coffeecore/home.dart';
 import 'package:coffeecore/services/push_notification_service.dart';
 import 'package:coffeecore/services/app_check_debug.dart';
+import 'package:coffeecore/config.dart';
 import 'firebase_options.dart';
 import 'package:flutter/services.dart';
 
@@ -47,7 +48,9 @@ void main() async {
   // a registered attestation token; release builds use the real attesters
   // configured in Firebase Console > App Check.
   try {
-    if (kDebugMode) enableAppCheckDebugTokenForWeb();
+    if (kDebugMode) {
+      enableAppCheckDebugTokenForWeb(Config.appCheckDebugToken);
+    }
     await FirebaseAppCheck.instance.activate(
       providerAndroid: kDebugMode
           ? const AndroidDebugProvider()

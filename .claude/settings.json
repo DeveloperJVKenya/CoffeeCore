@@ -33,7 +33,20 @@
       "Bash(dart run *)",
       "Bash(cp \"C:/Users/ADMINI~1/AppData/Local/Temp/claude/c--Users-Administrator-PROJECTFlutter-JVA-Projects-coffeecore/f56ed819-50d6-448f-ab4f-e3f5a7e0cfce/scratchpad/ledger_smoke_test.dart\" \"c:/Users/Administrator/PROJECTFlutter/JVA Projects/coffeecore/ledger_smoke_test_tmp.dart\")",
       "Bash(flutter test *)",
-      "Bash(firebase functions:log --only runPlanetekDeforestationAnalysis -n 400)"
+      "Bash(firebase functions:log --only runPlanetekDeforestationAnalysis -n 400)",
+      "Bash(powershell -Command \"[guid]::NewGuid\\(\\).ToString\\(\\)\")",
+      "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode 'q=Formicidae coffee Coffea' --data-urlencode quality_grade=research --data-urlencode photos=true --data-urlencode per_page=5 --data-urlencode order_by=votes --data-urlencode order=desc --data-urlencode photo_licensed=true -H 'Accept: application/json')",
+      "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode taxon_name=Formicidae --data-urlencode quality_grade=research --data-urlencode photos=true --data-urlencode per_page=5 -H 'Accept: application/json')",
+      "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode taxon_name=Formicidae --data-urlencode per_page=3 -H 'Accept: application/json' -H 'User-Agent: CoffeeCore/4.0 \\(Flutter; East Africa coffee pest management\\)')",
+      "Bash(curl -sI \"https://api.inaturalist.org/v1/observations?taxon_name=Formicidae&per_page=3\")",
+      "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode taxon_name=Formicidae --data-urlencode quality_grade=research --data-urlencode per_page=3)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('total_results', d['total_results']\\)\")",
+      "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode taxon_name=Formicidae --data-urlencode quality_grade=research --data-urlencode photo_licensed=true --data-urlencode per_page=3)",
+      "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode q=Formicidae --data-urlencode per_page=3)",
+      "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode 'q=Formicidae coffee Coffea' --data-urlencode per_page=3)",
+      "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode 'q=Formicidae coffee' --data-urlencode per_page=3)",
+      "Bash(curl -s \"https://api.inaturalist.org/v1/places/autocomplete?q=Kenya&per_page=3\")",
+      "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode taxon_id=1331108 --data-urlencode place_id=7042,6846,6968,7144,7142,7106,6878,7196,6924,6929,6940,6793,7513,6681,6847,6966 --data-urlencode quality_grade=research --data-urlencode photos=true --data-urlencode photo_licensed=true --data-urlencode order_by=votes --data-urlencode order=desc --data-urlencode per_page=2)"
     ]
   }
 }
