@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:coffeecore/utils/cooperative_name.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
@@ -28,7 +29,7 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
 
   Future<List<String>> _fetchVarieties() async {
     if (_selectedCooperative == null) return [];
-    String formattedCoopId = _selectedCooperative!.replaceAll(' ', '_');
+    String formattedCoopId = sanitizeCoopId(_selectedCooperative!);
     QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection('${formattedCoopId}_coffeeprices')
         .get();
@@ -43,7 +44,7 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
     final coopDocs =
         await FirebaseFirestore.instance.collection('cooperatives').get();
     for (var doc in coopDocs.docs) {
-      String formattedCoopName = doc['name'].replaceAll(' ', '_');
+      String formattedCoopName = sanitizeCoopId(doc['name'] as String);
       final userDoc = await FirebaseFirestore.instance
           .collection('${formattedCoopName}_users')
           .doc(_userId)
@@ -80,7 +81,7 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
           .get();
       if (!userDoc.exists) throw 'User not found';
       final userData = userDoc.data() as Map<String, dynamic>;
-      String formattedCoopName = cooperative.replaceAll(' ', '_');
+      String formattedCoopName = sanitizeCoopId(cooperative);
 
       await FirebaseFirestore.instance
           .collection('${formattedCoopName}_users')
@@ -112,7 +113,7 @@ class CoffeePricesWidgetState extends State<CoffeePricesWidget> {
     }
     setState(() => _isLoading = true);
     try {
-      String formattedCoopId = _selectedCooperative!.replaceAll(' ', '_');
+      String formattedCoopId = sanitizeCoopId(_selectedCooperative!);
       DocumentSnapshot snapshot = await FirebaseFirestore.instance
           .collection('${formattedCoopId}_coffeeprices')
           .doc(_selectedCoffeeVariety)

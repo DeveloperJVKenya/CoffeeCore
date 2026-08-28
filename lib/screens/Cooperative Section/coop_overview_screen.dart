@@ -4,6 +4,7 @@ import 'package:coffeecore/models/agripoints.dart';
 import 'package:coffeecore/models/follow_up_outcome.dart';
 import 'package:coffeecore/screens/admin/pest_disease_trends_screen.dart';
 import 'package:coffeecore/services/farmer_compliance_service.dart';
+import 'package:coffeecore/utils/cooperative_name.dart';
 
 /// Cooperative-wide at-a-glance dashboard for Coop Admins — replaces the
 /// old "Combined Data" placeholder. Pulls the same intervention data the
@@ -63,7 +64,7 @@ class _CoopOverviewScreenState extends State<CoopOverviewScreen> {
 
   Future<_CoopOverviewStats> _loadStats() async {
     final db = FirebaseFirestore.instance;
-    final formattedCoop = widget.cooperativeName.replaceAll(' ', '_');
+    final formattedCoop = sanitizeCoopId(widget.cooperativeName);
 
     final usersSnap = await db.collection('${formattedCoop}_users').get();
     final userIds = usersSnap.docs.map((d) => d.id).toList();

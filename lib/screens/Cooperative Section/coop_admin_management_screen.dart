@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:coffeecore/utils/cooperative_name.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
@@ -10,6 +11,8 @@ import 'package:coffeecore/screens/manuals_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/screens/farm_management_home_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/coop_collection_management_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/coop_overview_screen.dart';
+import 'package:coffeecore/screens/Cooperative%20Section/farmer_settlements_screen.dart';
+import 'package:coffeecore/screens/Cooperative%20Section/produce_traceability_screen.dart';
 import 'package:coffeecore/screens/admin/pest_disease_trends_screen.dart';
 
 class CoopAdminManagementScreen extends StatefulWidget {
@@ -71,7 +74,8 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
         }
         return;
       }
-      String assignedCoop = coopAdminDoc['cooperative'].replaceAll('_', ' ');
+      String assignedCoop =
+          coopIdToDisplayName(coopAdminDoc['cooperative'] as String);
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('cooperative_name_$_userId', assignedCoop);
       setState(() {
@@ -124,7 +128,7 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
 
   Future<void> _createCooperative(String coopName) async {
     try {
-      String formattedCoopName = coopName.replaceAll(' ', '_');
+      String formattedCoopName = sanitizeCoopId(coopName);
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('cooperative_name_$_userId', coopName);
 
@@ -162,7 +166,7 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
   Future<void> _assignUserRole(String uid, String role) async {
     if (_cooperativeName == null) return;
     try {
-      String formattedCoopName = _cooperativeName!.replaceAll(' ', '_');
+      String formattedCoopName = sanitizeCoopId(_cooperativeName!);
       final userDoc = await FirebaseFirestore.instance
           .collection('${formattedCoopName}_users')
           .doc(uid)
@@ -203,7 +207,7 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
 
   Future<void> _logActivity(String action) async {
     try {
-      String formattedCoopName = _cooperativeName!.replaceAll(' ', '_');
+      String formattedCoopName = sanitizeCoopId(_cooperativeName!);
       await FirebaseFirestore.instance
           .collection('cooperatives')
           .doc(formattedCoopName)
@@ -305,7 +309,7 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
 
   void _showUserListDialog() {
     if (_cooperativeName == null) return;
-    String formattedCoopName = _cooperativeName!.replaceAll(' ', '_');
+    String formattedCoopName = sanitizeCoopId(_cooperativeName!);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -432,7 +436,7 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
   }
 
   Widget _buildCollectionStats() {
-    String formattedCoopName = _cooperativeName!.replaceAll(' ', '_');
+    String formattedCoopName = sanitizeCoopId(_cooperativeName!);
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -675,6 +679,22 @@ class _CoopAdminManagementScreenState extends State<CoopAdminManagementScreen> {
                 context,
                 MaterialPageRoute(
                     builder: (context) => const PestDiseaseTrendsScreen()))),
+        _buildOptionCard(
+            'Farmer Settlements',
+            Icons.account_balance_wallet,
+            () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => FarmerSettlementsScreen(
+                        cooperativeName: _cooperativeName!)))),
+        _buildOptionCard(
+            'Produce Traceability',
+            Icons.route,
+            () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => ProduceTraceabilityScreen(
+                        cooperativeName: _cooperativeName!, canScan: false)))),
       ],
     );
   }

@@ -5,6 +5,7 @@ import 'package:coffeecore/screens/Farm%20Management/models/farm_polygon_model.d
 import 'package:coffeecore/screens/Farm%20Management/providers/climate_satellite_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/providers/farm_cycle_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/providers/farm_finance_provider.dart';
+import 'package:coffeecore/screens/Farm%20Management/providers/yield_provider.dart';
 import 'package:coffeecore/screens/Farm%20Management/widgets/cycle_stage_badge.dart';
 import 'package:coffeecore/screens/Farm%20Management/widgets/empty_state.dart';
 import 'package:coffeecore/screens/Farm%20Management/widgets/farm_map_thumbnail.dart';
@@ -38,6 +39,7 @@ class OverviewTab extends StatelessWidget {
         _buildCycleBanner(context),
         const SizedBox(height: FarmTheme.spaceMd),
         _buildStatsRow(context),
+        _buildHarvestReconciliationNotice(context),
         const SizedBox(height: FarmTheme.spaceMd),
         _buildQuickActions(context),
       ],
@@ -185,6 +187,65 @@ class OverviewTab extends StatelessWidget {
     );
   }
 
+  // Harvested kg (Yield tab) and sold kg (Revenue entries feeding this
+  // Overview's P&L) are logged independently with no cross-check, so they
+  // can silently diverge — e.g. 500 kg harvested but only 200 kg logged as
+  // sold, with the missing 300 kg going unnoticed. This surfaces that gap
+  // rather than fixing it automatically, since a gap can be legitimate
+  // (unsold stock still in storage) — it's a prompt to check, not an error.
+  Widget _buildHarvestReconciliationNotice(BuildContext context) {
+    return Consumer2<YieldProvider, FarmFinanceProvider>(
+      builder: (context, yieldProvider, financeProvider, _) {
+        final double harvestedKg = yieldProvider.stats.totalKg;
+        final double soldKg = financeProvider.revenues
+            .fold<double>(0.0, (total, r) => total + r.kg);
+        final double unaccountedKg = harvestedKg - soldKg;
+
+        // Only worth flagging once there's a meaningful harvest on record —
+        // avoids noise while a cycle is brand new and both are near zero.
+        if (harvestedKg <= 0 || unaccountedKg <= 0.5) {
+          return const SizedBox.shrink();
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(top: FarmTheme.spaceMd),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: FarmTheme.spaceMd,
+              vertical: FarmTheme.spaceSm,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(FarmTheme.radiusCard),
+              border: Border.all(color: Colors.amber.shade200),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline_rounded,
+                    size: 18, color: Colors.amber.shade800),
+                const SizedBox(width: FarmTheme.spaceSm),
+                Expanded(
+                  child: Text(
+                    '${unaccountedKg.toStringAsFixed(1)} kg harvested has '
+                    'not been logged as sold yet — check the Revenue tab if '
+                    "that's unexpected.",
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: Colors.amber.shade900,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildQuickActions(BuildContext context) {
     return Consumer<FarmCycleProvider>(
       builder: (context, cycleProvider, _) {
@@ -212,6 +273,7 @@ class OverviewTab extends StatelessWidget {
                             builder: (_) => YieldEntryScreen(
                               farmId: farmId,
                               cycleId: activeCycle.id!,
+                              cycleStartDate: activeCycle.startDate,
                             ),
                           ),
                         ),

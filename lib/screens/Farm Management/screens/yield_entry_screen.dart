@@ -15,18 +15,30 @@ import 'package:provider/provider.dart';
 class YieldEntryScreen extends StatelessWidget {
   final String farmId;
   final String cycleId;
+  // Lower bound for the yield-record date picker, so a harvest can't be
+  // logged with a date before its cycle began (e.g. before land prep even
+  // started). Nullable because this screen has no other way to look up the
+  // cycle's startDate: it's pushed via Navigator.push, which puts it outside
+  // FarmDetailShellScreen's MultiProvider — hence this screen already using
+  // its own local YieldProvider instead of reading the shell's.
+  final DateTime? cycleStartDate;
 
   const YieldEntryScreen({
     super.key,
     required this.farmId,
     required this.cycleId,
+    this.cycleStartDate,
   });
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<YieldProvider>(
       create: (_) => YieldProvider(farmId: farmId)..updateCycle(cycleId),
-      child: _YieldEntryView(farmId: farmId, cycleId: cycleId),
+      child: _YieldEntryView(
+        farmId: farmId,
+        cycleId: cycleId,
+        cycleStartDate: cycleStartDate,
+      ),
     );
   }
 }
@@ -34,8 +46,13 @@ class YieldEntryScreen extends StatelessWidget {
 class _YieldEntryView extends StatelessWidget {
   final String farmId;
   final String cycleId;
+  final DateTime? cycleStartDate;
 
-  const _YieldEntryView({required this.farmId, required this.cycleId});
+  const _YieldEntryView({
+    required this.farmId,
+    required this.cycleId,
+    this.cycleStartDate,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -131,11 +148,10 @@ class _YieldEntryView extends StatelessWidget {
                                 trailing: IconButton(
                                   icon: const Icon(Icons.delete_outline,
                                       color: FarmTheme.accentBad),
-                                  onPressed: () {
-                                    if (record.id != null) {
-                                      provider.deleteRecord(record.id!);
-                                    }
-                                  },
+                                  onPressed: record.id == null
+                                      ? null
+                                      : () => _confirmAndDelete(
+                                          context, provider, record.id!),
                                 ),
                               ),
                             ),
@@ -150,12 +166,46 @@ class _YieldEntryView extends StatelessWidget {
     );
   }
 
+  Future<void> _confirmAndDelete(
+      BuildContext context, YieldProvider provider, String recordId) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('Delete yield record?'),
+        content: const Text('This cannot be undone.'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete',
+                style: TextStyle(color: FarmTheme.accentBad)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await provider.deleteRecord(recordId);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete record: $e')),
+      );
+    }
+  }
+
   void _showAddRecordDialog(BuildContext context, YieldProvider provider) {
     final TextEditingController kgCtrl = TextEditingController();
     final TextEditingController gradeCtrl = TextEditingController();
     final TextEditingController moistureCtrl = TextEditingController();
     final TextEditingController notesCtrl = TextEditingController();
     DateTime selectedDate = DateTime.now();
+    bool isSubmitting = false;
+    String? errorText;
 
     showDialog<void>(
       context: context,
@@ -178,7 +228,8 @@ class _YieldEntryView extends StatelessWidget {
                         final DateTime? picked = await showDatePicker(
                           context: context,
                           initialDate: selectedDate,
-                          firstDate: DateTime(2000),
+                          // Can't log a harvest before its cycle started.
+                          firstDate: cycleStartDate ?? DateTime(2000),
                           lastDate: DateTime.now(),
                         );
                         if (picked != null) {
@@ -209,38 +260,90 @@ class _YieldEntryView extends StatelessWidget {
                       maxLines: 2,
                       decoration: const InputDecoration(labelText: 'Notes'),
                     ),
+                    if (errorText != null) ...<Widget>[
+                      const SizedBox(height: 8),
+                      Text(errorText!,
+                          style: const TextStyle(color: FarmTheme.accentBad)),
+                    ],
                   ],
                 ),
               ),
               actions: <Widget>[
                 TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
-                    final double? kg = double.tryParse(kgCtrl.text);
-                    if (kg == null || kg <= 0) return;
-                    provider.addRecord(
-                      YieldRecord(
-                        farmId: farmId,
-                        cycleId: cycleId,
-                        userId: FirebaseAuth.instance.currentUser?.uid ?? '',
-                        date: selectedDate,
-                        kgHarvested: kg,
-                        grade: gradeCtrl.text.trim().isEmpty
-                            ? null
-                            : gradeCtrl.text.trim(),
-                        moistureContent: double.tryParse(moistureCtrl.text),
-                        notes: notesCtrl.text.trim().isEmpty
-                            ? null
-                            : notesCtrl.text.trim(),
-                        createdAt: DateTime.now(),
-                      ),
-                    );
-                    Navigator.of(dialogContext).pop();
-                  },
-                  child: const Text('Add'),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final double? kg = double.tryParse(kgCtrl.text);
+                          if (kg == null || kg <= 0) {
+                            setDialogState(
+                                () => errorText = 'Enter a valid kg amount.');
+                            return;
+                          }
+                          final double? moisture =
+                              moistureCtrl.text.trim().isEmpty
+                                  ? null
+                                  : double.tryParse(moistureCtrl.text);
+                          if (moistureCtrl.text.trim().isNotEmpty &&
+                              (moisture == null ||
+                                  moisture < 0 ||
+                                  moisture > 100)) {
+                            setDialogState(() => errorText =
+                                'Moisture content must be between 0 and 100%.');
+                            return;
+                          }
+                          final String? userId =
+                              FirebaseAuth.instance.currentUser?.uid;
+                          if (userId == null) {
+                            setDialogState(() => errorText =
+                                'You are signed out — please sign in again.');
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                            errorText = null;
+                          });
+                          try {
+                            await provider.addRecord(
+                              YieldRecord(
+                                farmId: farmId,
+                                cycleId: cycleId,
+                                userId: userId,
+                                date: selectedDate,
+                                kgHarvested: kg,
+                                grade: gradeCtrl.text.trim().isEmpty
+                                    ? null
+                                    : gradeCtrl.text.trim(),
+                                moistureContent: moisture,
+                                notes: notesCtrl.text.trim().isEmpty
+                                    ? null
+                                    : notesCtrl.text.trim(),
+                                createdAt: DateTime.now(),
+                              ),
+                            );
+                            if (dialogContext.mounted) {
+                              Navigator.of(dialogContext).pop();
+                            }
+                          } catch (e) {
+                            setDialogState(() {
+                              isSubmitting = false;
+                              errorText = 'Failed to save record: $e';
+                            });
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Add'),
                 ),
               ],
             );

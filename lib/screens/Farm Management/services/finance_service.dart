@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
@@ -49,12 +51,21 @@ class FinanceService {
         .where('cycleId', isEqualTo: cycleId)
         .orderBy('date', descending: true)
         .snapshots()
-        .map(
-            (snap) => snap.docs.map((d) => CostEntry.fromFirestore(d)).toList())
-        .handleError((Object e, StackTrace st) {
-      _log.e('FinanceService.costsForCycle: Stream error – $e', stackTrace: st);
-      return <CostEntry>[];
-    });
+        .transform(
+          StreamTransformer.fromHandlers(
+            handleData: (snap, sink) => sink
+                .add(snap.docs.map((d) => CostEntry.fromFirestore(d)).toList()),
+            // See yield_service.dart's recordsForCycle for why the fallback
+            // must be emitted via sink.add rather than just logging: an
+            // unhandled stream error reaches onError, not onData, and
+            // FarmFinanceProvider only clears _isLoading from onData.
+            handleError: (Object e, StackTrace st, sink) {
+              _log.e('FinanceService.costsForCycle: Stream error – $e',
+                  stackTrace: st);
+              sink.add(<CostEntry>[]);
+            },
+          ),
+        );
   }
 
   Stream<List<RevenueEntry>> revenueForCycle(String farmId, String cycleId) {
@@ -65,13 +76,17 @@ class FinanceService {
         .where('cycleId', isEqualTo: cycleId)
         .orderBy('date', descending: true)
         .snapshots()
-        .map((snap) =>
-            snap.docs.map((d) => RevenueEntry.fromFirestore(d)).toList())
-        .handleError((Object e, StackTrace st) {
-      _log.e('FinanceService.revenueForCycle: Stream error – $e',
-          stackTrace: st);
-      return <RevenueEntry>[];
-    });
+        .transform(
+          StreamTransformer.fromHandlers(
+            handleData: (snap, sink) => sink.add(
+                snap.docs.map((d) => RevenueEntry.fromFirestore(d)).toList()),
+            handleError: (Object e, StackTrace st, sink) {
+              _log.e('FinanceService.revenueForCycle: Stream error – $e',
+                  stackTrace: st);
+              sink.add(<RevenueEntry>[]);
+            },
+          ),
+        );
   }
 
   Future<String> addCost(CostEntry entry) async {

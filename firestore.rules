@@ -203,6 +203,47 @@ service cloud.firestore {
                               (isAuthenticated() && request.auth.uid == documentId));
         allow delete: if collection.matches('.*_FarmerProduce') &&
                         (isAdmin() || isCoopAdmin(collection.replace('_FarmerProduce', '')));
+
+        // QR-traceability stage log (e.g. .../submissions/{submissionId}/traceStages)
+        // Append-only from the app's side: recordStage() only ever adds a new
+        // entry, never edits/deletes one, so there's no update/delete rule —
+        // the trace history is a permanent record of what was scanned when.
+        match /traceStages/{entryId} {
+          allow read: if collection.matches('.*_FarmerProduce') &&
+                      (isAdmin() ||
+                        isCoopAdmin(collection.replace('_FarmerProduce', '')) ||
+                        isMarketManager(collection.replace('_FarmerProduce', '')) ||
+                        (isAuthenticated() && request.auth.uid == documentId));
+          allow create: if collection.matches('.*_FarmerProduce') &&
+                        (isAdmin() ||
+                          isCoopAdmin(collection.replace('_FarmerProduce', '')) ||
+                          isMarketManager(collection.replace('_FarmerProduce', '')));
+        }
+      }
+    }
+
+    // Cooperative-specific settlement collections (e.g. {coopId}_FarmerDeductions,
+    // {coopId}_FarmerPayouts) — cost/payout entries recorded by the cooperative
+    // against a farmer's running settlement balance. Only Admin/CoopAdmin/
+    // MarketManager may write these (a farmer must never be able to edit their
+    // own deductions or fabricate a payout); the farmer may only read their own.
+    match /{collection}/{documentId} {
+      allow read: if (collection.matches('.*_FarmerDeductions') || collection.matches('.*_FarmerPayouts')) &&
+                  (isAdmin() ||
+                    isCoopAdmin(collection.replace('_FarmerDeductions', '').replace('_FarmerPayouts', '')) ||
+                    isMarketManager(collection.replace('_FarmerDeductions', '').replace('_FarmerPayouts', '')) ||
+                    (isAuthenticated() && request.auth.uid == documentId));
+
+      match /entries/{entryId} {
+        allow read: if (collection.matches('.*_FarmerDeductions') || collection.matches('.*_FarmerPayouts')) &&
+                    (isAdmin() ||
+                      isCoopAdmin(collection.replace('_FarmerDeductions', '').replace('_FarmerPayouts', '')) ||
+                      isMarketManager(collection.replace('_FarmerDeductions', '').replace('_FarmerPayouts', '')) ||
+                      (isAuthenticated() && request.auth.uid == documentId));
+        allow create, update, delete: if (collection.matches('.*_FarmerDeductions') || collection.matches('.*_FarmerPayouts')) &&
+                    (isAdmin() ||
+                      isCoopAdmin(collection.replace('_FarmerDeductions', '').replace('_FarmerPayouts', '')) ||
+                      isMarketManager(collection.replace('_FarmerDeductions', '').replace('_FarmerPayouts', '')));
       }
     }
 

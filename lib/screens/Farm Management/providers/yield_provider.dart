@@ -32,6 +32,7 @@ class YieldProvider with ChangeNotifier {
       return;
     }
     _isLoading = true;
+    notifyListeners();
     _sub = _service.recordsForCycle(farmId, cycleId).listen((v) {
       _records = v;
       _isLoading = false;

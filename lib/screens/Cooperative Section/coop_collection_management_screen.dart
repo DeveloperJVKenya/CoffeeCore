@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:coffeecore/utils/cooperative_name.dart';
 import 'package:coffeecore/utils/excel_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -79,7 +80,7 @@ class _CoopCollectionManagementScreenState
         String collectionPath = _globalCollections
                 .contains(widget.collectionName)
             ? widget.collectionName
-            : '${widget.cooperativeName.replaceAll(' ', '_')}_${widget.collectionName}';
+            : '${sanitizeCoopId(widget.cooperativeName)}_${widget.collectionName}';
         await FirebaseFirestore.instance
             .collection(collectionPath)
             .doc(docId)
@@ -233,7 +234,7 @@ class _CoopCollectionManagementScreenState
         String collectionPath = _globalCollections
                 .contains(widget.collectionName)
             ? widget.collectionName
-            : '${widget.cooperativeName.replaceAll(' ', '_')}_${widget.collectionName}';
+            : '${sanitizeCoopId(widget.cooperativeName)}_${widget.collectionName}';
         final updateData = <String, dynamic>{};
         result.forEach((key, value) {
           if (numericFields.contains(key)) {
@@ -303,7 +304,7 @@ class _CoopCollectionManagementScreenState
 
   Future<void> _logActivity(String action) async {
     try {
-      String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+      String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
       await FirebaseFirestore.instance
           .collection('cooperatives')
           .doc(formattedCoopName)
@@ -320,7 +321,7 @@ class _CoopCollectionManagementScreenState
 
   Future<String> _fetchUserName(String uid) async {
     try {
-      String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+      String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
       final userDoc = await FirebaseFirestore.instance
           .collection('${formattedCoopName}_users')
           .doc(uid)
@@ -333,7 +334,7 @@ class _CoopCollectionManagementScreenState
   }
 
   Future<List<String>> _fetchCoopUserIds() async {
-    String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+    String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('${formattedCoopName}_users')
@@ -470,7 +471,7 @@ class _CoopCollectionManagementScreenState
   Widget build(BuildContext context) {
     String collectionPath = _globalCollections.contains(widget.collectionName)
         ? widget.collectionName
-        : '${widget.cooperativeName.replaceAll(' ', '_')}_${widget.collectionName}';
+        : '${sanitizeCoopId(widget.cooperativeName)}_${widget.collectionName}';
     String title =
         _collectionDisplayNames[widget.collectionName] ?? widget.collectionName;
     return Scaffold(
@@ -535,7 +536,7 @@ class _CoopCollectionManagementScreenState
                   String collectionPath = _globalCollections
                           .contains(widget.collectionName)
                       ? widget.collectionName
-                      : '${widget.cooperativeName.replaceAll(' ', '_')}_${widget.collectionName}';
+                      : '${sanitizeCoopId(widget.cooperativeName)}_${widget.collectionName}';
                   final snapshot = await FirebaseFirestore.instance
                       .collection(collectionPath)
                       .orderBy('timestamp', descending: !_sortAscending)

@@ -1,5 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coffeecore/models/farmer_produce.dart';
+import 'package:coffeecore/screens/Cooperative%20Section/farmer_settlements_screen.dart';
+import 'package:coffeecore/screens/Cooperative%20Section/produce_qr_scan_screen.dart';
+import 'package:coffeecore/screens/Cooperative%20Section/produce_traceability_screen.dart';
+import 'package:coffeecore/screens/Farm%20Management/services/pdf_download_helper.dart';
+import 'package:coffeecore/services/qr_tag_pdf_service.dart';
+import 'package:coffeecore/utils/cooperative_name.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -26,6 +32,14 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
   String? _selectedUserId;
   final TextEditingController _produceAmountController =
       TextEditingController();
+
+  // Coffee varieties + current price/kg, sourced from {coop}_coffeeprices —
+  // populated once when the variety-selection dialog opens, matching how
+  // _userDetails is fetched once rather than streamed. Selecting a variety
+  // here snapshots its price into the submission at write time, so a later
+  // price change never rewrites a historical submission's value.
+  List<Map<String, dynamic>> _varietyPrices = [];
+  String? _selectedVariety;
 
   @override
   void initState() {
@@ -56,6 +70,7 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
     try {
       QuerySnapshot coopSnapshot =
           await FirebaseFirestore.instance.collection('cooperatives').get();
+      if (!mounted) return;
       logger.i('Fetched cooperatives: ${coopSnapshot.docs.length} found');
       for (var coopDoc in coopSnapshot.docs) {
         String coopId = coopDoc.id;
@@ -63,11 +78,12 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
             .collection('${coopId}_marketmanagers')
             .doc(userId)
             .get();
+        if (!mounted) return;
         logger.i(
             'Checking market manager document for user $userId in ${coopId}_marketmanagers');
         if (managerDoc.exists) {
           setState(() {
-            _cooperativeName = coopId.replaceAll('_', ' ');
+            _cooperativeName = coopIdToDisplayName(coopId);
           });
           await _fetchUsers(coopId);
           return;
@@ -81,6 +97,7 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
           'User $userId not found in any {coopId}_marketmanagers collection');
     } catch (e, stackTrace) {
       logger.e('Error fetching cooperative: $e\nStack trace: $stackTrace');
+      if (!mounted) return;
       setState(() {
         _feedbackMessage = 'Error loading cooperative: $e';
       });
@@ -92,6 +109,7 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
       logger.i('Fetching users from collection: ${coopId}_users');
       QuerySnapshot userSnapshot =
           await FirebaseFirestore.instance.collection('${coopId}_users').get();
+      if (!mounted) return;
       logger.i('Fetched users: ${userSnapshot.docs.length} found');
 
       _userDetails.clear();
@@ -111,6 +129,7 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
       setState(() {});
     } catch (e, stackTrace) {
       logger.e('Error fetching users: $e\nStack trace: $stackTrace');
+      if (!mounted) return;
       setState(() {
         _feedbackMessage = 'Error loading users: $e';
       });
@@ -138,7 +157,17 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
       return;
     }
 
-    String formattedCoopId = _cooperativeName!.replaceAll(' ', '_');
+    if (_selectedVariety == null) {
+      setState(() {
+        _feedbackMessage = 'Please select a coffee variety';
+      });
+      return;
+    }
+    final double pricePerKg = _varietyPrices
+        .firstWhere((v) => v['variety'] == _selectedVariety)['price'] as double;
+    final double grossValue = amount * pricePerKg;
+
+    String formattedCoopId = sanitizeCoopId(_cooperativeName!);
     String dateString = DateFormat('yyyy-MM-dd').format(DateTime.now());
     String? farmerName = _userDetails.firstWhere(
         (user) => user['id'] == _selectedUserId,
@@ -148,6 +177,10 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
         orElse: () => {'phoneNumber': 'N/A'})['phoneNumber'];
 
     try {
+      final submissionsRef = FirebaseFirestore.instance
+          .collection('${formattedCoopId}_FarmerProduce')
+          .doc(_selectedUserId)
+          .collection('submissions');
       final produceData = FarmerProduce(
         id: _selectedUserId!,
         farmerName: farmerName!,
@@ -155,25 +188,26 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
         totalAmount: amount,
         timestamp: Timestamp.now(),
         submissionDate: dateString,
-        submissionId: FirebaseFirestore.instance.collection('dummy').doc().id,
+        submissionId: submissionsRef.doc().id,
+        variety: _selectedVariety!,
+        pricePerKg: pricePerKg,
+        grossValue: grossValue,
       );
 
-      await FirebaseFirestore.instance
-          .collection('${formattedCoopId}_FarmerProduce')
-          .doc(_selectedUserId)
-          .collection('submissions')
+      await submissionsRef
           .doc(produceData.submissionId)
           .set(produceData.toMap());
       logger.i(
           'Successfully set produce data for user $_selectedUserId at ${formattedCoopId}_FarmerProduce/$_selectedUserId/submissions/${produceData.submissionId}');
 
       await _logActivity(
-          'Added produce $amount kg for user $_selectedUserId in cooperative $_cooperativeName');
+          'Added produce $amount kg ($_selectedVariety) for user $_selectedUserId in cooperative $_cooperativeName');
       setState(() {
         _feedbackMessage =
             'Produce submission of $amount kg added successfully';
         _produceAmountController.clear();
         _selectedUserId = null;
+        _selectedVariety = null;
       });
     } catch (e, stackTrace) {
       logger.e(
@@ -186,7 +220,7 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
 
   Future<void> _editProduceSubmission(
       String userId, String submissionId, double currentAmount) async {
-    String formattedCoopId = _cooperativeName!.replaceAll(' ', '_');
+    String formattedCoopId = sanitizeCoopId(_cooperativeName!);
     _produceAmountController.text = currentAmount.toString();
     final result = await showDialog<String>(
       context: context,
@@ -265,7 +299,7 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
 
   Future<void> _logActivity(String action) async {
     try {
-      String formattedCoopId = _cooperativeName!.replaceAll(' ', '_');
+      String formattedCoopId = sanitizeCoopId(_cooperativeName!);
       await FirebaseFirestore.instance
           .collection('cooperatives')
           .doc(formattedCoopId)
@@ -357,6 +391,50 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
                           MaterialPageRoute(
                             builder: (_) => SubmissionListScreen(
                                 cooperativeName: _cooperativeName!),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    _buildOptionCard(
+                      'Farmer Settlements',
+                      Icons.account_balance_wallet,
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FarmerSettlementsScreen(
+                                cooperativeName: _cooperativeName!),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    _buildOptionCard(
+                      'Scan Produce Tag',
+                      Icons.qr_code_scanner,
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ProduceQrScanScreen(
+                                cooperativeName: _cooperativeName!),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    _buildOptionCard(
+                      'Traceability',
+                      Icons.route,
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ProduceTraceabilityScreen(
+                              cooperativeName: _cooperativeName!,
+                              canScan: true,
+                            ),
                           ),
                         );
                       },
@@ -462,7 +540,7 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
         ),
       );
     }
-    String formattedCoopId = _cooperativeName!.replaceAll(' ', '_');
+    String formattedCoopId = sanitizeCoopId(_cooperativeName!);
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('${formattedCoopId}_FarmerProduce')
@@ -518,12 +596,22 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
                 DataCell(Text(data.submissionDate)),
                 DataCell(Text(data.totalAmount.toStringAsFixed(2))),
                 DataCell(
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () {
-                      _editProduceSubmission(
-                          data.id, data.submissionId, data.totalAmount);
-                    },
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () {
+                          _editProduceSubmission(
+                              data.id, data.submissionId, data.totalAmount);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.qr_code, color: Colors.brown),
+                        tooltip: 'Print QR Tag',
+                        onPressed: () => _printQrTag(data),
+                      ),
+                    ],
                   ),
                 ),
               ]);
@@ -534,7 +622,65 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
     );
   }
 
+  Future<void> _printQrTag(FarmerProduce data) async {
+    if (_cooperativeName == null) return;
+    try {
+      final bytes = await QrTagPdfService.buildTag(
+        cooperativeName: _cooperativeName!,
+        farmerName: data.farmerName,
+        submissionDate: data.submissionDate,
+        kg: data.totalAmount,
+        variety: data.variety.isEmpty ? 'Unspecified' : data.variety,
+        coopId: sanitizeCoopId(_cooperativeName!),
+        userId: data.id,
+        submissionId: data.submissionId,
+      );
+      final fileName = 'produce_tag_${data.submissionId}.pdf';
+      final file = await PdfDownloadHelper.saveBytes(bytes, fileName);
+      if (!mounted) return;
+      if (file != null) {
+        await PdfDownloadHelper.share(file,
+            text: 'Produce tag for ${data.farmerName}');
+      }
+      setState(() => _feedbackMessage = 'QR tag ready for ${data.farmerName}');
+    } catch (e, stackTrace) {
+      logger.e('Error generating QR tag: $e\nStack trace: $stackTrace');
+      if (!mounted) return;
+      setState(() => _feedbackMessage = 'Error generating QR tag: $e');
+    }
+  }
+
+  Future<void> _fetchVarietyPrices() async {
+    if (_cooperativeName == null) return;
+    try {
+      final formattedCoopId = sanitizeCoopId(_cooperativeName!);
+      final snapshot = await FirebaseFirestore.instance
+          .collection('${formattedCoopId}_coffeeprices')
+          .get();
+      if (!mounted) return;
+      setState(() {
+        _varietyPrices = snapshot.docs
+            .map((doc) => {
+                  'variety': doc.id,
+                  'price': (doc.data()['price'] as num?)?.toDouble() ?? 0.0,
+                })
+            .toList();
+      });
+    } catch (e, stackTrace) {
+      logger.e('Error fetching variety prices: $e\nStack trace: $stackTrace');
+    }
+  }
+
   Future<void> _showAddProduceDialog(BuildContext context) async {
+    await _fetchVarietyPrices();
+    if (_varietyPrices.isEmpty) {
+      setState(() {
+        _feedbackMessage =
+            'Add a coffee variety price first before recording a submission.';
+      });
+      return;
+    }
+    if (!context.mounted) return;
     return showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -589,6 +735,25 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
                       ),
                     ),
                     const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedVariety,
+                      hint: const Text('Select Coffee Variety'),
+                      items: _varietyPrices.map((v) {
+                        return DropdownMenuItem<String>(
+                          value: v['variety'] as String,
+                          child: Text('${v['variety']} (Ksh ${v['price']}/kg)'),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setDialogState(() => _selectedVariety = value);
+                      },
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     TextField(
                       controller: _produceAmountController,
                       keyboardType: TextInputType.number,
@@ -609,6 +774,13 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
                 TextButton(
                   style: TextButton.styleFrom(foregroundColor: coffeeBrown),
                   onPressed: () {
+                    if (_selectedVariety == null) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(
+                            content: Text('Please select a coffee variety')),
+                      );
+                      return;
+                    }
                     Navigator.pop(dialogContext);
                     _addProduceSubmission();
                   },
@@ -677,7 +849,7 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
                 return;
               }
               double? price = double.tryParse(priceController.text);
-              if (price == null || price < 0) {
+              if (price == null || price <= 0) {
                 Navigator.pop(dialogContext, 'Invalid price');
                 return;
               }
@@ -695,7 +867,7 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
       try {
         String newVariety = result;
         double price = double.parse(priceController.text);
-        String formattedCoopId = _cooperativeName!.replaceAll(' ', '_');
+        String formattedCoopId = sanitizeCoopId(_cooperativeName!);
         await FirebaseFirestore.instance
             .collection('${formattedCoopId}_coffeeprices')
             .doc(newVariety)
@@ -769,7 +941,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
             style: TextButton.styleFrom(foregroundColor: coffeeBrown),
             onPressed: () {
               double? price = double.tryParse(priceController.text);
-              if (price == null || price < 0) {
+              if (price == null || price <= 0) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
                   const SnackBar(content: Text('Invalid price')),
                 );
@@ -786,7 +958,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
     if (result == true) {
       try {
         double price = double.parse(priceController.text);
-        String formattedCoopId = widget.cooperativeName.replaceAll(' ', '_');
+        String formattedCoopId = sanitizeCoopId(widget.cooperativeName);
         await FirebaseFirestore.instance
             .collection('${formattedCoopId}_coffeeprices')
             .doc(variety)
@@ -827,7 +999,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
 
     if (confirm == true) {
       try {
-        String formattedCoopId = widget.cooperativeName.replaceAll(' ', '_');
+        String formattedCoopId = sanitizeCoopId(widget.cooperativeName);
         await FirebaseFirestore.instance
             .collection('${formattedCoopId}_coffeeprices')
             .doc(variety)
@@ -850,7 +1022,7 @@ class _PriceListScreenState extends State<PriceListScreen> {
       });
     }
 
-    String formattedCoopId = widget.cooperativeName.replaceAll(' ', '_');
+    String formattedCoopId = sanitizeCoopId(widget.cooperativeName);
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -961,11 +1133,12 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
 
   Future<void> _fetchUsersAndDates() async {
     try {
-      String formattedCoopId = widget.cooperativeName.replaceAll(' ', '_');
+      String formattedCoopId = sanitizeCoopId(widget.cooperativeName);
       // Fetch users
       QuerySnapshot userSnapshot = await FirebaseFirestore.instance
           .collection('${formattedCoopId}_users')
           .get();
+      if (!mounted) return;
       logger.i('Fetched users: ${userSnapshot.docs.length} found');
       _userDetails = userSnapshot.docs.map((doc) {
         String userId = doc.id;
@@ -987,6 +1160,7 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
             .where('submissionDate', isGreaterThan: '')
             .orderBy('submissionDate', descending: true)
             .get();
+        if (!mounted) return;
         logger.i(
             'Fetched ${submissionSnapshot.docs.length} submissions for user ${user['id']}');
         var dates = submissionSnapshot.docs
@@ -1001,6 +1175,7 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
       setState(() {});
     } catch (e, stackTrace) {
       logger.e('Error fetching users or dates: $e\nStack trace: $stackTrace');
+      if (!mounted) return;
       setState(() {
         _feedbackMessage = 'Error loading data: $e';
       });
@@ -1009,7 +1184,7 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
 
   Future<void> _editProduceSubmission(
       String userId, String submissionId, double currentAmount) async {
-    String formattedCoopId = widget.cooperativeName.replaceAll(' ', '_');
+    String formattedCoopId = sanitizeCoopId(widget.cooperativeName);
     final TextEditingController amountController =
         TextEditingController(text: currentAmount.toString());
     final result = await showDialog<String>(
@@ -1093,7 +1268,7 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
       });
     }
 
-    String formattedCoopId = widget.cooperativeName.replaceAll(' ', '_');
+    String formattedCoopId = sanitizeCoopId(widget.cooperativeName);
     return Scaffold(
       appBar: AppBar(
         title: Text(

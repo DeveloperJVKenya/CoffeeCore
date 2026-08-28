@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:coffeecore/screens/Cooperative%20Section/coffee_prices.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/coop_admin_management_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/market_manager_screen.dart';
+import 'package:coffeecore/screens/Cooperative%20Section/farmer_settlements_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/produce_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/screens/farm_management_home_screen.dart';
 import 'package:coffeecore/screens/Community/feed_screen.dart';
@@ -561,6 +562,8 @@ class _HomePageState extends State<HomePage> {
                 _buildMenuButton(context),
                 const SizedBox(width: 8),
                 _buildProduceButton(),
+                const SizedBox(width: 8),
+                _buildSettlementsButton(),
               ],
               if (!_isMainAdmin &&
                   !_isCoopAdmin &&
@@ -660,6 +663,36 @@ class _HomePageState extends State<HomePage> {
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         backgroundColor: Colors.brown[700],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 2,
+      ),
+    );
+  }
+
+  Widget _buildSettlementsButton() {
+    return ElevatedButton.icon(
+      onPressed: () {
+        if (_cooperativeName != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  FarmerSettlementsScreen(cooperativeName: _cooperativeName!),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No cooperative assigned')),
+          );
+        }
+      },
+      icon: const Icon(Icons.account_balance_wallet,
+          color: Colors.white, size: 18),
+      label: const Text('Earnings',
+          style: TextStyle(color: Colors.white, fontSize: 13)),
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        backgroundColor: Colors.green[700],
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         elevation: 2,
       ),

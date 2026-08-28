@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
@@ -37,12 +39,22 @@ class YieldService {
         .where('cycleId', isEqualTo: cycleId)
         .orderBy('date', descending: true)
         .snapshots()
-        .map((snap) =>
-            snap.docs.map((d) => YieldRecord.fromFirestore(d)).toList())
-        .handleError((Object e, StackTrace st) {
-      _log.e('YieldService.recordsForCycle: Stream error – $e', stackTrace: st);
-      return <YieldRecord>[];
-    });
+        .transform(
+          StreamTransformer.fromHandlers(
+            handleData: (snap, sink) => sink.add(
+                snap.docs.map((d) => YieldRecord.fromFirestore(d)).toList()),
+            // Emitting a fallback list here (rather than just logging and
+            // letting the error propagate) is required — otherwise the error
+            // event reaches the stream's onError callback instead of onData,
+            // and YieldProvider.updateCycle only flips _isLoading back to
+            // false from onData, leaving the UI spinning forever.
+            handleError: (Object e, StackTrace st, sink) {
+              _log.e('YieldService.recordsForCycle: Stream error – $e',
+                  stackTrace: st);
+              sink.add(<YieldRecord>[]);
+            },
+          ),
+        );
   }
 
   Future<String> addRecord(YieldRecord record) async {

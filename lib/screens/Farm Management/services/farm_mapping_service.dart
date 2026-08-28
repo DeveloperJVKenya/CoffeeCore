@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coffeecore/screens/Farm%20Management/models/farm_polygon_model.dart';
 import 'package:coffeecore/screens/Farm%20Management/models/ndvi_history_entry_model.dart';
@@ -51,22 +53,32 @@ class FarmMappingService {
         .where('userId', isEqualTo: _uid)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) {
-      _log.i(
-        'FarmMappingService.userFarmsStream: '
-        'Received ${snap.docs.length} farm(s)',
-      );
-      return snap.docs
-          .map((d) => FarmPolygon.fromFirestore(
-              d as DocumentSnapshot<Map<String, dynamic>>))
-          .toList();
-    }).handleError((Object e, StackTrace st) {
-      _log.e(
-        'FarmMappingService.userFarmsStream: Stream error – $e',
-        stackTrace: st,
-      );
-      return <FarmPolygon>[];
-    });
+        .transform(
+          StreamTransformer.fromHandlers(
+            handleData: (snap, sink) {
+              _log.i(
+                'FarmMappingService.userFarmsStream: '
+                'Received ${snap.docs.length} farm(s)',
+              );
+              sink.add(snap.docs
+                  .map((d) => FarmPolygon.fromFirestore(
+                      d as DocumentSnapshot<Map<String, dynamic>>))
+                  .toList());
+            },
+            // See yield_service.dart's recordsForCycle for why the fallback
+            // must be emitted via sink.add rather than just logging: an
+            // unhandled stream error reaches onError, not onData, and stream
+            // consumers relying on the first onData event to clear a loading
+            // flag would otherwise spin forever.
+            handleError: (Object e, StackTrace st, sink) {
+              _log.e(
+                'FarmMappingService.userFarmsStream: Stream error – $e',
+                stackTrace: st,
+              );
+              sink.add(<FarmPolygon>[]);
+            },
+          ),
+        );
   }
 
   // ── READ (all farms, all users – admin/export use only) ─────

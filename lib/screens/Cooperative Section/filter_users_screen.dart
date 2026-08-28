@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:coffeecore/utils/cooperative_name.dart';
 import 'package:coffeecore/utils/excel_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
@@ -30,7 +31,7 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
   }
 
   Future<void> _triggerIndexCreation() async {
-    String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+    String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
     const fields = [
       'fullName',
       'email',
@@ -71,7 +72,7 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
   }
 
   Future<void> _updateSuggestions() async {
-    String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+    String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
     try {
       final userSnapshot = await FirebaseFirestore.instance
           .collection('${formattedCoopName}_users')
@@ -200,7 +201,7 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+    String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -535,7 +536,7 @@ class _FilterUsersScreenState extends State<FilterUsersScreen> {
       List<QueryDocumentSnapshot> userDocs,
       QuerySnapshot? marketManagerSnapshot,
       QuerySnapshot? loanManagerSnapshot) async {
-    String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+    String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
     List<Map<String, dynamic>> users = [];
 
     // Get Market Manager UIDs

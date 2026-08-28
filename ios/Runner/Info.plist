@@ -52,5 +52,7 @@
 	</array>
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>CoffeeCore uses the camera to scan produce QR tags and to capture photos for pest/disease AI analysis.</string>
 </dict>
 </plist>

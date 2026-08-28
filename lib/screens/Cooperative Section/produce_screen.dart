@@ -1,90 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:coffeecore/models/farmer_produce.dart';
+import 'package:coffeecore/models/produce_data.dart';
+import 'package:coffeecore/models/produce_trace_stage.dart';
+import 'package:coffeecore/services/produce_traceability_service.dart';
+import 'package:coffeecore/utils/cooperative_name.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 import 'package:rxdart/rxdart.dart';
-
-// Model class for ProduceData collection
-class ProduceData {
-  final String id; // Document ID (userId)
-  final String farmerName;
-  final String contact;
-  final String farmArea;
-  final double latestTotalAmount; // From latest submission
-  final Timestamp timestamp;
-  final String cooperative; // For MainAdmins
-
-  ProduceData({
-    required this.id,
-    required this.farmerName,
-    required this.contact,
-    required this.farmArea,
-    required this.latestTotalAmount,
-    required this.timestamp,
-    this.cooperative = '',
-  });
-
-  // Convert ProduceData to Firestore map
-  Map<String, dynamic> toMap() {
-    return {
-      'FarmerName': farmerName,
-      'Contact': contact,
-      'FarmArea': farmArea,
-      'timestamp': timestamp,
-    };
-  }
-
-  // Create ProduceData from Firestore document and user data
-  factory ProduceData.fromDocument(DocumentSnapshot? doc,
-      Map<String, String?> userData, double latestTotalAmount,
-      [String cooperative = '']) {
-    final data = doc?.data() as Map<String, dynamic>? ?? {};
-    return ProduceData(
-      id: doc?.id ?? userData['id']!,
-      farmerName: data['FarmerName']?.toString() ?? userData['fullName'] ?? '-',
-      contact: data['Contact']?.toString() ?? userData['phoneNumber'] ?? '-',
-      farmArea: data['FarmArea']?.toString() ?? '-',
-      latestTotalAmount: latestTotalAmount,
-      timestamp: data['timestamp'] as Timestamp? ?? Timestamp.now(),
-      cooperative: cooperative,
-    );
-  }
-}
-
-// Model class for submissions
-class FarmerProduce {
-  final String id; // userId
-  final String farmerName;
-  final String contact;
-  final double totalAmount;
-  final Timestamp timestamp;
-  final String submissionDate;
-  final String submissionId;
-
-  FarmerProduce({
-    required this.id,
-    required this.farmerName,
-    required this.contact,
-    required this.totalAmount,
-    required this.timestamp,
-    required this.submissionDate,
-    required this.submissionId,
-  });
-
-  factory FarmerProduce.fromDocument(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>? ?? {};
-    return FarmerProduce(
-      id: doc.reference.parent.parent?.id ?? '',
-      farmerName: data['farmerName']?.toString() ?? '-',
-      contact: data['contact']?.toString() ?? '-',
-      totalAmount: (data['totalAmount'] as num?)?.toDouble() ?? 0.0,
-      timestamp: data['timestamp'] as Timestamp? ?? Timestamp.now(),
-      submissionDate: data['submissionDate']?.toString() ?? '',
-      submissionId: doc.id,
-    );
-  }
-}
 
 class ProduceScreen extends StatefulWidget {
   final String cooperativeName;
@@ -106,6 +30,7 @@ class _ProduceScreenState extends State<ProduceScreen> {
   String? _userRole; // Farmer, CoopAdmin, MarketManager, MainAdmin
   List<Map<String, String>> _coopUsers = []; // All users in cooperative
   List<String> _coopNames = []; // For MainAdmins
+  final ProduceTraceabilityService _traceService = ProduceTraceabilityService();
 
   @override
   void initState() {
@@ -123,18 +48,20 @@ class _ProduceScreenState extends State<ProduceScreen> {
     }
 
     try {
-      String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+      String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
       // Check user role
       final adminDoc = await FirebaseFirestore.instance
           .collection('Admins')
           .doc(_userId)
           .get();
+      if (!mounted) return;
       if (adminDoc.exists) {
         setState(() {
           _userRole = 'MainAdmin';
         });
         final coopSnapshot =
             await FirebaseFirestore.instance.collection('cooperatives').get();
+        if (!mounted) return;
         _coopNames = coopSnapshot.docs.map((doc) => doc.id).toList();
         logger.i('MainAdmin detected, Coop names: $_coopNames');
       } else {
@@ -150,6 +77,7 @@ class _ProduceScreenState extends State<ProduceScreen> {
             .collection('${formattedCoopName}_users')
             .doc(_userId)
             .get();
+        if (!mounted) return;
 
         if (coopAdminDoc.exists &&
             coopAdminDoc.data()?['cooperative'] == formattedCoopName) {
@@ -179,6 +107,7 @@ class _ProduceScreenState extends State<ProduceScreen> {
         final userSnapshot = await FirebaseFirestore.instance
             .collection('${formattedCoopName}_users')
             .get();
+        if (!mounted) return;
         _coopUsers = userSnapshot.docs.map((doc) {
           final data = doc.data();
           return {
@@ -194,10 +123,86 @@ class _ProduceScreenState extends State<ProduceScreen> {
     } catch (e, stackTrace) {
       logger.e(
           'Error fetching user details or role: $e\nStack trace: $stackTrace');
+      if (!mounted) return;
       setState(() {
         _feedbackMessage = 'Error loading user details: $e';
       });
     }
+  }
+
+  // Combines a user doc, their ProduceData doc, and their latest submission
+  // into one reactive ProduceData stream — replaces the previous approach of
+  // doing one-shot .get() calls for the produce doc / latest submission
+  // inside an asyncMap keyed only to the user doc's stream, which meant a
+  // brand-new submission (or a produce-doc edit) never surfaced until the
+  // user doc itself happened to change.
+  Stream<ProduceData> _produceDataStreamForUser(
+      String formattedCoopName, String userId, String coopLabel) {
+    final userStream = FirebaseFirestore.instance
+        .collection('${formattedCoopName}_users')
+        .doc(userId)
+        .snapshots();
+    final produceStream = FirebaseFirestore.instance
+        .collection('${formattedCoopName}_ProduceData')
+        .doc(userId)
+        .snapshots();
+    final latestSubmissionStream = FirebaseFirestore.instance
+        .collection('${formattedCoopName}_FarmerProduce')
+        .doc(userId)
+        .collection('submissions')
+        .orderBy('submissionDate', descending: true)
+        .limit(1)
+        .snapshots();
+
+    return CombineLatestStream.combine3(
+      userStream,
+      produceStream,
+      latestSubmissionStream,
+      (DocumentSnapshot userDoc, DocumentSnapshot produceDoc,
+          QuerySnapshot submissionSnap) {
+        final userData = {
+          'id': userDoc.id,
+          'fullName': (userDoc.data() as Map<String, dynamic>?)?['fullName']
+                  ?.toString() ??
+              '-',
+          'phoneNumber':
+              (userDoc.data() as Map<String, dynamic>?)?['phoneNumber']
+                      ?.toString() ??
+                  '-',
+        };
+        final double latestTotalAmount = submissionSnap.docs.isNotEmpty
+            ? ((submissionSnap.docs.first.data()
+                        as Map<String, dynamic>)['totalAmount'] as num?)
+                    ?.toDouble() ??
+                0.0
+            : 0.0;
+        return ProduceData.fromDocument(
+          produceDoc.exists ? produceDoc : null,
+          userData,
+          latestTotalAmount,
+          coopLabel,
+        );
+      },
+    );
+  }
+
+  // Re-subscribes to a fresh CombineLatestStream whenever the cooperative's
+  // user list changes (a farmer joining/leaving), instead of the previous
+  // one-time _coopUsers fetch that never picked up membership changes
+  // without a full screen remount.
+  Stream<List<ProduceData>> _produceDataStreamForCoop(
+      String formattedCoopName, String coopLabel) {
+    return FirebaseFirestore.instance
+        .collection('${formattedCoopName}_users')
+        .snapshots()
+        .switchMap((userSnapshot) {
+      final ids = userSnapshot.docs.map((d) => d.id).toList();
+      if (ids.isEmpty) return Stream<List<ProduceData>>.value(const []);
+      return CombineLatestStream.list(
+        ids.map((id) =>
+            _produceDataStreamForUser(formattedCoopName, id, coopLabel)),
+      );
+    });
   }
 
   Future<void> _addOrEditFarmSize(bool isEdit,
@@ -248,7 +253,7 @@ class _ProduceScreenState extends State<ProduceScreen> {
 
     if (result != null && mounted) {
       try {
-        String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+        String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
         final produceData = ProduceData(
           id: _userId!,
           farmerName: _farmerName!,
@@ -283,7 +288,7 @@ class _ProduceScreenState extends State<ProduceScreen> {
 
   Future<void> _viewSubmissions(
       String userId, String farmerName, String coopName) async {
-    final formattedCoopName = coopName.replaceAll(' ', '_');
+    final formattedCoopName = sanitizeCoopId(coopName);
     await showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -327,16 +332,26 @@ class _ProduceScreenState extends State<ProduceScreen> {
                       DataColumn(
                           label: Text('Amount (kg)',
                               style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(
+                          label: Text('Stage',
+                              style: TextStyle(fontWeight: FontWeight.bold))),
                     ],
                     rows: submissions.map((submission) {
-                      final formattedDate = submission.submissionDate.isNotEmpty
-                          ? DateFormat('yyyy-MM-dd')
-                              .format(DateTime.parse(submission.submissionDate))
+                      final parsedDate =
+                          DateTime.tryParse(submission.submissionDate);
+                      final formattedDate = parsedDate != null
+                          ? DateFormat('yyyy-MM-dd').format(parsedDate)
                           : '-';
                       return DataRow(cells: [
                         DataCell(Text(formattedDate)),
                         DataCell(
                             Text(submission.totalAmount.toStringAsFixed(2))),
+                        DataCell(_StageCell(
+                          service: _traceService,
+                          coopId: formattedCoopName,
+                          userId: userId,
+                          submissionId: submission.submissionId,
+                        )),
                       ]);
                     }).toList(),
                   ),
@@ -357,7 +372,7 @@ class _ProduceScreenState extends State<ProduceScreen> {
 
   Future<void> _logActivity(String action) async {
     try {
-      String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+      String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
       await FirebaseFirestore.instance
           .collection('cooperatives')
           .doc(formattedCoopName)
@@ -388,7 +403,7 @@ class _ProduceScreenState extends State<ProduceScreen> {
       });
     }
 
-    String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+    String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
     return Scaffold(
       backgroundColor: Colors.brown[50],
       appBar: AppBar(
@@ -442,50 +457,8 @@ class _ProduceScreenState extends State<ProduceScreen> {
             : _userRole == 'MainAdmin'
                 ? StreamBuilder<List<ProduceData>>(
                     stream: CombineLatestStream.list(
-                      _coopNames.map((coopName) {
-                        return FirebaseFirestore.instance
-                            .collection('${coopName}_users')
-                            .snapshots()
-                            .asyncMap((userSnapshot) async {
-                          List<ProduceData> produceList = [];
-                          for (var userDoc in userSnapshot.docs) {
-                            final userData = {
-                              'id': userDoc.id,
-                              'fullName':
-                                  userDoc.data()['fullName']?.toString() ?? '-',
-                              'phoneNumber':
-                                  userDoc.data()['phoneNumber']?.toString() ??
-                                      '-',
-                            };
-                            final produceDoc = await FirebaseFirestore.instance
-                                .collection('${coopName}_ProduceData')
-                                .doc(userDoc.id)
-                                .get();
-                            final submissionSnapshot = await FirebaseFirestore
-                                .instance
-                                .collection('${coopName}_FarmerProduce')
-                                .doc(userDoc.id)
-                                .collection('submissions')
-                                .orderBy('submissionDate', descending: true)
-                                .limit(1)
-                                .get();
-                            double latestTotalAmount =
-                                submissionSnapshot.docs.isNotEmpty
-                                    ? (submissionSnapshot.docs.first
-                                                .data()['totalAmount'] as num?)
-                                            ?.toDouble() ??
-                                        0.0
-                                    : 0.0;
-                            produceList.add(ProduceData.fromDocument(
-                              produceDoc.exists ? produceDoc : null,
-                              userData,
-                              latestTotalAmount,
-                              coopName,
-                            ));
-                          }
-                          return produceList;
-                        });
-                      }).toList(),
+                      _coopNames.map((coopName) =>
+                          _produceDataStreamForCoop(coopName, coopName)),
                     ).map((lists) => lists.expand((list) => list).toList()),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
@@ -564,51 +537,11 @@ class _ProduceScreenState extends State<ProduceScreen> {
                     },
                   )
                 : StreamBuilder<List<ProduceData>>(
-                    stream: CombineLatestStream.list(
-                      (_userRole == 'Farmer'
-                              ? [_userId!]
-                              : _coopUsers.map((u) => u['id']!))
-                          .map((userId) {
-                        return FirebaseFirestore.instance
-                            .collection('${formattedCoopName}_users')
-                            .doc(userId)
-                            .snapshots()
-                            .asyncMap((userDoc) async {
-                          final userData = {
-                            'id': userDoc.id,
-                            'fullName':
-                                userDoc.data()?['fullName']?.toString() ?? '-',
-                            'phoneNumber':
-                                userDoc.data()?['phoneNumber']?.toString() ??
-                                    '-',
-                          };
-                          final produceDoc = await FirebaseFirestore.instance
-                              .collection('${formattedCoopName}_ProduceData')
-                              .doc(userDoc.id)
-                              .get();
-                          final submissionSnapshot = await FirebaseFirestore
-                              .instance
-                              .collection('${formattedCoopName}_FarmerProduce')
-                              .doc(userDoc.id)
-                              .collection('submissions')
-                              .orderBy('submissionDate', descending: true)
-                              .limit(1)
-                              .get();
-                          double latestTotalAmount =
-                              submissionSnapshot.docs.isNotEmpty
-                                  ? (submissionSnapshot.docs.first
-                                              .data()['totalAmount'] as num?)
-                                          ?.toDouble() ??
-                                      0.0
-                                  : 0.0;
-                          return ProduceData.fromDocument(
-                            produceDoc.exists ? produceDoc : null,
-                            userData,
-                            latestTotalAmount,
-                          );
-                        });
-                      }).toList(),
-                    ),
+                    stream: _userRole == 'Farmer'
+                        ? _produceDataStreamForUser(
+                                formattedCoopName, _userId!, '')
+                            .map((p) => [p])
+                        : _produceDataStreamForCoop(formattedCoopName, ''),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
@@ -691,6 +624,42 @@ class _ProduceScreenState extends State<ProduceScreen> {
                     },
                   ),
       ),
+    );
+  }
+}
+
+/// Current traceability stage for one submission, in the submissions
+/// dialog's DataTable — the QR-scan pipeline built alongside this reads/
+/// writes {coop}_FarmerProduce/.../traceStages, computed live rather than
+/// stored, same reasoning as everywhere else this session.
+class _StageCell extends StatelessWidget {
+  final ProduceTraceabilityService service;
+  final String coopId;
+  final String userId;
+  final String submissionId;
+
+  const _StageCell({
+    required this.service,
+    required this.coopId,
+    required this.userId,
+    required this.submissionId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<ProduceTraceEntry>>(
+      stream: service.stageHistory(coopId, userId, submissionId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+        }
+        final stage = service.currentStage(snapshot.data!);
+        return Text(stage.label);
+      },
     );
   }
 }

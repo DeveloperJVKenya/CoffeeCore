@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:coffeecore/utils/cooperative_name.dart';
 import 'package:coffeecore/utils/excel_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -31,7 +32,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Future<void> _triggerIndexCreation() async {
-    String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+    String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
     const fields = ['fullName', 'email', 'county', 'constituency', 'ward'];
     for (final field in fields) {
       try {
@@ -66,7 +67,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Future<void> _updateSuggestions() async {
-    String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+    String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
     try {
       final snapshots = await Future.wait([
         FirebaseFirestore.instance
@@ -229,7 +230,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     if (result != null && mounted) {
       try {
-        String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+        String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
         final updateData = <String, dynamic>{};
         result.forEach((key, value) {
           updateData[key] = value.isNotEmpty ? value : null;
@@ -279,7 +280,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     if (confirmed == true) {
       try {
-        String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+        String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
         await FirebaseFirestore.instance
             .collection('${formattedCoopName}_users')
             .doc(uid)
@@ -325,7 +326,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   Future<void> _logActivity(String action) async {
     try {
-      String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+      String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
       await FirebaseFirestore.instance
           .collection('cooperatives')
           .doc(formattedCoopName)
@@ -349,7 +350,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String formattedCoopName = widget.cooperativeName.replaceAll(' ', '_');
+    String formattedCoopName = sanitizeCoopId(widget.cooperativeName);
     return Scaffold(
       appBar: AppBar(
         title: const Text(

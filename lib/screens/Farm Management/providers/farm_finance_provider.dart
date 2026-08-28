@@ -59,12 +59,14 @@ class FarmFinanceProvider with ChangeNotifier {
       return;
     }
     _isLoading = true;
+    notifyListeners();
     _costSub = _financeService.costsForCycle(farmId, cycleId).listen((v) {
       _costs = v;
       _isLoading = false;
       _syncRollups();
       notifyListeners();
     }, onError: (Object e) {
+      _isLoading = false;
       _error = e.toString();
       notifyListeners();
     });
@@ -73,6 +75,7 @@ class FarmFinanceProvider with ChangeNotifier {
       _syncRollups();
       notifyListeners();
     }, onError: (Object e) {
+      _isLoading = false;
       _error = e.toString();
       notifyListeners();
     });
@@ -85,15 +88,28 @@ class FarmFinanceProvider with ChangeNotifier {
     });
   }
 
+  // Cost and revenue streams each call this independently, so two
+  // near-simultaneous snapshot events (e.g. a cost added right after a
+  // revenue entry) can race two concurrent writes to the same FarmCycles
+  // doc. That's tolerable here — both writes recompute the full rollup from
+  // current _costs/_revenues rather than incrementing, so the last write
+  // wins with a correct value either way. The catchError guards against an
+  // unhandled Future rejection, consistent with how every other write in
+  // this codebase surfaces failures via _error rather than dropping them.
   void _syncRollups() {
     final id = _cycleId;
     if (id == null) return;
     final summary = profitLoss;
-    _cycleService.updateRollups(
+    _cycleService
+        .updateRollups(
       cycleId: id,
       totalCost: summary.totalCost,
       totalRevenue: summary.totalRevenue,
-    );
+    )
+        .catchError((Object e) {
+      _error = e.toString();
+      notifyListeners();
+    });
   }
 
   Future<void> addCost(CostEntry entry) => _financeService.addCost(entry);

@@ -143,13 +143,17 @@ class LegacyMigrationService {
         for (final item in revenues) {
           final revRef = _firestore.collection('RevenueEntries').doc();
           final amount = double.tryParse(item['amount'].toString()) ?? 0;
+          final kg = double.tryParse(item['yield']?.toString() ?? '') ?? 0;
           final entry = RevenueEntry(
             farmId: targetFarmId,
             cycleId: newCycleId,
             userId: _uid!,
             variety: (item['coffeeVariety'] ?? 'Unknown').toString(),
-            kg: double.tryParse(item['yield']?.toString() ?? '') ?? 0,
-            pricePerKg: 0,
+            kg: kg,
+            // Legacy records only stored the total sale amount, not a
+            // per-kg price — derive it rather than hardcoding 0, which
+            // silently discarded the real historical price on migration.
+            pricePerKg: kg > 0 ? amount / kg : 0,
             amount: amount,
             date: DateTime.tryParse(item['date']?.toString() ?? '') ?? now,
             createdAt: now,

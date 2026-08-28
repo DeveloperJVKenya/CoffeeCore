@@ -46,7 +46,8 @@
       "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode 'q=Formicidae coffee Coffea' --data-urlencode per_page=3)",
       "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode 'q=Formicidae coffee' --data-urlencode per_page=3)",
       "Bash(curl -s \"https://api.inaturalist.org/v1/places/autocomplete?q=Kenya&per_page=3\")",
-      "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode taxon_id=1331108 --data-urlencode place_id=7042,6846,6968,7144,7142,7106,6878,7196,6924,6929,6940,6793,7513,6681,6847,6966 --data-urlencode quality_grade=research --data-urlencode photos=true --data-urlencode photo_licensed=true --data-urlencode order_by=votes --data-urlencode order=desc --data-urlencode per_page=2)"
+      "Bash(curl -s -G https://api.inaturalist.org/v1/observations --data-urlencode taxon_id=1331108 --data-urlencode place_id=7042,6846,6968,7144,7142,7106,6878,7196,6924,6929,6940,6793,7513,6681,6847,6966 --data-urlencode quality_grade=research --data-urlencode photos=true --data-urlencode photo_licensed=true --data-urlencode order_by=votes --data-urlencode order=desc --data-urlencode per_page=2)",
+      "Bash(find / -type d -iname \"mobile_scanner-*\" 2>/dev/null | head -5)"
     ]
   }
 }
