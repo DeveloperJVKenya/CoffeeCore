@@ -62,6 +62,7 @@ dependencies:
   firebase_messaging: ^16.5.0
   firebase_app_check: ^0.4.5+2
   mobile_scanner: ^7.1.2
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:

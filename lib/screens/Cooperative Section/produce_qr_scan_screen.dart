@@ -31,13 +31,14 @@ class _ProduceQrScanScreenState extends State<ProduceQrScanScreen> {
   bool _isProcessing = false;
   String? _feedbackMessage;
 
-  // Manual fallback state — populated lazily the first time the "Enter
-  // Manually" dialog is opened, since some web browsers/devices used for
-  // pre-Android testing (a laptop with no webcam, a browser that blocks
-  // camera access, Firefox without the BarcodeDetector API, etc.) can't
-  // reliably scan at all.
+  // Manual fallback state — populated each time the "Enter Manually" dialog
+  // is opened, since some web browsers/devices used for pre-Android testing
+  // (a laptop with no webcam, a browser that blocks camera access, Firefox
+  // without the BarcodeDetector API, etc.) can't reliably scan at all. Not
+  // cached across opens: a farmer registered mid-session must show up the
+  // next time this dialog is opened, not just after the screen is torn
+  // down and rebuilt.
   List<Map<String, String>> _coopUsers = [];
-  bool _coopUsersLoaded = false;
 
   late final String _coopId = sanitizeCoopId(widget.cooperativeName);
 
@@ -191,6 +192,7 @@ class _ProduceQrScanScreenState extends State<ProduceQrScanScreen> {
                                 coopId: payload.coopId,
                                 userId: payload.userId,
                                 submissionId: payload.submissionId,
+                                expectedCurrentStage: currentStage,
                                 stage: nextStage,
                                 scannedBy: scannedBy,
                                 scannedByName: FirebaseAuth
@@ -206,7 +208,9 @@ class _ProduceQrScanScreenState extends State<ProduceQrScanScreen> {
                             } catch (e) {
                               setSheetState(() {
                                 isSubmitting = false;
-                                errorText = 'Failed to save: $e';
+                                errorText = e is StateError
+                                    ? e.message
+                                    : 'Failed to save: $e';
                               });
                             }
                           },
@@ -233,24 +237,20 @@ class _ProduceQrScanScreenState extends State<ProduceQrScanScreen> {
   }
 
   Future<void> _openManualEntry() async {
-    if (!_coopUsersLoaded) {
-      try {
-        final snapshot = await FirebaseFirestore.instance
-            .collection('${_coopId}_users')
-            .get();
-        _coopUsers = snapshot.docs.map((doc) {
-          final data = doc.data();
-          return {
-            'id': doc.id,
-            'fullName': data['fullName']?.toString() ?? '-',
-          };
-        }).toList();
-        _coopUsersLoaded = true;
-      } catch (e, stackTrace) {
-        logger.e('Error fetching users for manual entry: $e\n$stackTrace');
-        _showSnack('Could not load farmer list: $e');
-        return;
-      }
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('${_coopId}_users').get();
+      _coopUsers = snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id,
+          'fullName': data['fullName']?.toString() ?? '-',
+        };
+      }).toList();
+    } catch (e, stackTrace) {
+      logger.e('Error fetching users for manual entry: $e\n$stackTrace');
+      _showSnack('Could not load farmer list: $e');
+      return;
     }
     if (!mounted) return;
 

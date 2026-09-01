@@ -106,6 +106,35 @@ class QrTagPdfService {
     return doc.save();
   }
 
+  /// Builds a downloadable/shareable file name that leads with the
+  /// cooperative and farmer name, so the tag is identifiable at a glance
+  /// among a device's other downloads rather than showing up as an opaque
+  /// `produce_tag_<id>.pdf`. Trailed with the date and a short slice of the
+  /// submission id to keep same-day, same-farmer deliveries from
+  /// overwriting each other.
+  static String fileName({
+    required String cooperativeName,
+    required String farmerName,
+    required String submissionDate,
+    required String submissionId,
+  }) {
+    final shortId =
+        submissionId.length > 8 ? submissionId.substring(0, 8) : submissionId;
+    return '${_fileNameSegment(cooperativeName)}_'
+        '${_fileNameSegment(farmerName)}_'
+        'ProduceTag_${submissionDate}_$shortId.pdf';
+  }
+
+  /// Collapses whitespace to underscores and strips characters that are
+  /// invalid in file names on Windows/macOS — cooperative/farmer names are
+  /// free-text and can contain slashes, colons, etc.
+  static String _fileNameSegment(String input) {
+    return input
+        .trim()
+        .replaceAll(RegExp(r'\s+'), '_')
+        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '');
+  }
+
   static pw.Widget _row(String label, String value) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 2),

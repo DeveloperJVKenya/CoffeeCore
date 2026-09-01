@@ -47,6 +47,11 @@ class _HomePageState extends State<HomePage> {
   List<String> _userCooperatives = [];
   StreamSubscription<User?>? _authSubscription;
   final List<StreamSubscription> _firestoreSubscriptions = [];
+  // Cooperative ids that already have a live {coopId}_users/{uid} membership
+  // listener attached, so a farmer joining any *existing* cooperative (e.g.
+  // via the Coffee Prices screen) is reflected here immediately — not just
+  // when the `cooperatives` collection itself happens to change.
+  final Set<String> _watchedCoopIds = {};
 
   final List<String> _carouselImages = [
     'assets/coffee_weather.jpg',
@@ -345,44 +350,67 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
+    _watchedCoopIds.clear();
     _firestoreSubscriptions.add(
       FirebaseFirestore.instance.collection('cooperatives').snapshots().listen(
-          (coopSnapshot) async {
-        List<String> newCooperatives = [];
-        bool foundCoopRegistered = false;
-        String? tempCoopName;
-
+          (coopSnapshot) {
+        // Attach a live membership listener for every cooperative that
+        // exists — including ones the user isn't in yet — so joining an
+        // *existing* cooperative (the common case: picking one from the
+        // Coffee Prices screen) updates this screen the instant the write
+        // lands, with no navigation/refetch needed. _watchCoopMembership
+        // is idempotent per coopId, so this just no-ops for coops already
+        // being watched.
         for (var coopDoc in coopSnapshot.docs) {
-          String coopId = coopDoc.id;
-          String formattedCoopName = coopId.replaceAll('_', ' ');
-          if (!_userCooperatives.contains(coopId)) {
-            try {
-              DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
-                  .collection('${coopId}_users')
-                  .doc(_userId)
-                  .get();
-              if (userSnapshot.exists && mounted) {
-                newCooperatives.add(coopId);
-                foundCoopRegistered = true;
-                tempCoopName = formattedCoopName;
-              }
-            } catch (e) {
-              logger.i('Not registered in $coopId: $e');
-            }
-          }
-        }
-
-        if (mounted && newCooperatives.isNotEmpty) {
-          setState(() {
-            _userCooperatives.addAll(newCooperatives);
-            if (foundCoopRegistered && !_isMarketManager && !_isCoopAdmin) {
-              _isCoopRegistered = true;
-              _cooperativeName = tempCoopName;
-            }
-          });
+          _watchCoopMembership(coopDoc.id);
         }
       }, onError: (e) {
         logger.e('Error listening to cooperatives: $e');
+      }),
+    );
+  }
+
+  /// Live-watches whether the current user has a `{coopId}_users/{uid}`
+  /// membership doc, updating role/cooperative state the moment it
+  /// appears or disappears. Safe to call repeatedly for the same coopId —
+  /// only the first call attaches a listener.
+  void _watchCoopMembership(String coopId) {
+    if (!_watchedCoopIds.add(coopId)) return;
+    _firestoreSubscriptions.add(
+      FirebaseFirestore.instance
+          .collection('${coopId}_users')
+          .doc(_userId)
+          .snapshots()
+          .listen((snapshot) {
+        if (!mounted) return;
+        setState(() {
+          if (snapshot.exists) {
+            if (!_userCooperatives.contains(coopId)) {
+              _userCooperatives.add(coopId);
+            }
+            if (!_isMarketManager && !_isCoopAdmin) {
+              _isCoopRegistered = true;
+              _cooperativeName = coopId.replaceAll('_', ' ');
+            }
+          } else {
+            _userCooperatives.remove(coopId);
+            // Only clear the registered-farmer state if this was the
+            // cooperative currently shown and no other membership remains
+            // — a farmer can in principle belong to more than one coop.
+            if (!_isMarketManager &&
+                !_isCoopAdmin &&
+                _cooperativeName == coopId.replaceAll('_', ' ')) {
+              if (_userCooperatives.isEmpty) {
+                _isCoopRegistered = false;
+                _cooperativeName = null;
+              } else {
+                _cooperativeName = _userCooperatives.first.replaceAll('_', ' ');
+              }
+            }
+          }
+        });
+      }, onError: (e) {
+        logger.e('Error watching membership for $coopId: $e');
       }),
     );
   }
@@ -873,12 +901,19 @@ class _HomePageState extends State<HomePage> {
                   builder: (context) => const LearnCoffeeFarming()),
             );
           }),
-          _buildClickableCard('Coffee Prices', Icons.shopping_cart, () {
-            Navigator.push(
+          _buildClickableCard('Coffee Prices', Icons.shopping_cart, () async {
+            // CoffeePricesWidget doubles as the "join a cooperative" flow
+            // (selecting a cooperative there registers the user into its
+            // {coopId}_users collection) — re-fetch role/cooperative state
+            // on return so the Produce/Earnings buttons and profile label
+            // pick up a just-completed registration immediately, instead of
+            // staying stuck at whatever was computed on the very first load.
+            await Navigator.push(
               context,
               MaterialPageRoute(
                   builder: (context) => const CoffeePricesWidget()),
             );
+            if (mounted) _fetchUserData();
           }),
         ],
       ),

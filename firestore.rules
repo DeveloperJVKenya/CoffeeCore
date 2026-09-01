@@ -175,7 +175,13 @@ service cloud.firestore {
       allow delete: if collection.matches('.*_ProduceData') &&
                       (isAdmin() || isCoopAdmin(collection.replace('_ProduceData', '')));
 
-      // FarmerProduce collection (e.g., {coopId}_FarmerProduce)
+      // FarmerProduce collection (e.g., {coopId}_FarmerProduce). Writes are
+      // Admin/CoopAdmin/MarketManager-only — a farmer never records or edits
+      // their own submission (that happens via ReceiveProduceScreen, run by
+      // a MarketManager), so the farmer only ever gets read access to their
+      // own doc. This also protects the pricePerKg/grossValue fields the
+      // settlement ledger sums: a farmer's own auth session must never be
+      // able to write these money fields on their own submission.
       allow read: if collection.matches('.*_FarmerProduce') &&
                   (isAdmin() ||
                     isCoopAdmin(collection.replace('_FarmerProduce', '')) ||
@@ -184,8 +190,7 @@ service cloud.firestore {
       allow create, update: if collection.matches('.*_FarmerProduce') &&
                             (isAdmin() ||
                             isCoopAdmin(collection.replace('_FarmerProduce', '')) ||
-                            isMarketManager(collection.replace('_FarmerProduce', '')) ||
-                            (isAuthenticated() && request.auth.uid == documentId));
+                            isMarketManager(collection.replace('_FarmerProduce', '')));
       allow delete: if collection.matches('.*_FarmerProduce') &&
                       (isAdmin() || isCoopAdmin(collection.replace('_FarmerProduce', '')));
 
@@ -199,8 +204,7 @@ service cloud.firestore {
         allow create, update: if collection.matches('.*_FarmerProduce') &&
                               (isAdmin() ||
                               isCoopAdmin(collection.replace('_FarmerProduce', '')) ||
-                              isMarketManager(collection.replace('_FarmerProduce', '')) ||
-                              (isAuthenticated() && request.auth.uid == documentId));
+                              isMarketManager(collection.replace('_FarmerProduce', '')));
         allow delete: if collection.matches('.*_FarmerProduce') &&
                         (isAdmin() || isCoopAdmin(collection.replace('_FarmerProduce', '')));
 

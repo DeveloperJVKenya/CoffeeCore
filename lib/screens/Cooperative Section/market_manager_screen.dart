@@ -1,14 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coffeecore/models/farmer_produce.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/farmer_settlements_screen.dart';
-import 'package:coffeecore/screens/Cooperative%20Section/produce_qr_scan_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/produce_traceability_screen.dart';
+import 'package:coffeecore/screens/Cooperative%20Section/receive_produce_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/pdf_download_helper.dart';
 import 'package:coffeecore/services/qr_tag_pdf_service.dart';
 import 'package:coffeecore/utils/cooperative_name.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -33,13 +32,10 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
   final TextEditingController _produceAmountController =
       TextEditingController();
 
-  // Coffee varieties + current price/kg, sourced from {coop}_coffeeprices —
-  // populated once when the variety-selection dialog opens, matching how
-  // _userDetails is fetched once rather than streamed. Selecting a variety
-  // here snapshots its price into the submission at write time, so a later
-  // price change never rewrites a historical submission's value.
-  List<Map<String, dynamic>> _varietyPrices = [];
-  String? _selectedVariety;
+  // Lightweight count for the dashboard's "at a glance" stats strip only —
+  // the full variety/price list now lives in ReceiveProduceScreen, which
+  // owns the "add produce -> generate tag" flow end to end.
+  int _varietyCount = 0;
 
   @override
   void initState() {
@@ -126,6 +122,12 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
         });
       }
 
+      final priceSnapshot = await FirebaseFirestore.instance
+          .collection('${coopId}_coffeeprices')
+          .get();
+      if (!mounted) return;
+      _varietyCount = priceSnapshot.docs.length;
+
       setState(() {});
     } catch (e, stackTrace) {
       logger.e('Error fetching users: $e\nStack trace: $stackTrace');
@@ -136,90 +138,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
     }
   }
 
-  Future<void> _addProduceSubmission() async {
-    if (_selectedUserId == null ||
-        _produceAmountController.text.isEmpty ||
-        _cooperativeName == null) {
-      setState(() {
-        _feedbackMessage = 'Please select a user and enter a valid amount';
-      });
-      logger.w(
-          'Invalid input: userId=$_selectedUserId, amount=${_produceAmountController.text}, cooperativeName=$_cooperativeName');
-      return;
-    }
-
-    double? amount = double.tryParse(_produceAmountController.text);
-    if (amount == null || amount <= 0) {
-      setState(() {
-        _feedbackMessage = 'Please enter a valid amount greater than zero';
-      });
-      logger.w('Invalid amount: ${_produceAmountController.text}');
-      return;
-    }
-
-    if (_selectedVariety == null) {
-      setState(() {
-        _feedbackMessage = 'Please select a coffee variety';
-      });
-      return;
-    }
-    final double pricePerKg = _varietyPrices
-        .firstWhere((v) => v['variety'] == _selectedVariety)['price'] as double;
-    final double grossValue = amount * pricePerKg;
-
-    String formattedCoopId = sanitizeCoopId(_cooperativeName!);
-    String dateString = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    String? farmerName = _userDetails.firstWhere(
-        (user) => user['id'] == _selectedUserId,
-        orElse: () => {'fullName': 'Unknown'})['fullName'];
-    String? contact = _userDetails.firstWhere(
-        (user) => user['id'] == _selectedUserId,
-        orElse: () => {'phoneNumber': 'N/A'})['phoneNumber'];
-
-    try {
-      final submissionsRef = FirebaseFirestore.instance
-          .collection('${formattedCoopId}_FarmerProduce')
-          .doc(_selectedUserId)
-          .collection('submissions');
-      final produceData = FarmerProduce(
-        id: _selectedUserId!,
-        farmerName: farmerName!,
-        contact: contact!,
-        totalAmount: amount,
-        timestamp: Timestamp.now(),
-        submissionDate: dateString,
-        submissionId: submissionsRef.doc().id,
-        variety: _selectedVariety!,
-        pricePerKg: pricePerKg,
-        grossValue: grossValue,
-      );
-
-      await submissionsRef
-          .doc(produceData.submissionId)
-          .set(produceData.toMap());
-      logger.i(
-          'Successfully set produce data for user $_selectedUserId at ${formattedCoopId}_FarmerProduce/$_selectedUserId/submissions/${produceData.submissionId}');
-
-      await _logActivity(
-          'Added produce $amount kg ($_selectedVariety) for user $_selectedUserId in cooperative $_cooperativeName');
-      setState(() {
-        _feedbackMessage =
-            'Produce submission of $amount kg added successfully';
-        _produceAmountController.clear();
-        _selectedUserId = null;
-        _selectedVariety = null;
-      });
-    } catch (e, stackTrace) {
-      logger.e(
-          'Error adding produce submission: $e\nStack trace: $stackTrace\nPath: ${formattedCoopId}_FarmerProduce/$_selectedUserId/submissions');
-      setState(() {
-        _feedbackMessage = 'Error adding produce submission: $e';
-      });
-    }
-  }
-
-  Future<void> _editProduceSubmission(
-      String userId, String submissionId, double currentAmount) async {
+  Future<void> _editProduceSubmission(String userId, String submissionId,
+      double currentAmount, double pricePerKg) async {
     String formattedCoopId = sanitizeCoopId(_cooperativeName!);
     _produceAmountController.text = currentAmount.toString();
     final result = await showDialog<String>(
@@ -277,6 +197,11 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
             .doc(submissionId)
             .update({
           'totalAmount': newAmount,
+          // grossValue must stay in sync with the corrected weight — the
+          // settlement ledger sums grossValue directly, so leaving it at
+          // its old value would over/under-pay the farmer relative to the
+          // corrected amount.
+          'grossValue': newAmount * pricePerKg,
           'timestamp': Timestamp.now(),
         });
         logger.i(
@@ -347,104 +272,102 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
           ? const Center(child: CircularProgressIndicator())
           : Container(
               color: Colors.brown[50],
-              padding: const EdgeInsets.all(16.0),
               child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildCurrencyAnimation(),
+                    _buildHeaderCard(),
                     const SizedBox(height: 20),
-                    _buildOptionCard(
-                      'View Price List',
-                      Icons.list_alt,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PriceListScreen(
-                                cooperativeName: _cooperativeName!),
-                          ),
-                        );
-                      },
-                    ),
+                    _buildHeroAction(),
                     const SizedBox(height: 20),
-                    _buildOptionCard(
-                      'Add Variety Price',
-                      Icons.add_circle_outline,
-                      () async {
-                        await _showAddVarietyDialog(context);
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    _buildOptionCard(
-                      'Add Produce Submission',
-                      Icons.add_box,
-                      () => _showAddProduceDialog(context),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildOptionCard(
-                      'View Submission Data',
-                      Icons.table_chart,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => SubmissionListScreen(
-                                cooperativeName: _cooperativeName!),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    _buildOptionCard(
-                      'Farmer Settlements',
-                      Icons.account_balance_wallet,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => FarmerSettlementsScreen(
-                                cooperativeName: _cooperativeName!),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    _buildOptionCard(
-                      'Scan Produce Tag',
-                      Icons.qr_code_scanner,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ProduceQrScanScreen(
-                                cooperativeName: _cooperativeName!),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    _buildOptionCard(
-                      'Traceability',
-                      Icons.route,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ProduceTraceabilityScreen(
-                              cooperativeName: _cooperativeName!,
-                              canScan: true,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
+                    _buildQuickActionsGrid(),
+                    const SizedBox(height: 28),
+                    Text('Recent Submissions',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: coffeeBrown)),
+                    const SizedBox(height: 10),
+                    _buildFarmerFilter(),
+                    const SizedBox(height: 12),
                     _buildProduceTable(),
                   ],
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildHeaderCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [coffeeBrown, Colors.brown[500]!],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: coffeeBrown.withValues(alpha: .3),
+              blurRadius: 14,
+              offset: const Offset(0, 6)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_cooperativeName ?? '',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text('Market Manager',
+                    style: TextStyle(color: Colors.brown[100], fontSize: 13)),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _buildStatChip(
+                        Icons.groups, '${_userDetails.length}', 'Farmers'),
+                    const SizedBox(width: 10),
+                    _buildStatChip(
+                        Icons.local_cafe, '$_varietyCount', 'Varieties'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          _buildCurrencyAnimation(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatChip(IconData icon, String value, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .15),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 6),
+          Text('$value $label',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 
@@ -466,8 +389,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
         return Text(
           currencies[_currencyAnimation.value],
           style: TextStyle(
-            fontSize: 48,
-            color: const Color.fromRGBO(121, 85, 72, 1.0),
+            fontSize: 36,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
             fontStyle: FontStyle.italic,
             shadows: [
@@ -484,49 +407,164 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
     );
   }
 
-  Widget _buildOptionCard(String title, IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: Colors.white,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.brown[100]!, Colors.brown[300]!],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+  /// The primary, highest-frequency action — receiving a farmer's coffee —
+  /// gets a featured hero button rather than blending into the grid below,
+  /// since this is now the ONLY path to recording a submission and it
+  /// always ends with a generated QR tag (see ReceiveProduceScreen).
+  Widget _buildHeroAction() {
+    return _AnimatedEntrance(
+      index: 0,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  ReceiveProduceScreen(cooperativeName: _cooperativeName!),
             ),
-            borderRadius: BorderRadius.circular(16),
+          );
+          if (mounted) _fetchUsers(sanitizeCoopId(_cooperativeName!));
+        },
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.green[700],
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: const Color.fromRGBO(121, 85, 72, 0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
+                  color: Colors.green.withValues(alpha: .3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5)),
             ],
           ),
-          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 48, color: coffeeBrown),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .18),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.agriculture,
+                    color: Colors.white, size: 30),
+              ),
               const SizedBox(width: 16),
-              Flexible(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: coffeeBrown,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Receive Produce',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold)),
+                    SizedBox(height: 2),
+                    Text('Weigh in, record, and print the bag tag',
+                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  ],
                 ),
               ),
+              const Icon(Icons.arrow_forward_ios,
+                  color: Colors.white, size: 16),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsGrid() {
+    final tiles = <_QuickAction>[
+      _QuickAction('Price List', Icons.list_alt, Colors.deepOrange, () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PriceListScreen(cooperativeName: _cooperativeName!),
+          ),
+        );
+      }),
+      _QuickAction('Add Variety', Icons.add_circle_outline, Colors.teal,
+          () async {
+        await _showAddVarietyDialog(context);
+        if (mounted) _fetchUsers(sanitizeCoopId(_cooperativeName!));
+      }),
+      _QuickAction('Submissions', Icons.table_chart, Colors.indigo, () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                SubmissionListScreen(cooperativeName: _cooperativeName!),
+          ),
+        );
+      }),
+      _QuickAction('Settlements', Icons.account_balance_wallet, Colors.purple,
+          () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                FarmerSettlementsScreen(cooperativeName: _cooperativeName!),
+          ),
+        );
+      }),
+      // Sole entry point for scanning a bag's QR — the standalone "Scan
+      // Produce Tag" dashboard card was removed since it duplicated this.
+      _QuickAction('Traceability', Icons.route, Colors.brown, () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProduceTraceabilityScreen(
+              cooperativeName: _cooperativeName!,
+              canScan: true,
+            ),
+          ),
+        );
+      }),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossAxisCount = constraints.maxWidth >= 900
+            ? 4
+            : constraints.maxWidth >= 600
+                ? 3
+                : 2;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: tiles.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 14,
+            crossAxisSpacing: 14,
+            childAspectRatio: 1.05,
+          ),
+          itemBuilder: (context, i) => _AnimatedEntrance(
+            index: i + 1,
+            child: _QuickActionTile(action: tiles[i]),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFarmerFilter() {
+    if (_userDetails.isEmpty) return const SizedBox.shrink();
+    return DropdownButtonFormField<String>(
+      initialValue: _selectedUserId,
+      hint: const Text('Select a farmer to view their submissions'),
+      isExpanded: true,
+      items: _userDetails
+          .map((u) => DropdownMenuItem<String>(
+              value: u['id'], child: Text(u['fullName']!)))
+          .toList(),
+      onChanged: (value) => setState(() => _selectedUserId = value),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -535,8 +573,8 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
     if (_cooperativeName == null || _selectedUserId == null) {
       return const Center(
         child: Text(
-          'Select a user to view their submissions.',
-          style: TextStyle(fontSize: 18, color: Colors.grey),
+          'Select a farmer above to view their submissions.',
+          style: TextStyle(fontSize: 14, color: Colors.grey),
         ),
       );
     }
@@ -602,13 +640,13 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.blue),
                         onPressed: () {
-                          _editProduceSubmission(
-                              data.id, data.submissionId, data.totalAmount);
+                          _editProduceSubmission(data.id, data.submissionId,
+                              data.totalAmount, data.pricePerKg);
                         },
                       ),
                       IconButton(
                         icon: const Icon(Icons.qr_code, color: Colors.brown),
-                        tooltip: 'Print QR Tag',
+                        tooltip: 'Reprint Tag',
                         onPressed: () => _printQrTag(data),
                       ),
                     ],
@@ -635,7 +673,12 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
         userId: data.id,
         submissionId: data.submissionId,
       );
-      final fileName = 'produce_tag_${data.submissionId}.pdf';
+      final fileName = QrTagPdfService.fileName(
+        cooperativeName: _cooperativeName!,
+        farmerName: data.farmerName,
+        submissionDate: data.submissionDate,
+        submissionId: data.submissionId,
+      );
       final file = await PdfDownloadHelper.saveBytes(bytes, fileName);
       if (!mounted) return;
       if (file != null) {
@@ -648,150 +691,6 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
       if (!mounted) return;
       setState(() => _feedbackMessage = 'Error generating QR tag: $e');
     }
-  }
-
-  Future<void> _fetchVarietyPrices() async {
-    if (_cooperativeName == null) return;
-    try {
-      final formattedCoopId = sanitizeCoopId(_cooperativeName!);
-      final snapshot = await FirebaseFirestore.instance
-          .collection('${formattedCoopId}_coffeeprices')
-          .get();
-      if (!mounted) return;
-      setState(() {
-        _varietyPrices = snapshot.docs
-            .map((doc) => {
-                  'variety': doc.id,
-                  'price': (doc.data()['price'] as num?)?.toDouble() ?? 0.0,
-                })
-            .toList();
-      });
-    } catch (e, stackTrace) {
-      logger.e('Error fetching variety prices: $e\nStack trace: $stackTrace');
-    }
-  }
-
-  Future<void> _showAddProduceDialog(BuildContext context) async {
-    await _fetchVarietyPrices();
-    if (_varietyPrices.isEmpty) {
-      setState(() {
-        _feedbackMessage =
-            'Add a coffee variety price first before recording a submission.';
-      });
-      return;
-    }
-    if (!context.mounted) return;
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setDialogState) {
-            return AlertDialog(
-              title: const Text('Add Produce Submission'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedUserId,
-                      hint: const Text('Select User'),
-                      items: _userDetails.map((user) {
-                        return DropdownMenuItem<String>(
-                          value: user['id'],
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user['fullName']!,
-                                style: const TextStyle(fontSize: 16),
-                              ),
-                              Text(
-                                user['phoneNumber']!,
-                                style: TextStyle(
-                                    color: Colors.grey[600], fontSize: 14),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      selectedItemBuilder: (BuildContext context) {
-                        return _userDetails.map<Widget>((user) {
-                          return Text(
-                            user['fullName']!,
-                            style: const TextStyle(fontSize: 16),
-                          );
-                        }).toList();
-                      },
-                      onChanged: (value) {
-                        setDialogState(() {
-                          _selectedUserId = value;
-                          logger.i('Selected userId: $value');
-                        });
-                      },
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedVariety,
-                      hint: const Text('Select Coffee Variety'),
-                      items: _varietyPrices.map((v) {
-                        return DropdownMenuItem<String>(
-                          value: v['variety'] as String,
-                          child: Text('${v['variety']} (Ksh ${v['price']}/kg)'),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setDialogState(() => _selectedVariety = value);
-                      },
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _produceAmountController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Amount (kg)',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  style: TextButton.styleFrom(foregroundColor: coffeeBrown),
-                  onPressed: () {
-                    if (_selectedVariety == null) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(
-                            content: Text('Please select a coffee variety')),
-                      );
-                      return;
-                    }
-                    Navigator.pop(dialogContext);
-                    _addProduceSubmission();
-                  },
-                  child: const Text('Add'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 
   Future<void> _showAddVarietyDialog(BuildContext context) async {
@@ -891,6 +790,91 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
         _feedbackMessage = result;
       });
     }
+  }
+}
+
+class _QuickAction {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickAction(this.label, this.icon, this.color, this.onTap);
+}
+
+class _QuickActionTile extends StatelessWidget {
+  final _QuickAction action;
+
+  const _QuickActionTile({required this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: action.onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: .05),
+                blurRadius: 10,
+                offset: const Offset(0, 4)),
+          ],
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: action.color.withValues(alpha: .12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(action.icon, color: action.color, size: 26),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              action.label,
+              textAlign: TextAlign.center,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Simple staggered fade + rise entrance for dashboard tiles — each index
+/// starts its animation slightly after the previous one for a modern,
+/// engaging feel without pulling in an animation package.
+class _AnimatedEntrance extends StatelessWidget {
+  final int index;
+  final Widget child;
+
+  const _AnimatedEntrance({required this.index, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 350 + (index * 60)),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, widgetChild) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, (1 - value) * 16),
+            child: widgetChild,
+          ),
+        );
+      },
+      child: child,
+    );
   }
 }
 
@@ -1123,18 +1107,16 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
   final Logger logger = Logger(printer: PrettyPrinter());
   String? _feedbackMessage;
   List<Map<String, String>> _userDetails = [];
-  List<String> _submissionDates = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchUsersAndDates();
+    _fetchUsers();
   }
 
-  Future<void> _fetchUsersAndDates() async {
+  Future<void> _fetchUsers() async {
     try {
       String formattedCoopId = sanitizeCoopId(widget.cooperativeName);
-      // Fetch users
       QuerySnapshot userSnapshot = await FirebaseFirestore.instance
           .collection('${formattedCoopId}_users')
           .get();
@@ -1149,32 +1131,9 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
           'phoneNumber': data?['phoneNumber']?.toString() ?? 'N/A',
         };
       }).toList();
-
-      // Fetch unique submission dates for the specific cooperative
-      _submissionDates = [];
-      for (var user in _userDetails) {
-        QuerySnapshot submissionSnapshot = await FirebaseFirestore.instance
-            .collection('${formattedCoopId}_FarmerProduce')
-            .doc(user['id'])
-            .collection('submissions')
-            .where('submissionDate', isGreaterThan: '')
-            .orderBy('submissionDate', descending: true)
-            .get();
-        if (!mounted) return;
-        logger.i(
-            'Fetched ${submissionSnapshot.docs.length} submissions for user ${user['id']}');
-        var dates = submissionSnapshot.docs
-            .map((doc) => (doc.data() as Map<String, dynamic>)['submissionDate']
-                as String)
-            .toSet()
-            .toList();
-        _submissionDates.addAll(dates);
-      }
-      _submissionDates = _submissionDates.toSet().toList()
-        ..sort((a, b) => b.compareTo(a));
       setState(() {});
     } catch (e, stackTrace) {
-      logger.e('Error fetching users or dates: $e\nStack trace: $stackTrace');
+      logger.e('Error fetching users: $e\nStack trace: $stackTrace');
       if (!mounted) return;
       setState(() {
         _feedbackMessage = 'Error loading data: $e';
@@ -1182,8 +1141,8 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
     }
   }
 
-  Future<void> _editProduceSubmission(
-      String userId, String submissionId, double currentAmount) async {
+  Future<void> _editProduceSubmission(String userId, String submissionId,
+      double currentAmount, double pricePerKg) async {
     String formattedCoopId = sanitizeCoopId(widget.cooperativeName);
     final TextEditingController amountController =
         TextEditingController(text: currentAmount.toString());
@@ -1240,6 +1199,9 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
             .doc(submissionId)
             .update({
           'totalAmount': newAmount,
+          // Keep grossValue in sync with the corrected weight — see the
+          // same fix in MarketManagerScreen._editProduceSubmission.
+          'grossValue': newAmount * pricePerKg,
           'timestamp': Timestamp.now(),
         });
         logger.i(
@@ -1280,7 +1242,7 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
-      body: _userDetails.isEmpty || _submissionDates.isEmpty
+      body: _userDetails.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : StreamBuilder<List<QuerySnapshot>>(
               stream: CombineLatestStream.list(
@@ -1318,12 +1280,23 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                     .map((doc) => FarmerProduce.fromDocument(doc))
                     .toList();
 
+                // Date columns are derived from the live submissions stream
+                // itself (not a separately fetched, one-shot list) so a
+                // brand-new submission's date always has a column the
+                // moment it's written, without needing to reopen this
+                // screen.
+                final dates = submissions
+                    .map((s) => s.submissionDate)
+                    .toSet()
+                    .toList()
+                  ..sort((a, b) => b.compareTo(a));
+
                 List<DataColumn> columns = [
                   const DataColumn(
                       label: Text('Farmer Name',
                           style: TextStyle(fontWeight: FontWeight.bold))),
                 ];
-                columns.addAll(_submissionDates.map((date) => DataColumn(
+                columns.addAll(dates.map((date) => DataColumn(
                       label: Text(date,
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                     )));
@@ -1332,19 +1305,18 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                   List<DataCell> cells = [
                     DataCell(Text(user['fullName']!)),
                   ];
-                  for (String date in _submissionDates) {
-                    final submission = submissions.firstWhere(
-                      (s) => s.id == user['id'] && s.submissionDate == date,
-                      orElse: () => FarmerProduce(
-                          id: '',
-                          farmerName: '',
-                          contact: '',
-                          totalAmount: 0.0,
-                          timestamp: Timestamp.now(),
-                          submissionDate: '',
-                          submissionId: ''),
-                    );
-                    if (submission.id.isNotEmpty) {
+                  for (String date in dates) {
+                    // A farmer can deliver more than once on the same day —
+                    // each becomes its own submission doc — so this must
+                    // collect every match for the cell, not just the first.
+                    final daySubmissions = submissions
+                        .where((s) =>
+                            s.id == user['id'] && s.submissionDate == date)
+                        .toList();
+                    if (daySubmissions.isEmpty) {
+                      cells.add(const DataCell(Text('-')));
+                    } else if (daySubmissions.length == 1) {
+                      final submission = daySubmissions.first;
                       cells.add(DataCell(
                         Row(
                           children: [
@@ -1356,14 +1328,31 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                                 _editProduceSubmission(
                                     submission.id,
                                     submission.submissionId,
-                                    submission.totalAmount);
+                                    submission.totalAmount,
+                                    submission.pricePerKg);
                               },
                             ),
                           ],
                         ),
                       ));
                     } else {
-                      cells.add(const DataCell(Text('-')));
+                      final total = daySubmissions.fold<double>(
+                          0.0, (t, s) => t + s.totalAmount);
+                      cells.add(DataCell(
+                        InkWell(
+                          onTap: () => _showDaySubmissions(daySubmissions),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                  '${total.toStringAsFixed(2)} (${daySubmissions.length})'),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.list,
+                                  size: 16, color: Colors.blue),
+                            ],
+                          ),
+                        ),
+                      ));
                     }
                   }
                   return DataRow(cells: cells);
@@ -1380,6 +1369,46 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                 );
               },
             ),
+    );
+  }
+
+  /// Multiple deliveries from the same farmer on the same day collapse into
+  /// one table cell (a summed total) — this lists each individual
+  /// submission so it can still be viewed/edited on its own.
+  Future<void> _showDaySubmissions(List<FarmerProduce> daySubmissions) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${daySubmissions.first.submissionDate} deliveries'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: daySubmissions.length,
+            itemBuilder: (context, i) {
+              final s = daySubmissions[i];
+              return ListTile(
+                title: Text('${s.totalAmount.toStringAsFixed(2)} kg'
+                    '${s.variety.isNotEmpty ? " · ${s.variety}" : ""}'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    _editProduceSubmission(
+                        s.id, s.submissionId, s.totalAmount, s.pricePerKg);
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -46,25 +46,59 @@ class ProduceTraceabilityService {
     return history.isEmpty ? ProduceStage.received : history.last.stage;
   }
 
+  /// Advances a bag to [stage], guarded by a transaction against the
+  /// submission doc's `currentStage` field so two devices scanning the same
+  /// physical tag near-simultaneously can't both write a "next" stage from
+  /// a stale read — the second writer sees the first writer's update and is
+  /// rejected instead of silently producing a duplicate/out-of-order entry.
+  /// [expectedCurrentStage] is whatever the caller displayed as "current
+  /// stage" when the operator chose to advance it (i.e. the value this
+  /// service's own [currentStage] computed from stage history). A
+  /// submission whose doc has no `currentStage` field yet (every submission
+  /// recorded before this guard existed, or one with no scans yet) is
+  /// trusted on this first write and the field is then populated, so
+  /// pre-existing data never spuriously conflicts.
   Future<void> recordStage({
     required String coopId,
     required String userId,
     required String submissionId,
+    required ProduceStage expectedCurrentStage,
     required ProduceStage stage,
     required String scannedBy,
     required String scannedByName,
     String note = '',
   }) async {
+    final submissionRef = _submissionsRef(coopId, userId).doc(submissionId);
+    final entryRef = _traceStagesRef(coopId, userId, submissionId).doc();
     try {
-      await _traceStagesRef(coopId, userId, submissionId).add(
-        ProduceTraceEntry(
-          stage: stage,
-          scannedBy: scannedBy,
-          scannedByName: scannedByName,
-          note: note,
-          timestamp: Timestamp.now(),
-        ).toMap(),
-      );
+      await _firestore.runTransaction((transaction) async {
+        final submissionSnap = await transaction.get(submissionRef);
+        final data = submissionSnap.data();
+        if (data != null && data.containsKey('currentStage')) {
+          final storedStage =
+              ProduceStageX.fromStorage(data['currentStage']?.toString());
+          if (storedStage != expectedCurrentStage) {
+            throw StateError(
+                'This bag was already advanced to ${storedStage.label} by '
+                'another scan. Refresh and try again.');
+          }
+        }
+        transaction.set(
+          submissionRef,
+          {'currentStage': stage.storageValue},
+          SetOptions(merge: true),
+        );
+        transaction.set(
+          entryRef,
+          ProduceTraceEntry(
+            stage: stage,
+            scannedBy: scannedBy,
+            scannedByName: scannedByName,
+            note: note,
+            timestamp: Timestamp.now(),
+          ).toMap(),
+        );
+      });
     } catch (e, st) {
       _log.e('ProduceTraceabilityService.recordStage: Error – $e',
           stackTrace: st);
