@@ -1,13 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coffeecore/models/farmer_produce.dart';
 import 'package:coffeecore/models/produce_confirmation_status.dart';
+import 'package:coffeecore/models/produce_trace_stage.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/farmer_settlements_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/produce_traceability_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/receive_produce_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/pdf_download_helper.dart';
+import 'package:coffeecore/services/produce_traceability_service.dart';
 import 'package:coffeecore/services/qr_tag_pdf_service.dart';
 import 'package:coffeecore/utils/cooperative_name.dart';
+import 'package:coffeecore/widgets/modern_data_table.dart';
 import 'package:coffeecore/widgets/produce_confirmation_chip.dart';
+import 'package:coffeecore/widgets/produce_stage_chain.dart';
+import 'package:coffeecore/widgets/table_action_icon.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
@@ -24,6 +29,7 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
     with SingleTickerProviderStateMixin {
   static final Color coffeeBrown = Colors.brown[700]!;
   final Logger logger = Logger(printer: PrettyPrinter());
+  final ProduceTraceabilityService _traceService = ProduceTraceabilityService();
   String? _cooperativeName;
   String? _feedbackMessage;
   late AnimationController _animationController;
@@ -621,63 +627,105 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
             .toList();
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: DataTable(
+          child: ModernDataTable(
             columns: const [
-              DataColumn(
-                  label: Text('Farmer Name',
-                      style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(
-                  label: Text('Contact',
-                      style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(
-                  label: Text('Date',
-                      style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(
-                  label: Text('Amount (kg)',
-                      style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(
-                  label: Text('Confirmation',
-                      style: TextStyle(fontWeight: FontWeight.bold))),
-              DataColumn(
-                  label: Text('Actions',
-                      style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Farmer Name')),
+              DataColumn(label: Text('Contact')),
+              DataColumn(label: Text('Date')),
+              DataColumn(label: Text('Variety')),
+              DataColumn(label: Text('Amount (kg)')),
+              DataColumn(label: Text('Confirmation')),
+              DataColumn(label: Text('Edit')),
+              DataColumn(label: Text('Tag')),
+              DataColumn(label: Text('Track')),
             ],
-            rows: produceData.map((data) {
-              return DataRow(cells: [
-                DataCell(Text(data.farmerName)),
-                DataCell(Text(data.contact)),
-                DataCell(Text(data.submissionDate)),
-                DataCell(Text(data.totalAmount.toStringAsFixed(2))),
-                DataCell(
-                    ProduceConfirmationChip(status: data.confirmationStatus)),
-                DataCell(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () {
-                          _editProduceSubmission(
-                              data.id,
-                              data.submissionId,
-                              data.totalAmount,
-                              data.pricePerKg,
-                              data.confirmationStatus != null);
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.qr_code, color: Colors.brown),
-                        tooltip: 'Reprint Tag',
-                        onPressed: () => _printQrTag(data),
-                      ),
-                    ],
-                  ),
-                ),
-              ]);
+            rows: produceData.asMap().entries.map((entry) {
+              final i = entry.key;
+              final data = entry.value;
+              return DataRow(
+                color: ModernDataTable.rowColor(i),
+                cells: [
+                  DataCell(Text(data.farmerName)),
+                  DataCell(Text(data.contact)),
+                  DataCell(Text(data.submissionDate)),
+                  DataCell(Text(data.variety.isEmpty ? '-' : data.variety)),
+                  DataCell(ProduceValueChip(
+                      label: '${data.totalAmount.toStringAsFixed(1)} kg',
+                      icon: Icons.scale_rounded)),
+                  DataCell(
+                      ProduceConfirmationChip(status: data.confirmationStatus)),
+                  DataCell(TableActionIcon(
+                    icon: Icons.edit_rounded,
+                    tooltip: 'Edit amount',
+                    onPressed: () {
+                      _editProduceSubmission(
+                          data.id,
+                          data.submissionId,
+                          data.totalAmount,
+                          data.pricePerKg,
+                          data.confirmationStatus != null);
+                    },
+                  )),
+                  DataCell(TableActionIcon(
+                    icon: Icons.qr_code_rounded,
+                    tooltip: 'Reprint tag',
+                    onPressed: () => _printQrTag(data),
+                  )),
+                  DataCell(TableActionIcon(
+                    icon: Icons.route_rounded,
+                    tooltip: 'View stage tracker',
+                    onPressed: () => _showStageTimeline(
+                        sanitizeCoopId(_cooperativeName!), data.id, data),
+                  )),
+                ],
+              );
             }).toList(),
           ),
         );
       },
+    );
+  }
+
+  /// Shared by every produce table in this file (single-farmer table and
+  /// SubmissionListScreen's matrix) — same horizontal tracker the farmer
+  /// sees for their own submission, so a Market Manager can confirm a
+  /// scan actually registered without switching to the separate
+  /// Traceability screen.
+  Future<void> _showStageTimeline(
+      String coopId, String userId, FarmerProduce submission) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${submission.farmerName} — Stage Timeline'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: StreamBuilder<List<ProduceTraceEntry>>(
+            stream: _traceService.stageHistory(
+                coopId, userId, submission.submissionId),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              return SingleChildScrollView(
+                child: ProduceStageChain(
+                  history: snapshot.data!,
+                  submissionDate: submission.submissionDate,
+                  accentColor: coffeeBrown,
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1126,6 +1174,7 @@ class SubmissionListScreen extends StatefulWidget {
 class _SubmissionListScreenState extends State<SubmissionListScreen> {
   static final Color coffeeBrown = Colors.brown[700]!;
   final Logger logger = Logger(printer: PrettyPrinter());
+  final ProduceTraceabilityService _traceService = ProduceTraceabilityService();
   String? _feedbackMessage;
   List<Map<String, String>> _userDetails = [];
 
@@ -1248,6 +1297,48 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
     amountController.dispose();
   }
 
+  /// Same horizontal tracker used everywhere else in the app — see
+  /// MarketManagerScreen._showStageTimeline for the identical structure
+  /// (kept as a separate copy since this is a different State class with
+  /// its own _traceService instance).
+  Future<void> _showStageTimeline(
+      String coopId, String userId, FarmerProduce submission) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${submission.farmerName} — Stage Timeline'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: StreamBuilder<List<ProduceTraceEntry>>(
+            stream: _traceService.stageHistory(
+                coopId, userId, submission.submissionId),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              return SingleChildScrollView(
+                child: ProduceStageChain(
+                  history: snapshot.data!,
+                  submissionDate: submission.submissionDate,
+                  accentColor: coffeeBrown,
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_feedbackMessage != null) {
@@ -1329,7 +1420,9 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                     )));
 
-                List<DataRow> rows = _userDetails.map((user) {
+                List<DataRow> rows = _userDetails.asMap().entries.map((entry) {
+                  final rowIndex = entry.key;
+                  final user = entry.value;
                   List<DataCell> cells = [
                     DataCell(Text(user['fullName']!)),
                   ];
@@ -1349,13 +1442,15 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(submission.totalAmount.toStringAsFixed(2)),
+                            ProduceValueChip(
+                                label:
+                                    '${submission.totalAmount.toStringAsFixed(1)} kg'),
                             const SizedBox(width: 6),
                             ProduceConfirmationChip(
                                 status: submission.confirmationStatus),
-                            IconButton(
-                              icon: const Icon(Icons.edit,
-                                  color: Colors.blue, size: 20),
+                            TableActionIcon(
+                              icon: Icons.edit_rounded,
+                              tooltip: 'Edit amount',
                               onPressed: () {
                                 _editProduceSubmission(
                                     submission.id,
@@ -1364,6 +1459,12 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                                     submission.pricePerKg,
                                     submission.confirmationStatus != null);
                               },
+                            ),
+                            TableActionIcon(
+                              icon: Icons.route_rounded,
+                              tooltip: 'View stage tracker',
+                              onPressed: () => _showStageTimeline(
+                                  formattedCoopId, submission.id, submission),
                             ),
                           ],
                         ),
@@ -1388,13 +1489,14 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                       ));
                     }
                   }
-                  return DataRow(cells: cells);
+                  return DataRow(
+                      color: ModernDataTable.rowColor(rowIndex), cells: cells);
                 }).toList();
 
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: SingleChildScrollView(
-                    child: DataTable(
+                    child: ModernDataTable(
                       columns: columns,
                       rows: rows,
                     ),
@@ -1409,6 +1511,7 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
   /// one table cell (a summed total) — this lists each individual
   /// submission so it can still be viewed/edited on its own.
   Future<void> _showDaySubmissions(List<FarmerProduce> daySubmissions) async {
+    final formattedCoopId = sanitizeCoopId(widget.cooperativeName);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -1424,13 +1527,31 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                 title: Text('${s.totalAmount.toStringAsFixed(2)} kg'
                     '${s.variety.isNotEmpty ? " · ${s.variety}" : ""}'),
                 subtitle: ProduceConfirmationChip(status: s.confirmationStatus),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                    _editProduceSubmission(s.id, s.submissionId, s.totalAmount,
-                        s.pricePerKg, s.confirmationStatus != null);
-                  },
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TableActionIcon(
+                      icon: Icons.edit_rounded,
+                      tooltip: 'Edit amount',
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        _editProduceSubmission(
+                            s.id,
+                            s.submissionId,
+                            s.totalAmount,
+                            s.pricePerKg,
+                            s.confirmationStatus != null);
+                      },
+                    ),
+                    TableActionIcon(
+                      icon: Icons.route_rounded,
+                      tooltip: 'View stage tracker',
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        _showStageTimeline(formattedCoopId, s.id, s);
+                      },
+                    ),
+                  ],
                 ),
               );
             },

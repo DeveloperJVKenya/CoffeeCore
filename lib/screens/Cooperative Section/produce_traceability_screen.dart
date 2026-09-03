@@ -3,8 +3,10 @@ import 'package:coffeecore/models/traced_submission.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/produce_qr_scan_screen.dart';
 import 'package:coffeecore/services/produce_traceability_service.dart';
 import 'package:coffeecore/utils/cooperative_name.dart';
+import 'package:coffeecore/widgets/modern_data_table.dart';
 import 'package:coffeecore/widgets/produce_confirmation_chip.dart';
 import 'package:coffeecore/widgets/produce_stage_chain.dart';
+import 'package:coffeecore/widgets/table_action_icon.dart';
 import 'package:flutter/material.dart';
 
 enum _SortKey { coop, farmer, variety, kg, stage }
@@ -214,24 +216,28 @@ class _ProduceTraceabilityScreenState extends State<ProduceTraceabilityScreen> {
         .indexWhere((c) => c.$2 == _sortKey)
         .clamp(0, columnDefs.length - 1);
 
-    return DataTable(
+    return ModernDataTable(
       sortColumnIndex: sortColumnIndex,
       sortAscending: _sortAscending,
       columns: columnDefs
           .map((c) => DataColumn(
-                label: Text(c.$1,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                label: Text(c.$1),
                 onSort: c.$2 == null ? null : (_, __) => _onSort(c.$2!),
               ))
           .toList(),
-      rows: traced.map((t) {
+      rows: traced.asMap().entries.map((entry) {
+        final i = entry.key;
+        final t = entry.value;
         return DataRow(
+          color: ModernDataTable.rowColor(i),
           cells: [
             if (_isAllCoopMode) DataCell(Text(t.coopLabel)),
             DataCell(Text(t.submission.farmerName)),
             DataCell(Text(
                 t.submission.variety.isEmpty ? '-' : t.submission.variety)),
-            DataCell(Text(t.submission.totalAmount.toStringAsFixed(1))),
+            DataCell(ProduceValueChip(
+                label: '${t.submission.totalAmount.toStringAsFixed(1)} kg',
+                icon: Icons.scale_rounded)),
             DataCell(Text(t.stage.label)),
             DataCell(ProduceConfirmationChip(
                 status: t.submission.confirmationStatus)),
@@ -239,8 +245,8 @@ class _ProduceTraceabilityScreenState extends State<ProduceTraceabilityScreen> {
             // alone gives no visible hint that a row is tappable, so the
             // horizontal stage tracker dialog was going undiscovered.
             DataCell(
-              IconButton(
-                icon: const Icon(Icons.route, color: Colors.brown),
+              TableActionIcon(
+                icon: Icons.route_rounded,
                 tooltip: 'View stage tracker',
                 onPressed: () => _showTimeline(
                     context,

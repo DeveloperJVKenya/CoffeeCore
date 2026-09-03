@@ -5,7 +5,10 @@ import 'package:coffeecore/models/produce_data.dart';
 import 'package:coffeecore/models/produce_trace_stage.dart';
 import 'package:coffeecore/services/produce_traceability_service.dart';
 import 'package:coffeecore/utils/cooperative_name.dart';
+import 'package:coffeecore/widgets/modern_data_table.dart';
+import 'package:coffeecore/widgets/produce_confirmation_chip.dart';
 import 'package:coffeecore/widgets/produce_stage_chain.dart';
+import 'package:coffeecore/widgets/table_action_icon.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -326,46 +329,49 @@ class _ProduceScreenState extends State<ProduceScreen> {
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: SingleChildScrollView(
-                  child: DataTable(
+                  child: ModernDataTable(
                     columns: const [
-                      DataColumn(
-                          label: Text('Date',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Amount (kg)',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Stage',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Track',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text('Date')),
+                      DataColumn(label: Text('Variety')),
+                      DataColumn(label: Text('Amount (kg)')),
+                      DataColumn(label: Text('Stage')),
+                      DataColumn(label: Text('Confirmation')),
+                      DataColumn(label: Text('Track')),
                     ],
-                    rows: submissions.map((submission) {
+                    rows: submissions.asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final submission = entry.value;
                       final parsedDate =
                           DateTime.tryParse(submission.submissionDate);
                       final formattedDate = parsedDate != null
                           ? DateFormat('yyyy-MM-dd').format(parsedDate)
                           : '-';
                       return DataRow(
+                        color: ModernDataTable.rowColor(i),
                         cells: [
                           DataCell(Text(formattedDate)),
-                          DataCell(
-                              Text(submission.totalAmount.toStringAsFixed(2))),
+                          DataCell(Text(submission.variety.isEmpty
+                              ? '-'
+                              : submission.variety)),
+                          DataCell(ProduceValueChip(
+                              label:
+                                  '${submission.totalAmount.toStringAsFixed(1)} kg',
+                              icon: Icons.scale_rounded)),
                           DataCell(_StageCell(
                             service: _traceService,
                             coopId: formattedCoopName,
                             userId: userId,
                             submissionId: submission.submissionId,
                           )),
+                          DataCell(ProduceConfirmationChip(
+                              status: submission.confirmationStatus)),
                           // An explicit button — DataTable's onSelectChanged
                           // row-tap alone gives no visible hint that a row
                           // is tappable, so the horizontal stage tracker
                           // dialog was going undiscovered.
                           DataCell(
-                            IconButton(
-                              icon:
-                                  const Icon(Icons.route, color: Colors.brown),
+                            TableActionIcon(
+                              icon: Icons.route_rounded,
                               tooltip: 'View stage tracker',
                               onPressed: () => _showSubmissionTimeline(
                                   formattedCoopName, userId, submission),
@@ -783,51 +789,52 @@ class _ProduceScreenState extends State<ProduceScreen> {
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SingleChildScrollView(
-            child: DataTable(
+            child: ModernDataTable(
               columns: const [
-                DataColumn(
-                    label: Text('Farmer Name',
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text('Contact',
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text('Farm Area',
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text('Produce (kg)',
-                        style: TextStyle(fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text('Actions',
-                        style: TextStyle(fontWeight: FontWeight.bold))),
+                DataColumn(label: Text('Farmer Name')),
+                DataColumn(label: Text('Contact')),
+                DataColumn(label: Text('Farm Area')),
+                DataColumn(label: Text('Produce (kg)')),
+                // Split out from a single ambiguous "Actions" column with a
+                // bare eye icon — that read as a generic row action, not as
+                // "this is where your delivery history and stage tracking
+                // lives". A dedicated, clearly-labeled column makes it the
+                // obvious entry point instead of something to discover.
+                DataColumn(label: Text('Farm Size')),
+                DataColumn(label: Text('Submissions')),
               ],
-              rows: produceData
-                  .map((data) => DataRow(cells: [
-                        DataCell(Text(data.farmerName)),
-                        DataCell(Text(data.contact)),
-                        DataCell(Text(data.farmArea)),
-                        DataCell(Text(data.latestTotalAmount == 0.0
-                            ? '-'
-                            : data.latestTotalAmount.toStringAsFixed(2))),
-                        DataCell(Row(
-                          children: [
-                            if (data.id == _userId)
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () =>
-                                    _addOrEditFarmSize(true, data.farmArea),
-                              ),
-                            IconButton(
-                              icon: const Icon(Icons.visibility,
-                                  color: Colors.blue),
-                              onPressed: () => _viewSubmissions(data.id,
-                                  data.farmerName, widget.cooperativeName),
-                            ),
-                          ],
-                        )),
-                      ]))
-                  .toList(),
+              rows: produceData.asMap().entries.map((entry) {
+                final i = entry.key;
+                final data = entry.value;
+                return DataRow(
+                  color: ModernDataTable.rowColor(i),
+                  cells: [
+                    DataCell(Text(data.farmerName)),
+                    DataCell(Text(data.contact)),
+                    DataCell(Text(data.farmArea)),
+                    DataCell(data.latestTotalAmount == 0.0
+                        ? const Text('-')
+                        : ProduceValueChip(
+                            label:
+                                '${data.latestTotalAmount.toStringAsFixed(1)} kg',
+                            icon: Icons.scale_rounded)),
+                    DataCell(data.id == _userId
+                        ? TableActionIcon(
+                            icon: Icons.edit_rounded,
+                            tooltip: 'Edit farm size',
+                            onPressed: () =>
+                                _addOrEditFarmSize(true, data.farmArea),
+                          )
+                        : const SizedBox.shrink()),
+                    DataCell(TableActionIcon(
+                      icon: Icons.receipt_long_rounded,
+                      tooltip: 'View submissions & stage tracking',
+                      onPressed: () => _viewSubmissions(
+                          data.id, data.farmerName, widget.cooperativeName),
+                    )),
+                  ],
+                );
+              }).toList(),
             ),
           ),
         );
