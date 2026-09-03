@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coffeecore/models/farmer_produce.dart';
+import 'package:coffeecore/models/produce_confirmation_status.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/farmer_settlements_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/produce_traceability_screen.dart';
 import 'package:coffeecore/screens/Cooperative%20Section/receive_produce_screen.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/pdf_download_helper.dart';
 import 'package:coffeecore/services/qr_tag_pdf_service.dart';
 import 'package:coffeecore/utils/cooperative_name.dart';
+import 'package:coffeecore/widgets/produce_confirmation_chip.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
@@ -139,7 +141,7 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
   }
 
   Future<void> _editProduceSubmission(String userId, String submissionId,
-      double currentAmount, double pricePerKg) async {
+      double currentAmount, double pricePerKg, bool hasConfirmationFlow) async {
     String formattedCoopId = sanitizeCoopId(_cooperativeName!);
     _produceAmountController.text = currentAmount.toString();
     final result = await showDialog<String>(
@@ -203,6 +205,16 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
           // corrected amount.
           'grossValue': newAmount * pricePerKg,
           'timestamp': Timestamp.now(),
+          // A correction re-opens confirmation: the farmer needs to see
+          // and accept the newly-corrected value, whether they'd already
+          // accepted the old one or declined it. Only for submissions
+          // already in the confirmation flow — this must never *enroll* a
+          // pre-feature submission that has no confirmationStatus at all.
+          if (hasConfirmationFlow) ...{
+            'confirmationStatus':
+                ProduceConfirmationStatus.pending.storageValue,
+            'declineReason': '',
+          },
         });
         logger.i(
             'Successfully updated produce data for user $userId at ${formattedCoopId}_FarmerProduce/$userId/submissions/$submissionId');
@@ -624,6 +636,9 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
                   label: Text('Amount (kg)',
                       style: TextStyle(fontWeight: FontWeight.bold))),
               DataColumn(
+                  label: Text('Confirmation',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(
                   label: Text('Actions',
                       style: TextStyle(fontWeight: FontWeight.bold))),
             ],
@@ -634,14 +649,20 @@ class _MarketManagerScreenState extends State<MarketManagerScreen>
                 DataCell(Text(data.submissionDate)),
                 DataCell(Text(data.totalAmount.toStringAsFixed(2))),
                 DataCell(
+                    ProduceConfirmationChip(status: data.confirmationStatus)),
+                DataCell(
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.blue),
                         onPressed: () {
-                          _editProduceSubmission(data.id, data.submissionId,
-                              data.totalAmount, data.pricePerKg);
+                          _editProduceSubmission(
+                              data.id,
+                              data.submissionId,
+                              data.totalAmount,
+                              data.pricePerKg,
+                              data.confirmationStatus != null);
                         },
                       ),
                       IconButton(
@@ -1142,7 +1163,7 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
   }
 
   Future<void> _editProduceSubmission(String userId, String submissionId,
-      double currentAmount, double pricePerKg) async {
+      double currentAmount, double pricePerKg, bool hasConfirmationFlow) async {
     String formattedCoopId = sanitizeCoopId(widget.cooperativeName);
     final TextEditingController amountController =
         TextEditingController(text: currentAmount.toString());
@@ -1203,6 +1224,13 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
           // same fix in MarketManagerScreen._editProduceSubmission.
           'grossValue': newAmount * pricePerKg,
           'timestamp': Timestamp.now(),
+          // Re-open confirmation on the corrected value — see the same
+          // reasoning in MarketManagerScreen._editProduceSubmission.
+          if (hasConfirmationFlow) ...{
+            'confirmationStatus':
+                ProduceConfirmationStatus.pending.storageValue,
+            'declineReason': '',
+          },
         });
         logger.i(
             'Successfully updated produce data for user $userId at ${formattedCoopId}_FarmerProduce/$userId/submissions/$submissionId');
@@ -1319,8 +1347,12 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                       final submission = daySubmissions.first;
                       cells.add(DataCell(
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(submission.totalAmount.toStringAsFixed(2)),
+                            const SizedBox(width: 6),
+                            ProduceConfirmationChip(
+                                status: submission.confirmationStatus),
                             IconButton(
                               icon: const Icon(Icons.edit,
                                   color: Colors.blue, size: 20),
@@ -1329,7 +1361,8 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
                                     submission.id,
                                     submission.submissionId,
                                     submission.totalAmount,
-                                    submission.pricePerKg);
+                                    submission.pricePerKg,
+                                    submission.confirmationStatus != null);
                               },
                             ),
                           ],
@@ -1390,12 +1423,13 @@ class _SubmissionListScreenState extends State<SubmissionListScreen> {
               return ListTile(
                 title: Text('${s.totalAmount.toStringAsFixed(2)} kg'
                     '${s.variety.isNotEmpty ? " · ${s.variety}" : ""}'),
+                subtitle: ProduceConfirmationChip(status: s.confirmationStatus),
                 trailing: IconButton(
                   icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
                   onPressed: () {
                     Navigator.pop(dialogContext);
-                    _editProduceSubmission(
-                        s.id, s.submissionId, s.totalAmount, s.pricePerKg);
+                    _editProduceSubmission(s.id, s.submissionId, s.totalAmount,
+                        s.pricePerKg, s.confirmationStatus != null);
                   },
                 ),
               );

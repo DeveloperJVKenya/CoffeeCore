@@ -6,6 +6,17 @@ import 'package:coffeecore/models/produce_trace_stage.dart';
 class TracedSubmission {
   final FarmerProduce submission;
   final ProduceStage stage;
+  // Populated only by ProduceTraceabilityService.tracedSubmissionsForAllCoops
+  // (MainAdmin's cross-cooperative view) — empty for the single-cooperative
+  // stream MarketManager/CoopAdmin use, where every row already belongs to
+  // the one cooperative the screen was opened for.
+  final String coopId;
+  final String coopLabel;
 
-  const TracedSubmission({required this.submission, required this.stage});
+  const TracedSubmission({
+    required this.submission,
+    required this.stage,
+    this.coopId = '',
+    this.coopLabel = '',
+  });
 }

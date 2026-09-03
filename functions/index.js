@@ -1,5 +1,5 @@
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
-const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
+const { onDocumentUpdated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret, defineString } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
@@ -1235,6 +1235,83 @@ exports.sendFollowUpReminders = onSchedule(
         // and retried every single hour indefinitely.
         await doc.ref.update({ [pushSentField]: true });
       }
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Produce value confirmation push notifications
+//
+// Each cooperative's submissions live under a collection literally named
+// "{coopId}_FarmerProduce" (e.g. "Kiambu_Coop_FarmerProduce") — a different
+// top-level collection per cooperative, so there's no single fixed path to
+// attach a normal Firestore trigger to. The wildcard in place of that
+// collection segment below turns this into a Firestore *collection group*
+// trigger: Firestore document-path wildcards match an entire path segment
+// regardless of its literal name, so `{coopCollection}` matches any
+// top-level collection at all — the `endsWith("_FarmerProduce")` guard is
+// what actually scopes it back down to just cooperative submissions (only
+// those collections have a "submissions" subcollection at this depth, but
+// the guard makes that non-negotiable rather than incidental).
+exports.onProduceSubmissionWritten = onDocumentWritten(
+  { document: "{coopCollection}/{userId}/submissions/{submissionId}", region: "us-central1" },
+  async (event) => {
+    const coopCollection = event.params.coopCollection;
+    if (!coopCollection.endsWith("_FarmerProduce")) return;
+
+    const after = event.data?.after?.exists ? event.data.after.data() : null;
+    if (!after || after.confirmationStatus !== "pending") return;
+
+    // Only push when this write is what *made* it pending — a create
+    // (before doesn't exist) or a Market Manager's correction resetting a
+    // previously accepted/declined value back to pending. Without this
+    // check, an unrelated field edit on an already-pending submission (or
+    // Firestore's own retry of this same trigger) would re-notify the
+    // farmer for no reason.
+    const before = event.data?.before?.exists ? event.data.before.data() : null;
+    if (before && before.confirmationStatus === "pending") return;
+
+    const coopId = coopCollection.slice(0, -"_FarmerProduce".length);
+    const userId = event.params.userId;
+    const submissionId = event.params.submissionId;
+
+    const kg = typeof after.totalAmount === "number" ? after.totalAmount : 0;
+    const variety = after.variety || "coffee";
+    const title = "Confirm your delivery";
+    const body = `${kg.toFixed(1)} kg of ${variety} was recorded for you — ` +
+      "tap to confirm the value is correct.";
+
+    try {
+      await sendFollowUpPush(userId, title, body, {
+        type: "produce_value_confirmation",
+        coopId,
+        userId,
+        submissionId,
+      });
+    } catch (err) {
+      logger.error(`onProduceSubmissionWritten: push failed for ${userId}/${submissionId}: ${err}`);
+    }
+
+    // In-app record alongside the push, reusing the existing generic
+    // user_notifications schema (see CommunityNotificationService) rather
+    // than inventing a parallel collection — its security rule already
+    // accepts any well-formed item with these four keys.
+    try {
+      await db()
+        .collection("user_notifications")
+        .doc(userId)
+        .collection("items")
+        .add({
+          type: "produce_value_confirmation",
+          actor_name: "Market Manager",
+          message: body,
+          is_read: false,
+          created_at: Timestamp.now(),
+          coop_id: coopId,
+          submission_id: submissionId,
+        });
+    } catch (err) {
+      logger.error(`onProduceSubmissionWritten: in-app notification write failed for ${userId}/${submissionId}: ${err}`);
     }
   }
 );

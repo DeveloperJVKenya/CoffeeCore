@@ -7,9 +7,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
 import 'package:coffeecore/models/coffee_disease_models.dart';
 import 'package:coffeecore/models/coffee_pest_models.dart';
+import 'package:coffeecore/screens/Cooperative%20Section/produce_screen.dart';
 import 'package:coffeecore/screens/Field%20Data/fertilization_plan_tracker_screen.dart';
 import 'package:coffeecore/screens/diseases/disease_followup_checkin_page.dart';
 import 'package:coffeecore/screens/pests/pest_followup_checkin_page.dart';
+import 'package:coffeecore/utils/cooperative_name.dart';
 
 final Logger _logger = Logger(printer: PrettyPrinter());
 
@@ -154,14 +156,35 @@ class PushNotificationService {
   /// available when a terminated app is opened by tapping a notification.
   static Future<void> _handleTap(RemoteMessage message) async {
     final type = message.data['type'];
-    final interventionId = message.data['interventionId'];
-    final collectionName = message.data['collection'];
-    if (type == null || interventionId == null || collectionName == null) {
-      return;
-    }
+    if (type == null) return;
 
     final navigator = _navigatorKey?.currentState;
     if (navigator == null) return;
+
+    if (type == 'produce_value_confirmation') {
+      // Lands the farmer on ProduceScreen, whose pending-confirmations
+      // banner (see produce_screen.dart) surfaces this exact submission's
+      // Accept/Decline actions — there's no separate confirmation screen,
+      // this is already the one place a farmer sees and acts on it.
+      final coopId = message.data['coopId'];
+      if (coopId == null) return;
+      try {
+        navigator.push(MaterialPageRoute(
+          builder: (_) =>
+              ProduceScreen(cooperativeName: coopIdToDisplayName(coopId)),
+        ));
+      } catch (e, st) {
+        _logger.w('Could not open Produce screen from notification tap',
+            error: e, stackTrace: st);
+      }
+      return;
+    }
+
+    final interventionId = message.data['interventionId'];
+    final collectionName = message.data['collection'];
+    if (interventionId == null || collectionName == null) {
+      return;
+    }
 
     try {
       if (type == 'fertilizer_followup') {

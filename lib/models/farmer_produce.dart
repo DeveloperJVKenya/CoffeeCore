@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:coffeecore/models/produce_confirmation_status.dart';
 
 class FarmerProduce {
   final String id;
@@ -15,6 +16,14 @@ class FarmerProduce {
   final String variety;
   final double pricePerKg;
   final double grossValue;
+  // Whether the farmer has confirmed this value — null for submissions
+  // recorded before the confirmation flow existed (see
+  // ProduceConfirmationStatus doc comment). Only ever written by the
+  // farmer themselves (via accept/decline) or reset to pending by a
+  // Market Manager correcting a declined submission's values.
+  final ProduceConfirmationStatus? confirmationStatus;
+  final Timestamp? confirmedAt;
+  final String declineReason;
 
   FarmerProduce({
     required this.id,
@@ -27,6 +36,9 @@ class FarmerProduce {
     this.variety = '',
     this.pricePerKg = 0,
     this.grossValue = 0,
+    this.confirmationStatus,
+    this.confirmedAt,
+    this.declineReason = '',
   });
 
   Map<String, dynamic> toMap() {
@@ -41,6 +53,10 @@ class FarmerProduce {
       'variety': variety,
       'pricePerKg': pricePerKg,
       'grossValue': grossValue,
+      if (confirmationStatus != null)
+        'confirmationStatus': confirmationStatus!.storageValue,
+      if (confirmedAt != null) 'confirmedAt': confirmedAt,
+      'declineReason': declineReason,
     };
   }
 
@@ -61,6 +77,10 @@ class FarmerProduce {
       variety: data['variety']?.toString() ?? '',
       pricePerKg: (data['pricePerKg'] as num?)?.toDouble() ?? 0.0,
       grossValue: (data['grossValue'] as num?)?.toDouble() ?? 0.0,
+      confirmationStatus: ProduceConfirmationStatusX.fromStorage(
+          data['confirmationStatus']?.toString()),
+      confirmedAt: data['confirmedAt'] as Timestamp?,
+      declineReason: data['declineReason']?.toString() ?? '',
     );
   }
 }

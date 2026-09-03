@@ -205,6 +205,18 @@ service cloud.firestore {
                               (isAdmin() ||
                               isCoopAdmin(collection.replace('_FarmerProduce', '')) ||
                               isMarketManager(collection.replace('_FarmerProduce', '')));
+        // Farmer accept/decline of the recorded value — scoped to exactly
+        // these three fields (never totalAmount/pricePerKg/grossValue,
+        // which stay Admin/CoopAdmin/MarketManager-only above) and only
+        // from a pending submission, transitioning to accepted or declined.
+        // documentId here is the {userId} path segment from the enclosing
+        // wildcard match, same binding the read/create rules above rely on.
+        allow update: if collection.matches('.*_FarmerProduce') &&
+                      isAuthenticated() && request.auth.uid == documentId &&
+                      resource.data.confirmationStatus == 'pending' &&
+                      request.resource.data.confirmationStatus in ['accepted', 'declined'] &&
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['confirmationStatus', 'confirmedAt', 'declineReason']);
         allow delete: if collection.matches('.*_FarmerProduce') &&
                         (isAdmin() || isCoopAdmin(collection.replace('_FarmerProduce', '')));
 

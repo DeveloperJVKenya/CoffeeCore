@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coffeecore/models/farmer_produce.dart';
+import 'package:coffeecore/models/produce_confirmation_status.dart';
 import 'package:coffeecore/models/produce_data.dart';
 import 'package:coffeecore/models/produce_trace_stage.dart';
 import 'package:coffeecore/services/produce_traceability_service.dart';
 import 'package:coffeecore/utils/cooperative_name.dart';
+import 'package:coffeecore/widgets/produce_stage_chain.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -335,6 +337,9 @@ class _ProduceScreenState extends State<ProduceScreen> {
                       DataColumn(
                           label: Text('Stage',
                               style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(
+                          label: Text('Track',
+                              style: TextStyle(fontWeight: FontWeight.bold))),
                     ],
                     rows: submissions.map((submission) {
                       final parsedDate =
@@ -342,17 +347,32 @@ class _ProduceScreenState extends State<ProduceScreen> {
                       final formattedDate = parsedDate != null
                           ? DateFormat('yyyy-MM-dd').format(parsedDate)
                           : '-';
-                      return DataRow(cells: [
-                        DataCell(Text(formattedDate)),
-                        DataCell(
-                            Text(submission.totalAmount.toStringAsFixed(2))),
-                        DataCell(_StageCell(
-                          service: _traceService,
-                          coopId: formattedCoopName,
-                          userId: userId,
-                          submissionId: submission.submissionId,
-                        )),
-                      ]);
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(formattedDate)),
+                          DataCell(
+                              Text(submission.totalAmount.toStringAsFixed(2))),
+                          DataCell(_StageCell(
+                            service: _traceService,
+                            coopId: formattedCoopName,
+                            userId: userId,
+                            submissionId: submission.submissionId,
+                          )),
+                          // An explicit button — DataTable's onSelectChanged
+                          // row-tap alone gives no visible hint that a row
+                          // is tappable, so the horizontal stage tracker
+                          // dialog was going undiscovered.
+                          DataCell(
+                            IconButton(
+                              icon:
+                                  const Icon(Icons.route, color: Colors.brown),
+                              tooltip: 'View stage tracker',
+                              onPressed: () => _showSubmissionTimeline(
+                                  formattedCoopName, userId, submission),
+                            ),
+                          ),
+                        ],
+                      );
                     }).toList(),
                   ),
                 ),
@@ -368,6 +388,195 @@ class _ProduceScreenState extends State<ProduceScreen> {
         ],
       ),
     );
+  }
+
+  /// Full stage-by-stage scan history for one submission — read-only here
+  /// (the User role has no scan/edit action anywhere in traceability), the
+  /// same timeline MarketManager/CoopAdmin see via
+  /// ProduceTraceabilityScreen's _showTimeline, just reached from the
+  /// farmer's own submissions dialog instead.
+  Future<void> _showSubmissionTimeline(
+      String coopId, String userId, FarmerProduce submission) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${submission.submissionDate} — Stage Timeline'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: StreamBuilder<List<ProduceTraceEntry>>(
+            stream: _traceService.stageHistory(
+                coopId, userId, submission.submissionId),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              return SingleChildScrollView(
+                child: ProduceStageChain(
+                  history: snapshot.data!,
+                  submissionDate: submission.submissionDate,
+                  accentColor: coffeeBrown,
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Live banner of this farmer's own submissions still awaiting their
+  /// accept/decline — the QR scan pipeline in produce_qr_scan_screen.dart
+  /// refuses to advance a bag past "Received" until the value here is
+  /// accepted, so this is the farmer's only way to unblock it. Renders
+  /// nothing once there's nothing pending.
+  Widget _buildPendingConfirmationsBanner() {
+    final formattedCoopName = sanitizeCoopId(widget.cooperativeName);
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('${formattedCoopName}_FarmerProduce')
+          .doc(_userId)
+          .collection('submissions')
+          .where('confirmationStatus',
+              isEqualTo: ProduceConfirmationStatus.pending.storageValue)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final docs = snapshot.data?.docs ?? [];
+        if (docs.isEmpty) return const SizedBox.shrink();
+        final pending = docs.map((d) => FarmerProduce.fromDocument(d)).toList();
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.orange[50],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.orange[200]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.notifications_active, color: Colors.orange[800]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      pending.length == 1
+                          ? 'A delivery needs your confirmation'
+                          : '${pending.length} deliveries need your confirmation',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange[900]),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...pending.map((s) => _PendingConfirmationTile(
+                    submission: s,
+                    onAccept: () => _acceptSubmission(s),
+                    onDecline: () => _declineSubmission(s),
+                  )),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _acceptSubmission(FarmerProduce submission) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('${sanitizeCoopId(widget.cooperativeName)}_FarmerProduce')
+          .doc(_userId)
+          .collection('submissions')
+          .doc(submission.submissionId)
+          .update({
+        'confirmationStatus': ProduceConfirmationStatus.accepted.storageValue,
+        'confirmedAt': Timestamp.now(),
+      });
+      if (!mounted) return;
+      setState(() => _feedbackMessage = 'Delivery confirmed');
+    } catch (e, stackTrace) {
+      logger.e('Error accepting submission: $e\nStack trace: $stackTrace');
+      if (!mounted) return;
+      setState(() => _feedbackMessage = 'Failed to confirm: $e');
+    }
+  }
+
+  Future<void> _declineSubmission(FarmerProduce submission) async {
+    final reason = await _promptDeclineReason();
+    if (reason == null || !mounted) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('${sanitizeCoopId(widget.cooperativeName)}_FarmerProduce')
+          .doc(_userId)
+          .collection('submissions')
+          .doc(submission.submissionId)
+          .update({
+        'confirmationStatus': ProduceConfirmationStatus.declined.storageValue,
+        'confirmedAt': Timestamp.now(),
+        'declineReason': reason,
+      });
+      if (!mounted) return;
+      setState(() =>
+          _feedbackMessage = 'Declined — the market manager has been flagged');
+    } catch (e, stackTrace) {
+      logger.e('Error declining submission: $e\nStack trace: $stackTrace');
+      if (!mounted) return;
+      setState(() => _feedbackMessage = 'Failed to decline: $e');
+    }
+  }
+
+  Future<String?> _promptDeclineReason() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Decline this value?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Let the market manager know what looks wrong (optional) — '
+                'they can correct it and it will come back to you.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'e.g. weight looks too low',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('Decline'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
   }
 
   Future<void> _logActivity(String action) async {
@@ -536,93 +745,162 @@ class _ProduceScreenState extends State<ProduceScreen> {
                       );
                     },
                   )
-                : StreamBuilder<List<ProduceData>>(
-                    stream: _userRole == 'Farmer'
-                        ? _produceDataStreamForUser(
-                                formattedCoopName, _userId!, '')
-                            .map((p) => [p])
-                        : _produceDataStreamForCoop(formattedCoopName, ''),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        logger
-                            .e('Error loading produce data: ${snapshot.error}');
-                        return Center(child: Text('Error: ${snapshot.error}'));
-                      }
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Center(
-                          child: Text('No produce data added yet.',
-                              style:
-                                  TextStyle(fontSize: 18, color: Colors.grey)),
-                        );
-                      }
-
-                      final produceData = snapshot.data!;
-                      return SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: SingleChildScrollView(
-                          child: DataTable(
-                            columns: const [
-                              DataColumn(
-                                  label: Text('Farmer Name',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold))),
-                              DataColumn(
-                                  label: Text('Contact',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold))),
-                              DataColumn(
-                                  label: Text('Farm Area',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold))),
-                              DataColumn(
-                                  label: Text('Produce (kg)',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold))),
-                              DataColumn(
-                                  label: Text('Actions',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold))),
-                            ],
-                            rows: produceData
-                                .map((data) => DataRow(cells: [
-                                      DataCell(Text(data.farmerName)),
-                                      DataCell(Text(data.contact)),
-                                      DataCell(Text(data.farmArea)),
-                                      DataCell(Text(
-                                          data.latestTotalAmount == 0.0
-                                              ? '-'
-                                              : data.latestTotalAmount
-                                                  .toStringAsFixed(2))),
-                                      DataCell(Row(
-                                        children: [
-                                          if (data.id == _userId)
-                                            IconButton(
-                                              icon: const Icon(Icons.edit,
-                                                  color: Colors.blue),
-                                              onPressed: () =>
-                                                  _addOrEditFarmSize(
-                                                      true, data.farmArea),
-                                            ),
-                                          IconButton(
-                                            icon: const Icon(Icons.visibility,
-                                                color: Colors.blue),
-                                            onPressed: () => _viewSubmissions(
-                                                data.id,
-                                                data.farmerName,
-                                                widget.cooperativeName),
-                                          ),
-                                        ],
-                                      )),
-                                    ]))
-                                .toList(),
-                          ),
-                        ),
-                      );
-                    },
+                : Column(
+                    children: [
+                      if (_userRole == 'Farmer')
+                        _buildPendingConfirmationsBanner(),
+                      Expanded(
+                          child: _buildFarmerOrCoopProduceTable(
+                              formattedCoopName)),
+                    ],
                   ),
+      ),
+    );
+  }
+
+  Widget _buildFarmerOrCoopProduceTable(String formattedCoopName) {
+    return StreamBuilder<List<ProduceData>>(
+      stream: _userRole == 'Farmer'
+          ? _produceDataStreamForUser(formattedCoopName, _userId!, '')
+              .map((p) => [p])
+          : _produceDataStreamForCoop(formattedCoopName, ''),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          logger.e('Error loading produce data: ${snapshot.error}');
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Text('No produce data added yet.',
+                style: TextStyle(fontSize: 18, color: Colors.grey)),
+          );
+        }
+
+        final produceData = snapshot.data!;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SingleChildScrollView(
+            child: DataTable(
+              columns: const [
+                DataColumn(
+                    label: Text('Farmer Name',
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                DataColumn(
+                    label: Text('Contact',
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                DataColumn(
+                    label: Text('Farm Area',
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                DataColumn(
+                    label: Text('Produce (kg)',
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+                DataColumn(
+                    label: Text('Actions',
+                        style: TextStyle(fontWeight: FontWeight.bold))),
+              ],
+              rows: produceData
+                  .map((data) => DataRow(cells: [
+                        DataCell(Text(data.farmerName)),
+                        DataCell(Text(data.contact)),
+                        DataCell(Text(data.farmArea)),
+                        DataCell(Text(data.latestTotalAmount == 0.0
+                            ? '-'
+                            : data.latestTotalAmount.toStringAsFixed(2))),
+                        DataCell(Row(
+                          children: [
+                            if (data.id == _userId)
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () =>
+                                    _addOrEditFarmSize(true, data.farmArea),
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.visibility,
+                                  color: Colors.blue),
+                              onPressed: () => _viewSubmissions(data.id,
+                                  data.farmerName, widget.cooperativeName),
+                            ),
+                          ],
+                        )),
+                      ]))
+                  .toList(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// One pending-confirmation card in [_ProduceScreenState._buildPendingConfirmationsBanner]
+/// — the value breakdown plus Accept/Decline actions for a single delivery.
+class _PendingConfirmationTile extends StatelessWidget {
+  final FarmerProduce submission;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+
+  const _PendingConfirmationTile({
+    required this.submission,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange[100]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${submission.submissionDate} · '
+            '${submission.variety.isEmpty ? "-" : submission.variety}',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${submission.totalAmount.toStringAsFixed(1)} kg × '
+            'Ksh ${submission.pricePerKg.toStringAsFixed(2)}/kg '
+            '= Ksh ${submission.grossValue.toStringAsFixed(2)}',
+            style: TextStyle(color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onDecline,
+                  icon: const Icon(Icons.close, size: 16, color: Colors.red),
+                  label: const Text('Decline',
+                      style: TextStyle(color: Colors.red)),
+                  style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: onAccept,
+                  icon: const Icon(Icons.check, size: 16, color: Colors.white),
+                  label: const Text('Accept',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[700]),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

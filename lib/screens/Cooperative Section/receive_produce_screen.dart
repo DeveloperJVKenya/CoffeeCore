@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coffeecore/models/farmer_produce.dart';
+import 'package:coffeecore/models/produce_confirmation_status.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/pdf_download_helper.dart';
 import 'package:coffeecore/services/produce_qr_service.dart';
 import 'package:coffeecore/services/qr_tag_pdf_service.dart';
@@ -157,6 +158,10 @@ class _ReceiveProduceScreenState extends State<ReceiveProduceScreen> {
         variety: _selectedVariety!,
         pricePerKg: _pricePerKg,
         grossValue: _grossValue,
+        // Every new submission starts pending the farmer's confirmation of
+        // the recorded value — the QR scan pipeline won't advance past
+        // "Received" until they accept it (see produce_qr_scan_screen.dart).
+        confirmationStatus: ProduceConfirmationStatus.pending,
       );
 
       await submissionsRef

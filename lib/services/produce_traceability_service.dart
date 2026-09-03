@@ -145,4 +145,34 @@ class ProduceTraceabilityService {
       ).map((lists) => lists.expand((l) => l).toList());
     });
   }
+
+  /// MainAdmin's cross-cooperative view — flattens
+  /// [tracedSubmissionsForCoop] across every cooperative in the system,
+  /// tagging each result with which one it came from (the single-coop
+  /// stream above has no need for that tag, since every row already
+  /// belongs to the one cooperative the screen was opened for).
+  Stream<List<TracedSubmission>> tracedSubmissionsForAllCoops() {
+    return _firestore
+        .collection('cooperatives')
+        .snapshots()
+        .switchMap((coopSnapshot) {
+      if (coopSnapshot.docs.isEmpty) {
+        return Stream<List<TracedSubmission>>.value(const []);
+      }
+      return CombineLatestStream.list(
+        coopSnapshot.docs.map((doc) {
+          final coopId = doc.id;
+          final coopLabel =
+              doc.data()['name']?.toString() ?? coopId.replaceAll('_', ' ');
+          return tracedSubmissionsForCoop(coopId).map((list) => list
+              .map((t) => TracedSubmission(
+                  submission: t.submission,
+                  stage: t.stage,
+                  coopId: coopId,
+                  coopLabel: coopLabel))
+              .toList());
+        }),
+      ).map((lists) => lists.expand((l) => l).toList());
+    });
+  }
 }

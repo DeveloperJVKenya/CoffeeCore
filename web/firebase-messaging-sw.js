@@ -31,3 +31,23 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   // Intentionally minimal — see comment above.
 });
+
+// Without this, clicking a notification the browser showed while the tab
+// was backgrounded/closed does nothing — no default browser behavior
+// focuses or opens the app on its own. This is what makes that click
+// actually bring the user back to the site, where PushNotificationService's
+// onMessageOpenedApp / getInitialMessage (push_notification_service.dart)
+// then reads the notification's data payload and deep-links from there.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if ("focus" in client) return client.focus();
+        }
+        if (clients.openWindow) return clients.openWindow("/");
+      })
+  );
+});

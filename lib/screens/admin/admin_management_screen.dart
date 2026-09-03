@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:coffeecore/screens/admin/filter_users_screen.dart';
 import 'package:logger/logger.dart';
+import 'package:coffeecore/screens/Cooperative%20Section/produce_traceability_screen.dart';
 import 'package:coffeecore/screens/admin/collection_management_screen.dart';
 import 'package:coffeecore/screens/admin/farm_geojson_export_screen.dart';
 import 'package:coffeecore/screens/admin/pest_disease_trends_screen.dart';
@@ -220,6 +221,19 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                 context,
                 MaterialPageRoute(
                     builder: (context) => const PestDiseaseTrendsScreen()))),
+        _buildOptionCard(
+            'Produce Traceability',
+            Icons.route,
+            () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    // cooperativeName omitted (null) — MainAdmin sees every
+                    // cooperative at once with a filter to narrow it down,
+                    // per ProduceTraceabilityScreen's all-cooperative mode.
+                    // canScan: false — scanning is a Market Manager action
+                    // tied to one cooperative, never MainAdmin's.
+                    builder: (context) =>
+                        const ProduceTraceabilityScreen(canScan: false)))),
       ],
     );
   }

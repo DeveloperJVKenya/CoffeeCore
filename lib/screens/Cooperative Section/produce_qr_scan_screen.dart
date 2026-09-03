@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:coffeecore/models/farmer_produce.dart';
+import 'package:coffeecore/models/produce_confirmation_status.dart';
 import 'package:coffeecore/models/produce_trace_stage.dart';
 import 'package:coffeecore/services/produce_qr_service.dart';
 import 'package:coffeecore/services/produce_traceability_service.dart';
 import 'package:coffeecore/utils/cooperative_name.dart';
+import 'package:coffeecore/widgets/produce_confirmation_chip.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
@@ -119,6 +121,12 @@ class _ProduceQrScanScreenState extends State<ProduceQrScanScreen> {
     final noteCtrl = TextEditingController();
     bool isSubmitting = false;
     String? errorText;
+    // A submission with no confirmationStatus at all predates this feature
+    // and is never gated. Otherwise the farmer must have explicitly
+    // accepted the recorded value before the bag can move past "Received"
+    // — pending or declined both block it.
+    final confirmationBlocked = submission.confirmationStatus != null &&
+        submission.confirmationStatus != ProduceConfirmationStatus.accepted;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -143,15 +151,57 @@ class _ProduceQrScanScreenState extends State<ProduceQrScanScreen> {
                   '${submission.variety.isNotEmpty ? " · ${submission.variety}" : ""}',
                   style: TextStyle(color: Colors.grey[700])),
               const SizedBox(height: 12),
-              Text('Current stage: ${currentStage.label}',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600, color: coffeeBrown)),
+              Row(
+                children: [
+                  Text('Current stage: ${currentStage.label}',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600, color: coffeeBrown)),
+                  if (submission.confirmationStatus != null) ...[
+                    const SizedBox(width: 10),
+                    ProduceConfirmationChip(
+                        status: submission.confirmationStatus),
+                  ],
+                ],
+              ),
               const SizedBox(height: 16),
               if (nextStage == null)
                 const Text(
                     'This bag has reached the final stage (Dispatched to '
                     'Market) — no further progression available.',
                     style: TextStyle(color: Colors.grey))
+              else if (confirmationBlocked)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: submission.confirmationStatus ==
+                            ProduceConfirmationStatus.declined
+                        ? Colors.red[50]
+                        : Colors.orange[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: submission.confirmationStatus ==
+                                ProduceConfirmationStatus.declined
+                            ? Colors.red[200]!
+                            : Colors.orange[200]!),
+                  ),
+                  child: Text(
+                    submission.confirmationStatus ==
+                            ProduceConfirmationStatus.declined
+                        ? '${submission.farmerName} declined this value'
+                            '${submission.declineReason.isNotEmpty ? ': "${submission.declineReason}"' : ''}. '
+                            'Correct the weight/variety/price from the produce '
+                            'table — this will ask them to confirm again '
+                            'before the bag can advance.'
+                        : 'Waiting on ${submission.farmerName} to confirm '
+                            'this delivery\'s value before it can move to '
+                            '${nextStage.label}.',
+                    style: TextStyle(
+                        color: submission.confirmationStatus ==
+                                ProduceConfirmationStatus.declined
+                            ? Colors.red[800]
+                            : Colors.orange[900]),
+                  ),
+                )
               else ...[
                 TextField(
                   controller: noteCtrl,
