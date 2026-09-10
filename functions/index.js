@@ -901,6 +901,8 @@ exports.runPlanetekDeforestationAnalysis = onCall(
       }
 
       const stateType = run.state && run.state.type;
+      const stateMessage = run.state && run.state.message;
+      const stateData = run.state && run.state.data;
       logger.info(
         `planetek.run: attempt ${attempt + 1}/${maxPolls} state=${stateType} ` +
           `(poll took ${Date.now() - pollStart}ms, total elapsed ${Date.now() - requestStart}ms)`
@@ -910,13 +912,25 @@ exports.runPlanetekDeforestationAnalysis = onCall(
         break;
       }
       if (stateType === "FAILED") {
+        logger.error(
+          `planetek.run: flowRunId=${flowRunId} FAILED after ${Date.now() - requestStart}ms — ` +
+            `state.message=${stateMessage} state.data=${JSON.stringify(stateData)} ` +
+            `raw_state=${JSON.stringify(run.state)}`
+        );
         throw new HttpsError(
           "unavailable",
-          "The Planetek deforestation analysis failed. Check the farm boundary is a " +
-            "valid polygon, or contact Planetek if this persists."
+          stateMessage
+            ? `The Planetek deforestation analysis failed: ${stateMessage}`
+            : "The Planetek deforestation analysis failed. Check the farm boundary is a " +
+                "valid polygon, or contact Planetek if this persists."
         );
       }
       if (stateType === "CRASHED") {
+        logger.error(
+          `planetek.run: flowRunId=${flowRunId} CRASHED after ${Date.now() - requestStart}ms — ` +
+            `state.message=${stateMessage} state.data=${JSON.stringify(stateData)} ` +
+            `raw_state=${JSON.stringify(run.state)}`
+        );
         throw new HttpsError(
           "resource-exhausted",
           "The Planetek deforestation analysis crashed — this farm boundary is likely " +

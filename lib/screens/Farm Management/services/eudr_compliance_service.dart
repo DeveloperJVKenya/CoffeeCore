@@ -47,6 +47,35 @@ class EudrComplianceService {
 
   bool _isPlaceholderKey(String key) => key.startsWith('YOUR_') || key.isEmpty;
 
+  // GFW's public Data API has no SLA and occasionally bounces requests off
+  // its own edge/load-balancer with a bare 502/503/504 (no JSON body) under
+  // load — a transient blip, not a real failure. Retry those a couple of
+  // times with a short backoff before giving up; anything else (4xx, a
+  // real API error body) fails immediately since retrying won't help.
+  static const List<Duration> _transientRetryDelays = [
+    Duration(milliseconds: 400),
+    Duration(milliseconds: 1200),
+  ];
+  static const Set<int> _transientStatusCodes = {502, 503, 504};
+
+  Future<http.Response> _sendWithRetry(
+    Future<http.Response> Function() send,
+  ) async {
+    for (var attempt = 0;; attempt++) {
+      final res = await send();
+      final isTransient = _transientStatusCodes.contains(res.statusCode);
+      if (!isTransient || attempt >= _transientRetryDelays.length) {
+        return res;
+      }
+      _log.w(
+        'GFW request got HTTP ${res.statusCode} (transient), '
+        'retrying in ${_transientRetryDelays[attempt].inMilliseconds}ms '
+        '(attempt ${attempt + 1}/${_transientRetryDelays.length})',
+      );
+      await Future.delayed(_transientRetryDelays[attempt]);
+    }
+  }
+
   /// Runs the full compliance check for a farm polygon.
   Future<EudrComplianceResult> checkFarmCompliance({
     required List<LatLng> coordinates,
@@ -178,16 +207,18 @@ class EudrComplianceService {
       },
     });
 
-    final res = await http
-        .post(
-          Uri.parse('$_gfwBase/geostore'),
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': _gfwApiKey,
-          },
-          body: body,
-        )
-        .timeout(_timeout);
+    final res = await _sendWithRetry(
+      () => http
+          .post(
+            Uri.parse('$_gfwBase/geostore'),
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': _gfwApiKey,
+            },
+            body: body,
+          )
+          .timeout(_timeout),
+    );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       _log.w('GFW geostore creation failed: ${res.statusCode} ${res.body}');
@@ -242,8 +273,9 @@ class EudrComplianceService {
       'geostore_id': geostoreId,
       'geostore_origin': 'rw',
     });
-    final res = await http
-        .get(uri, headers: {'x-api-key': _gfwApiKey}).timeout(_timeout);
+    final res = await _sendWithRetry(
+      () => http.get(uri, headers: {'x-api-key': _gfwApiKey}).timeout(_timeout),
+    );
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       _log.w('GFW $dataset query failed: ${res.statusCode} ${res.body}');
