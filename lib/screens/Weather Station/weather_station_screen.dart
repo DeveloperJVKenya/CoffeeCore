@@ -108,10 +108,16 @@ class _WeatherStationScreenState extends State<WeatherStationScreen> {
       _error = null;
     });
     try {
-      final reading =
-          await NuaSenseService.getLatestReading(stationId: _selectedStationId);
-      final history =
-          await NuaSenseService.get24hHistory(stationId: _selectedStationId);
+      // Current conditions and 24h history are now independent batched
+      // fetches (see NuaSenseService) — run them concurrently so this
+      // screen's total wait is bounded by the slower of the two, not their
+      // sum.
+      final results = await Future.wait([
+        NuaSenseService.getLatestReading(stationId: _selectedStationId),
+        NuaSenseService.get24hHistory(stationId: _selectedStationId),
+      ]);
+      final reading = results[0] as NuaSenseReading;
+      final history = results[1] as List<NuaSenseHourPoint>;
       if (!mounted) return;
       setState(() {
         _reading = reading;

@@ -1,12 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Consistent "modern" chrome for the produce/traceability tables — a
-/// rounded, bordered card housing the DataTable, tinted header row, and
-/// slightly larger/darker header text — instead of a bare DataTable
-/// floating directly on the page background. Shared across
-/// produce_screen.dart, market_manager_screen.dart, and
-/// produce_traceability_screen.dart so all three read as one consistent
-/// design language rather than three different table looks.
 class ModernDataTable extends StatelessWidget {
   final List<DataColumn> columns;
   final List<DataRow> rows;

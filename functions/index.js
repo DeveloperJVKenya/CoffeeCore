@@ -115,6 +115,55 @@ const NUASENSE_ALLOWED_ENDPOINTS = new Set([
   "derived/forecast",
 ]);
 
+async function fetchNuaSenseEndpoint(endpoint, params) {
+  if (typeof endpoint !== "string" || !NUASENSE_ALLOWED_ENDPOINTS.has(endpoint)) {
+    throw new HttpsError("invalid-argument", "Unsupported NuaSense endpoint.");
+  }
+
+  const baseUrl = nuaSenseBaseUrl.value();
+  if (!baseUrl) {
+    throw new HttpsError(
+      "failed-precondition",
+      "NUASENSE_BASE_URL is not configured yet. Set it via functions/.env.coffeecore-7111a."
+    );
+  }
+
+  const query = new URLSearchParams();
+  if (params && typeof params === "object") {
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== null) query.set(key, String(value));
+    }
+  }
+  const search = query.toString();
+  const url = `${baseUrl.replace(/\/$/, "")}/${endpoint}${search ? `?${search}` : ""}`;
+
+  let upstreamRes;
+  try {
+    upstreamRes = await fetch(url, {
+      headers: { "x-api-key": nuaSenseApiKey.value() },
+    });
+  } catch (err) {
+    throw new HttpsError("unavailable", `Could not reach NuaSense API: ${err}`);
+  }
+
+  const text = await upstreamRes.text();
+  if (!upstreamRes.ok) {
+    throw new HttpsError(
+      "unavailable",
+      `NuaSense API error (HTTP ${upstreamRes.status})`,
+      { detail: text }
+    );
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    throw new HttpsError("internal", "NuaSense API returned an unparseable response.");
+  }
+}
+
+const NUASENSE_MAX_BATCH = 8;
+
 exports.getNuaSenseData = onCall(
   { region: "us-central1", secrets: [nuaSenseApiKey] },
   async (request) => {
@@ -122,51 +171,28 @@ exports.getNuaSenseData = onCall(
       throw new HttpsError("unauthenticated", "Sign in to load weather station data.");
     }
 
-    const { endpoint, params } = request.data || {};
-    if (typeof endpoint !== "string" || !NUASENSE_ALLOWED_ENDPOINTS.has(endpoint)) {
-      throw new HttpsError("invalid-argument", "Unsupported NuaSense endpoint.");
-    }
+    const { endpoint, params, requests } = request.data || {};
 
-    const baseUrl = nuaSenseBaseUrl.value();
-    if (!baseUrl) {
-      throw new HttpsError(
-        "failed-precondition",
-        "NUASENSE_BASE_URL is not configured yet. Set it via functions/.env.coffeecore-7111a."
-      );
-    }
-
-    const query = new URLSearchParams();
-    if (params && typeof params === "object") {
-      for (const [key, value] of Object.entries(params)) {
-        if (value !== undefined && value !== null) query.set(key, String(value));
+    // Batch mode: the Weather Station screen's initial load previously fired
+    // 4 separate callable invocations (one per endpoint) via Future.wait on
+    // the client — each paying its own auth/App Check verification and
+    // network round trip even though they ran concurrently. Here they run
+    // as one invocation, fetching all of NuaSense server-side in parallel
+    // instead, cutting 4 client round trips down to 1.
+    if (endpoint === "batch") {
+      if (!Array.isArray(requests) || requests.length === 0) {
+        throw new HttpsError("invalid-argument", "batch requires a non-empty requests array.");
       }
-    }
-    const search = query.toString();
-    const url = `${baseUrl.replace(/\/$/, "")}/${endpoint}${search ? `?${search}` : ""}`;
-
-    let upstreamRes;
-    try {
-      upstreamRes = await fetch(url, {
-        headers: { "x-api-key": nuaSenseApiKey.value() },
-      });
-    } catch (err) {
-      throw new HttpsError("unavailable", `Could not reach NuaSense API: ${err}`);
-    }
-
-    const text = await upstreamRes.text();
-    if (!upstreamRes.ok) {
-      throw new HttpsError(
-        "unavailable",
-        `NuaSense API error (HTTP ${upstreamRes.status})`,
-        { detail: text }
+      if (requests.length > NUASENSE_MAX_BATCH) {
+        throw new HttpsError("invalid-argument", `batch accepts at most ${NUASENSE_MAX_BATCH} requests.`);
+      }
+      const results = await Promise.all(
+        requests.map((r) => fetchNuaSenseEndpoint(r && r.endpoint, r && r.params))
       );
+      return { results };
     }
 
-    try {
-      return JSON.parse(text);
-    } catch (err) {
-      throw new HttpsError("internal", "NuaSense API returned an unparseable response.");
-    }
+    return fetchNuaSenseEndpoint(endpoint, params);
   }
 );
 

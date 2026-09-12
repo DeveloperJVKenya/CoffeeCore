@@ -294,17 +294,23 @@ class NuaSenseService {
   NuaSenseService._();
 
   // Cache — keyed by stationId ('' = default/demo gateway) so switching
-  // between stations doesn't show stale data from another one.
+  // between stations doesn't show stale data from another one. Current
+  // conditions and 24h history are cached (and fetched) independently: the
+  // inline panel dropped into other screens (soil forms, dashboard menus)
+  // only ever needs [getLatestReading] and has no chart, so it shouldn't
+  // pay for the two 24h-history queries every time — those only matter to
+  // the full Weather Station screen.
   static final Map<String, NuaSenseReading> _cachedReadings = {};
   static final Map<String, List<NuaSenseHourPoint>> _cachedHistories = {};
-  static final Map<String, DateTime> _cachedAt = {};
+  static final Map<String, DateTime> _cachedAtCurrent = {};
+  static final Map<String, DateTime> _cachedAtHistory = {};
   static const _cacheDuration = Duration(minutes: 10);
 
   static String _key(String? stationId) => stationId ?? '';
 
-  static bool _cacheValid(String key) =>
-      _cachedAt[key] != null &&
-      DateTime.now().difference(_cachedAt[key]!) < _cacheDuration;
+  static bool _cacheValid(Map<String, DateTime> cachedAt, String key) =>
+      cachedAt[key] != null &&
+      DateTime.now().difference(cachedAt[key]!) < _cacheDuration;
 
   /// Clears cache. Pass [stationId] to clear just one station's cache,
   /// or omit to clear everything.
@@ -312,25 +318,30 @@ class NuaSenseService {
     if (stationId == null) {
       _cachedReadings.clear();
       _cachedHistories.clear();
-      _cachedAt.clear();
+      _cachedAtCurrent.clear();
+      _cachedAtHistory.clear();
     } else {
       final key = _key(stationId);
       _cachedReadings.remove(key);
       _cachedHistories.remove(key);
-      _cachedAt.remove(key);
+      _cachedAtCurrent.remove(key);
+      _cachedAtHistory.remove(key);
     }
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
 
   /// Fetches the latest reading (current hour, weather + derived fields).
-  /// Returns cached value if < 10 minutes old.
+  /// Returns cached value if < 10 minutes old. Only fetches the 2 "current"
+  /// queries — not the 24h-history ones [get24hHistory] needs — so callers
+  /// that just want current conditions (e.g. [WeatherStationInlinePanel])
+  /// aren't paying for a chart they don't render.
   static Future<NuaSenseReading> getLatestReading({String? stationId}) async {
     final key = _key(stationId);
-    if (_cacheValid(key) && _cachedReadings[key] != null) {
+    if (_cacheValid(_cachedAtCurrent, key) && _cachedReadings[key] != null) {
       return _cachedReadings[key]!.copyWith(isStale: true);
     }
-    await _fetchAll(stationId: stationId);
+    await _fetchCurrent(stationId: stationId);
     return _cachedReadings[key] ?? NuaSenseReading.empty();
   }
 
@@ -338,10 +349,10 @@ class NuaSenseService {
   static Future<List<NuaSenseHourPoint>> get24hHistory(
       {String? stationId}) async {
     final key = _key(stationId);
-    if (_cacheValid(key) && _cachedHistories[key] != null) {
+    if (_cacheValid(_cachedAtHistory, key) && _cachedHistories[key] != null) {
       return _cachedHistories[key]!;
     }
-    await _fetchAll(stationId: stationId);
+    await _fetchHistory(stationId: stationId);
     return _cachedHistories[key] ?? [];
   }
 
@@ -458,115 +469,140 @@ class NuaSenseService {
   }
 
   // ── Internal fetch ────────────────────────────────────────────────────────
+  // Split into "current" (2 queries) and "history" (2 queries), each its own
+  // batched callable invocation, so a caller that only wants current
+  // conditions — [WeatherStationInlinePanel], dropped into menus and forms —
+  // never fetches the 24h-history queries it has nowhere to show. The full
+  // Weather Station screen wants both, and fetches them concurrently (see
+  // weather_station_screen.dart's _load) so it pays for one round trip's
+  // worth of latency, not two sequential ones.
 
-  static Future<void> _fetchAll({String? stationId}) async {
+  static double _lastVal(Map<String, dynamic> resp, String metricId) {
+    final series = (resp['series'] as List?)
+        ?.firstWhere((s) => s['id'] == metricId, orElse: () => null);
+    if (series == null) return 0.0;
+    final pts = series['data'] as List?;
+    if (pts == null || pts.isEmpty) return 0.0;
+    return (pts.last['y'] as num?)?.toDouble() ?? 0.0;
+  }
+
+  static DateTime _lastTime(Map<String, dynamic> resp) {
+    final series = (resp['series'] as List?)?.firstOrNull;
+    final pts = series?['data'] as List?;
+    if (pts == null || pts.isEmpty) return DateTime.now();
+    final ts = pts.last['x'] as String? ?? '';
+    return DateTime.tryParse(ts) ?? DateTime.now();
+  }
+
+  static double _derivedVal(Map<String, dynamic> resp, String field) {
+    final pts = resp['points'] as List?;
+    if (pts == null || pts.isEmpty) return 0.0;
+    return (pts.last[field] as num?)?.toDouble() ?? 0.0;
+  }
+
+  static int _derivedInt(Map<String, dynamic> resp, String field) =>
+      _derivedVal(resp, field).round();
+
+  static String _derivedStr(Map<String, dynamic> resp, String field) {
+    final pts = resp['points'] as List?;
+    if (pts == null || pts.isEmpty) return '';
+    return pts.last[field]?.toString() ?? '';
+  }
+
+  static Future<void> _fetchCurrent({String? stationId}) async {
     final gatewayParam =
         stationId != null ? {'gateway_id': stationId} : <String, String>{};
 
-    // Fetch weather metrics and derived fields in parallel
-    final results = await Future.wait([
-      _call('weather', {
-        'metrics': 'air_temperature,humidity,rainfall,wind_speed,wind_gusts,'
-            'wind_direction,sunlight,air_pressure',
-        'start': '-2h',
-        'resolution': 'hourly',
-        'aggregate': 'last',
-        ...gatewayParam,
-      }),
-      _call('derived', {
-        'fields': 'dew_point,dew_point_depression,vpd,et0_hour,'
-            'lwd_hour,lwd_reason,lwd_consecutive_hours,pressure_trend_6h,'
-            'spray_quality_index,spray_quality_label,spray_limiting_factor,'
-            'delta_t,inversion_risk,'
-            'dd_aphid_hour,dd_whitefly_hour,dd_cbb_hour',
-        'start': '-2h',
-        ...gatewayParam,
-      }),
-      // 24h hourly history for charts
-      _call('weather', {
-        'metrics': 'air_temperature,humidity,rainfall,wind_speed',
-        'start': '-24h',
-        'resolution': 'hourly',
-        'aggregate': 'mean',
-        ...gatewayParam,
-      }),
-      _call('derived', {
-        'fields': 'et0_hour,lwd_hour',
-        'start': '-24h',
-        ...gatewayParam,
-      }),
+    final results = await _callBatch([
+      (
+        endpoint: 'weather',
+        params: {
+          'metrics': 'air_temperature,humidity,rainfall,wind_speed,wind_gusts,'
+              'wind_direction,sunlight,air_pressure',
+          'start': '-2h',
+          'resolution': 'hourly',
+          'aggregate': 'last',
+          ...gatewayParam,
+        },
+      ),
+      (
+        endpoint: 'derived',
+        params: {
+          'fields': 'dew_point,dew_point_depression,vpd,et0_hour,'
+              'lwd_hour,lwd_reason,lwd_consecutive_hours,pressure_trend_6h,'
+              'spray_quality_index,spray_quality_label,spray_limiting_factor,'
+              'delta_t,inversion_risk,'
+              'dd_aphid_hour,dd_whitefly_hour,dd_cbb_hour',
+          'start': '-2h',
+          ...gatewayParam,
+        },
+      ),
     ]);
 
     final weatherNow = results[0];
     final derivedNow = results[1];
-    final weatherHist = results[2];
-    final derivedHist = results[3];
-
-    // ── Parse current reading ─────────────────────────────────────────────
-    double lastVal(Map<String, dynamic> resp, String metricId) {
-      final series = (resp['series'] as List?)
-          ?.firstWhere((s) => s['id'] == metricId, orElse: () => null);
-      if (series == null) return 0.0;
-      final pts = series['data'] as List?;
-      if (pts == null || pts.isEmpty) return 0.0;
-      return (pts.last['y'] as num?)?.toDouble() ?? 0.0;
-    }
-
-    DateTime lastTime(Map<String, dynamic> resp) {
-      final series = (resp['series'] as List?)?.firstOrNull;
-      final pts = series?['data'] as List?;
-      if (pts == null || pts.isEmpty) return DateTime.now();
-      final ts = pts.last['x'] as String? ?? '';
-      return DateTime.tryParse(ts) ?? DateTime.now();
-    }
-
-    double derivedVal(Map<String, dynamic> resp, String field) {
-      final pts = resp['points'] as List?;
-      if (pts == null || pts.isEmpty) return 0.0;
-      return (pts.last[field] as num?)?.toDouble() ?? 0.0;
-    }
-
-    int derivedInt(Map<String, dynamic> resp, String field) =>
-        derivedVal(resp, field).round();
-
-    String derivedStr(Map<String, dynamic> resp, String field) {
-      final pts = resp['points'] as List?;
-      if (pts == null || pts.isEmpty) return '';
-      return pts.last[field]?.toString() ?? '';
-    }
-
     final key = _key(stationId);
 
     _cachedReadings[key] = NuaSenseReading(
-      airTemp: lastVal(weatherNow, 'air_temperature'),
-      humidity: lastVal(weatherNow, 'humidity'),
-      rainfall: lastVal(weatherNow, 'rainfall'),
-      windSpeed: lastVal(weatherNow, 'wind_speed'),
-      windGusts: lastVal(weatherNow, 'wind_gusts'),
-      windDirection: lastVal(weatherNow, 'wind_direction'),
-      sunlight: lastVal(weatherNow, 'sunlight'),
-      airPressure: lastVal(weatherNow, 'air_pressure'),
-      dewPoint: derivedVal(derivedNow, 'dew_point'),
-      dewPointDepression: derivedVal(derivedNow, 'dew_point_depression'),
-      vpd: derivedVal(derivedNow, 'vpd'),
-      et0Hour: derivedVal(derivedNow, 'et0_hour'),
-      lwdHour: derivedInt(derivedNow, 'lwd_hour'),
-      lwdReason: derivedStr(derivedNow, 'lwd_reason'),
-      lwdConsecutiveHours: derivedInt(derivedNow, 'lwd_consecutive_hours'),
-      pressureTrend6h: derivedVal(derivedNow, 'pressure_trend_6h'),
-      sprayQualityIndex: derivedVal(derivedNow, 'spray_quality_index'),
-      sprayQualityLabel: derivedStr(derivedNow, 'spray_quality_label'),
-      sprayLimitingFactor: derivedStr(derivedNow, 'spray_limiting_factor'),
-      deltaT: derivedVal(derivedNow, 'delta_t'),
-      inversionRisk: derivedStr(derivedNow, 'inversion_risk'),
-      ddAphidHour: derivedVal(derivedNow, 'dd_aphid_hour'),
-      ddWhiteflyHour: derivedVal(derivedNow, 'dd_whitefly_hour'),
-      ddCbbHour: derivedVal(derivedNow, 'dd_cbb_hour'),
-      timestamp: lastTime(weatherNow),
+      airTemp: _lastVal(weatherNow, 'air_temperature'),
+      humidity: _lastVal(weatherNow, 'humidity'),
+      rainfall: _lastVal(weatherNow, 'rainfall'),
+      windSpeed: _lastVal(weatherNow, 'wind_speed'),
+      windGusts: _lastVal(weatherNow, 'wind_gusts'),
+      windDirection: _lastVal(weatherNow, 'wind_direction'),
+      sunlight: _lastVal(weatherNow, 'sunlight'),
+      airPressure: _lastVal(weatherNow, 'air_pressure'),
+      dewPoint: _derivedVal(derivedNow, 'dew_point'),
+      dewPointDepression: _derivedVal(derivedNow, 'dew_point_depression'),
+      vpd: _derivedVal(derivedNow, 'vpd'),
+      et0Hour: _derivedVal(derivedNow, 'et0_hour'),
+      lwdHour: _derivedInt(derivedNow, 'lwd_hour'),
+      lwdReason: _derivedStr(derivedNow, 'lwd_reason'),
+      lwdConsecutiveHours: _derivedInt(derivedNow, 'lwd_consecutive_hours'),
+      pressureTrend6h: _derivedVal(derivedNow, 'pressure_trend_6h'),
+      sprayQualityIndex: _derivedVal(derivedNow, 'spray_quality_index'),
+      sprayQualityLabel: _derivedStr(derivedNow, 'spray_quality_label'),
+      sprayLimitingFactor: _derivedStr(derivedNow, 'spray_limiting_factor'),
+      deltaT: _derivedVal(derivedNow, 'delta_t'),
+      inversionRisk: _derivedStr(derivedNow, 'inversion_risk'),
+      ddAphidHour: _derivedVal(derivedNow, 'dd_aphid_hour'),
+      ddWhiteflyHour: _derivedVal(derivedNow, 'dd_whitefly_hour'),
+      ddCbbHour: _derivedVal(derivedNow, 'dd_cbb_hour'),
+      timestamp: _lastTime(weatherNow),
       isStale: false,
     );
+    _cachedAtCurrent[key] = DateTime.now();
+  }
 
-    // ── Parse 24h hourly history ──────────────────────────────────────────
+  static Future<void> _fetchHistory({String? stationId}) async {
+    final gatewayParam =
+        stationId != null ? {'gateway_id': stationId} : <String, String>{};
+
+    final results = await _callBatch([
+      (
+        endpoint: 'weather',
+        params: {
+          'metrics': 'air_temperature,humidity,rainfall,wind_speed',
+          'start': '-24h',
+          'resolution': 'hourly',
+          'aggregate': 'mean',
+          ...gatewayParam,
+        },
+      ),
+      (
+        endpoint: 'derived',
+        params: {
+          'fields': 'et0_hour,lwd_hour',
+          'start': '-24h',
+          ...gatewayParam,
+        },
+      ),
+    ]);
+
+    final weatherHist = results[0];
+    final derivedHist = results[1];
+    final key = _key(stationId);
+
     final Map<String, Map<String, double>> byTime = {};
 
     void addSeries(Map<String, dynamic> resp, String metricId) {
@@ -615,7 +651,7 @@ class NuaSenseService {
         .toList()
       ..sort((a, b) => a.time.compareTo(b.time));
 
-    _cachedAt[key] = DateTime.now();
+    _cachedAtHistory[key] = DateTime.now();
   }
 
   // ── Firebase call ─────────────────────────────────────────────────────────
@@ -631,6 +667,37 @@ class NuaSenseService {
     } catch (e) {
       // Return empty structure so callers degrade gracefully
       return {};
+    }
+  }
+
+  /// Runs several NuaSense queries in a single callable invocation — the
+  /// Cloud Function fans them out server-side in parallel — instead of one
+  /// invocation per query. Falls back to individual [_call]s (still run
+  /// concurrently client-side) if the deployed function doesn't support
+  /// batch mode yet, so a mid-rollout mismatch degrades gracefully rather
+  /// than breaking the screen.
+  static Future<List<Map<String, dynamic>>> _callBatch(
+    List<({String endpoint, Map<String, String> params})> requests,
+  ) async {
+    try {
+      final fn = FirebaseFunctions.instance.httpsCallable('getNuaSenseData');
+      final res = await fn.call({
+        'endpoint': 'batch',
+        'requests': [
+          for (final r in requests)
+            {'endpoint': r.endpoint, 'params': r.params},
+        ],
+      });
+      final data = Map<String, dynamic>.from(res.data as Map);
+      final results = data['results'] as List?;
+      if (results == null) return List.filled(requests.length, {});
+      return results
+          .map((r) => Map<String, dynamic>.from(r as Map? ?? {}))
+          .toList();
+    } catch (e) {
+      return Future.wait(
+        requests.map((r) => _call(r.endpoint, r.params)),
+      );
     }
   }
 }
