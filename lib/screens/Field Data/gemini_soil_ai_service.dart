@@ -291,7 +291,7 @@ class SoilTrendResult {
 // ─────────────────────────────────────────────────────────────────────────────
 // GEMINI SOIL AI SERVICE
 //
-// ✅ Uses firebase_ai package (FirebaseAI.vertexAI()) — same backend as
+// ✅ Uses firebase_ai package (FirebaseAI.agentPlatform()) — same backend as
 //    GeminiPestAiService throughout the project.
 //
 // Six public entry points matching the six AI integration touchpoints:
@@ -349,7 +349,8 @@ class GeminiSoilAiService {
 
     lastErrorMessage = null;
     try {
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.2,
@@ -470,7 +471,8 @@ If you are less than 65% confident:
       // thinking pass ate the entire budget, leaving only ~200 visible chars —
       // never enough to close the JSON object.  16 384 matches _advisorMaxTokens
       // and is confirmed sufficient: thinking gets ~3000, output gets ~13 000+.
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.3,
@@ -549,7 +551,8 @@ If you are less than 65% confident:
     lastErrorMessage = null;
     try {
       // 8 192 tokens: thinking pass ~2000 + full plan JSON ~6000 headroom.
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.3,
@@ -622,7 +625,8 @@ If you are less than 65% confident:
     lastErrorMessage = null;
     try {
       // 4 096 tokens: thinking ~1500 + compact 8-nutrient prediction JSON.
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.2,
@@ -694,7 +698,8 @@ If you are less than 65% confident:
     lastErrorMessage = null;
     try {
       // 4 096 tokens: thinking ~1500 + compact trend JSON ~2500 headroom.
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.3,
@@ -760,7 +765,8 @@ If you are less than 65% confident:
       // _model (gemini-2.5-flash) is the only confirmed-available model.
       // _advisorMaxTokens (16 384) gives the thinking pass ~2000–4000 tokens
       // and leaves 12 000+ for the visible response — no truncation possible.
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         systemInstruction: Content.system(contextBlock),
         generationConfig: GenerationConfig(
@@ -1356,7 +1362,8 @@ Rules:
     try {
       // 8 192 tokens: Google Search grounding adds overhead (~2000 thinking +
       // grounding scaffold); this ensures the full 7-field JSON is never cut.
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.2,

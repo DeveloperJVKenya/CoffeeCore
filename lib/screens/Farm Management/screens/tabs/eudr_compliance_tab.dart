@@ -70,7 +70,7 @@ class EudrComplianceTab extends StatelessWidget {
           const SizedBox(height: FarmTheme.spaceLg),
           const Divider(),
           const SizedBox(height: FarmTheme.spaceSm),
-          Text('Certified Analysis (Planetek)', style: FarmTheme.cardTitle),
+          Text('Certified Analysis (Kenya Space Agency)', style: FarmTheme.cardTitle),
           const SizedBox(height: FarmTheme.spaceSm),
           Consumer<PlanetekEudrProvider>(
             builder: (context, provider, _) {
@@ -83,7 +83,7 @@ class EudrComplianceTab extends StatelessWidget {
                     return EmptyState(
                       icon: Icons.verified_outlined,
                       title: 'No Certified Analysis Yet',
-                      message: 'Run Planetek\'s digitally-signed EUDR '
+                      message: 'Run KSA\'s digitally-signed EUDR '
                           'deforestation analysis against this farm\'s '
                           'boundary. This is a second, independent check '
                           'alongside the GFW screening above.',

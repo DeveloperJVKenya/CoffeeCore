@@ -238,7 +238,8 @@ class SymptomCheckerAiService {
 
     lastErrorMessage = null;
     try {
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.2,
@@ -314,7 +315,8 @@ class SymptomCheckerAiService {
 
     lastErrorMessage = null;
     try {
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.2,

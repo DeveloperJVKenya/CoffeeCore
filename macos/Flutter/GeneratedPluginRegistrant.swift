@@ -8,7 +8,7 @@ import Foundation
 import cloud_firestore
 import cloud_functions
 import connectivity_plus
-import file_picker
+import file_picker_darwin
 import file_selector_macos
 import firebase_ai
 import firebase_app_check

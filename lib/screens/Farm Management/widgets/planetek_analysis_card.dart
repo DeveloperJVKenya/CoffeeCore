@@ -87,7 +87,7 @@ class PlanetekAnalysisCard extends StatelessWidget {
             ),
           const SizedBox(height: FarmTheme.spaceXs),
           Text(
-            'Source: Planetek Certified Deforestation Analysis'
+            'Source: KSA Certified Deforestation Analysis'
             '${data.algorithmVersion != null ? ' v${data.algorithmVersion}' : ''}',
             style: const TextStyle(fontSize: 11, color: Colors.black45),
           ),

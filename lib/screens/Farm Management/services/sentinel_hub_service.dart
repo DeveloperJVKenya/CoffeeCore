@@ -22,6 +22,26 @@ class NdwiData {
   });
 }
 
+/// A single NDVI (Normalized Difference Vegetation Index) statistics
+/// snapshot — the Sentinel Hub / Copernicus Data Space Ecosystem
+/// counterpart to `ClimateSatelliteService.fetchLatestNdvi`'s AgroMonitoring
+/// result, used for the satellite-source comparison toggle.
+class NdviStatsData {
+  final double mean;
+  final double min;
+  final double max;
+  final double stDev;
+  final DateTime fetchedAt;
+
+  const NdviStatsData({
+    required this.mean,
+    required this.min,
+    required this.max,
+    required this.stDev,
+    required this.fetchedAt,
+  });
+}
+
 /// A colorized, per-pixel NDVI/NDWI raster (PNG) for a farm polygon, ready
 /// to render as a [GroundOverlay]. Pixels outside the farm boundary (or
 /// with no valid satellite data) are transparent, so the image reads as
@@ -70,6 +90,56 @@ class SentinelHubService {
     DateTime? from,
     DateTime? to,
   }) async {
+    final stats = await _fetchIndexStats(
+      metric: 'ndwi',
+      coordinates: coordinates,
+      from: from,
+      to: to,
+      metricLabel: 'moisture (NDWI)',
+    );
+    return NdwiData(
+      mean: stats.mean,
+      min: stats.min,
+      max: stats.max,
+      stDev: stats.stDev,
+      fetchedAt: stats.fetchedAt,
+    );
+  }
+
+  /// NDVI counterpart to [fetchNdwi] — same Cloud Function, same
+  /// no-registration request shape, just `metric: 'ndvi'`. Used as the
+  /// Sentinel Hub side of the AgroMonitoring/Sentinel Hub satellite-source
+  /// toggle: unlike AgroMonitoring's polygon registration, every call here
+  /// sends the farm's geometry directly, so there's nothing to leak or run
+  /// out of quota on.
+  Future<NdviStatsData> fetchNdviStats({
+    required List<LatLng> coordinates,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final stats = await _fetchIndexStats(
+      metric: 'ndvi',
+      coordinates: coordinates,
+      from: from,
+      to: to,
+      metricLabel: 'vegetation (NDVI)',
+    );
+    return NdviStatsData(
+      mean: stats.mean,
+      min: stats.min,
+      max: stats.max,
+      stDev: stats.stDev,
+      fetchedAt: stats.fetchedAt,
+    );
+  }
+
+  Future<_IndexStats> _fetchIndexStats({
+    required String metric,
+    required List<LatLng> coordinates,
+    required String metricLabel,
+    DateTime? from,
+    DateTime? to,
+  }) async {
     try {
       final ring = coordinates.map((c) => [c.longitude, c.latitude]).toList();
       if (ring.isNotEmpty &&
@@ -84,8 +154,8 @@ class SentinelHubService {
       final rangeEndUtc = rangeEnd.toUtc();
 
       _log.i(
-        'SentinelHubService.fetchNdwi: '
-        'Requesting NDWI statistics for ${coordinates.length} vertices '
+        'SentinelHubService._fetchIndexStats: '
+        'Requesting $metric statistics for ${coordinates.length} vertices '
         '(${rangeStartUtc.toIso8601String()} → ${rangeEndUtc.toIso8601String()})',
       );
 
@@ -95,6 +165,7 @@ class SentinelHubService {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'coordinates': ring,
+              'metric': metric,
               'from': rangeStartUtc.toIso8601String(),
               'to': rangeEndUtc.toIso8601String(),
             }),
@@ -102,23 +173,23 @@ class SentinelHubService {
           .timeout(_timeout);
 
       if (res.statusCode == 404) {
-        throw const ServiceUnavailableException(
-          'Recent satellite imagery for this farm is too cloud-covered to compute moisture data. Try again later.',
+        throw ServiceUnavailableException(
+          'Recent satellite imagery for this farm is too cloud-covered to compute $metricLabel data. Try again later.',
         );
       }
 
       if (res.statusCode != 200) {
         _log.w(
-            'SentinelHubService.fetchNdwi: HTTP ${res.statusCode} – ${res.body}');
+            'SentinelHubService._fetchIndexStats: HTTP ${res.statusCode} – ${res.body}');
         throw ServiceUnavailableException(
           extractApiMessage(res.body) ??
-              'Moisture data provider returned an error (HTTP ${res.statusCode}).',
+              'Satellite data provider returned an error fetching $metricLabel (HTTP ${res.statusCode}).',
         );
       }
 
       final decoded = jsonDecode(res.body) as Map<String, dynamic>;
       final fetchedAtStr = decoded['fetchedAt'] as String?;
-      final ndwi = NdwiData(
+      final stats = _IndexStats(
         mean: (decoded['mean'] as num? ?? 0).toDouble(),
         min: (decoded['min'] as num? ?? 0).toDouble(),
         max: (decoded['max'] as num? ?? 0).toDouble(),
@@ -128,19 +199,19 @@ class SentinelHubService {
             : DateTime.now(),
       );
       _log.i(
-        'SentinelHubService.fetchNdwi: '
-        'NDWI mean=${ndwi.mean.toStringAsFixed(3)} '
-        '(min=${ndwi.min.toStringAsFixed(3)}, max=${ndwi.max.toStringAsFixed(3)})',
+        'SentinelHubService._fetchIndexStats: '
+        '$metric mean=${stats.mean.toStringAsFixed(3)} '
+        '(min=${stats.min.toStringAsFixed(3)}, max=${stats.max.toStringAsFixed(3)})',
       );
-      return ndwi;
+      return stats;
     } on ServiceUnavailableException {
       rethrow;
     } catch (e, st) {
-      _log.e('SentinelHubService.fetchNdwi: Error – $e', stackTrace: st);
+      _log.e('SentinelHubService._fetchIndexStats: Error – $e', stackTrace: st);
       throw ServiceUnavailableException(
         isNetworkError(e)
-            ? 'Could not reach the moisture monitoring service — check your internet connection.'
-            : 'Something went wrong fetching moisture (NDWI) data.',
+            ? 'Could not reach the satellite monitoring service — check your internet connection.'
+            : 'Something went wrong fetching $metricLabel data.',
         isNetworkError: isNetworkError(e),
       );
     }
@@ -231,4 +302,23 @@ class SentinelHubService {
       );
     }
   }
+}
+
+/// Internal shape shared by [SentinelHubService.fetchNdwi] and
+/// [SentinelHubService.fetchNdviStats] before being wrapped into their
+/// distinct public result types.
+class _IndexStats {
+  final double mean;
+  final double min;
+  final double max;
+  final double stDev;
+  final DateTime fetchedAt;
+
+  const _IndexStats({
+    required this.mean,
+    required this.min,
+    required this.max,
+    required this.stDev,
+    required this.fetchedAt,
+  });
 }

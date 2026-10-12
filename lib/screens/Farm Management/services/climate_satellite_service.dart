@@ -261,6 +261,17 @@ class ClimateSatelliteService {
           'ClimateSatelliteService.registerAgroPolygon: '
           'HTTP ${res.statusCode} – ${res.body}',
         );
+        // AgroMonitoring returns 413 "You can not create polygons anymore"
+        // when the account's total-polygon plan quota is exhausted — not
+        // an actual payload-size issue. Surface something actionable
+        // instead of that confusing raw provider text.
+        if (res.statusCode == 413) {
+          throw const ServiceUnavailableException(
+            'Satellite monitoring has reached its plan limit for new farm '
+            'boundaries. This affects all users until capacity is freed up '
+            'or the plan is upgraded — please contact support.',
+          );
+        }
         throw ServiceUnavailableException(
           extractApiMessage(res.body) ??
               'Satellite provider rejected this farm boundary (HTTP ${res.statusCode}).',
@@ -279,6 +290,44 @@ class ClimateSatelliteService {
             : 'Something went wrong registering this farm for satellite monitoring.',
         isNetworkError: isNetworkError(e),
       );
+    }
+  }
+
+  // ── AGRONOMIC SATELLITE – FIND EXISTING POLYGON ─────────────
+  //
+  // AgroMonitoring's plan has a hard cap on total polygons ever created
+  // (deleted ones still count). If a previous registerAgroPolygon call
+  // succeeded on their side but the app failed to persist the returned id
+  // back to Firestore (closed mid-write, offline, etc.), that polygon
+  // becomes an untracked orphan — and every retry would otherwise register
+  // *another* one, burning through the shared quota faster. Checked before
+  // registering a new polygon so a retry reuses the orphan instead.
+  Future<String?> findAgroPolygonByName(String farmName) async {
+    if (_isPlaceholderKey(_agroApiKey)) return null;
+    try {
+      final res = await http
+          .get(Uri.parse('$_agroBase/polygons?appid=$_agroApiKey'))
+          .timeout(_timeout);
+      if (res.statusCode != 200) return null;
+      final list = jsonDecode(res.body) as List<dynamic>;
+      for (final item in list) {
+        final map = item as Map<String, dynamic>;
+        if (map['name'] == farmName) {
+          final id = map['id'] as String?;
+          _log.i(
+            'ClimateSatelliteService.findAgroPolygonByName: '
+            'Found existing polyId=$id for "$farmName"',
+          );
+          return id;
+        }
+      }
+      return null;
+    } catch (e, st) {
+      _log.w(
+        'ClimateSatelliteService.findAgroPolygonByName: Error – $e',
+        stackTrace: st,
+      );
+      return null;
     }
   }
 

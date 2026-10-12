@@ -8,7 +8,7 @@ import 'coffee_disease_management_page.dart' show kDiseaseDetails;
 // ─────────────────────────────────────────────────────────────────────────────
 // GEMINI DISEASE AI SERVICE
 //
-// ✅ Uses firebase_ai package (FirebaseAI.vertexAI()) — mirrors GeminiPestAiService.
+// ✅ Uses firebase_ai package (FirebaseAI.agentPlatform()) — mirrors GeminiPestAiService.
 //    All prompts are tuned specifically for coffee diseases in East Africa.
 //    Supports:
 //      1. generateManagementDetails()  — full disease treatment plan (Paths A, B & Custom)
@@ -52,7 +52,8 @@ class GeminiDiseaseAiService {
 
     lastErrorMessage = null;
     try {
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.3,
@@ -136,7 +137,8 @@ class GeminiDiseaseAiService {
 
     lastErrorMessage = null;
     try {
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.2,

@@ -76,7 +76,7 @@ class PlanetekDeforestationService {
           stackTrace: st);
       throw ServiceUnavailableException(
         isNetworkError(e)
-            ? 'Could not reach the Planetek deforestation analysis service — check your internet connection.'
+            ? 'Could not reach the KSA deforestation analysis service — check your internet connection.'
             : 'Something went wrong running the certified deforestation analysis.',
         isNetworkError: isNetworkError(e),
       );

@@ -154,7 +154,7 @@ class _DiseaseScanPageState extends State<DiseaseScanPage>
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // AI DISEASE VISION ANALYSIS — firebase_ai, FirebaseAI.vertexAI()
+  // AI DISEASE VISION ANALYSIS — firebase_ai, FirebaseAI.agentPlatform()
   // ══════════════════════════════════════════════════════════════════════════
 
   Future<void> _analyseImage() async {
@@ -168,7 +168,8 @@ class _DiseaseScanPageState extends State<DiseaseScanPage>
               ? 'image/png'
               : 'image/jpeg');
 
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: 'gemini-2.5-flash',
         generationConfig: GenerationConfig(
           temperature: 0.3,
@@ -293,7 +294,8 @@ If image is unclear or does not show disease symptoms:
               ? 'image/png'
               : 'image/jpeg');
 
-      final model = FirebaseAI.vertexAI().generativeModel(
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: 'gemini-2.5-flash',
         generationConfig:
             GenerationConfig(temperature: 0.3, maxOutputTokens: 1500),

@@ -101,11 +101,11 @@ Guidelines:
   // ─────────────────────────────────────────────────────────────────────────
 
   void _initGemini() {
-    // ✅ Uses FirebaseAI.vertexAI() — Vertex AI in Firebase backend, billed
+    // ✅ Uses FirebaseAI.agentPlatform() — Vertex AI in Firebase backend, billed
     //    through the project's Blaze plan (not a separate Gemini Developer
     //    API prepaid balance, which was the cause of the "prepayment credits
     //    depleted" errors seen when this used the googleAI() backend).
-    _model = FirebaseAI.vertexAI().generativeModel(
+    _model = FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
       // ✅ gemini-2.5-flash — the stable, confirmed model name for Firebase AI Logic.
       //    Source: https://firebase.google.com/docs/ai-logic/models
       model: 'gemini-2.5-flash',

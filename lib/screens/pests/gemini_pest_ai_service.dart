@@ -8,7 +8,7 @@ import 'coffee_pest_management_page.dart' show kPestDetails;
 // ─────────────────────────────────────────────────────────────────────────────
 // GEMINI PEST AI SERVICE
 //
-// ✅ Uses firebase_ai package (FirebaseAI.vertexAI()) — matches the rest of
+// ✅ Uses firebase_ai package (FirebaseAI.agentPlatform()) — matches the rest of
 //    the project as seen in coffee_ai_chat_screen.dart.
 //    The deprecated firebase_vertexai / FirebaseVertexAI has been removed.
 //
@@ -62,8 +62,9 @@ class GeminiPestAiService {
 
     lastErrorMessage = null;
     try {
-      // ✅ FirebaseAI.vertexAI() — replaces deprecated FirebaseVertexAI.instance
-      final model = FirebaseAI.vertexAI().generativeModel(
+      // ✅ FirebaseAI.agentPlatform() — replaces deprecated FirebaseVertexAI.instance
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.3,
@@ -153,8 +154,9 @@ class GeminiPestAiService {
 
     lastErrorMessage = null;
     try {
-      // ✅ FirebaseAI.vertexAI()
-      final model = FirebaseAI.vertexAI().generativeModel(
+      // ✅ FirebaseAI.agentPlatform()
+      final model =
+          FirebaseAI.agentPlatform(location: 'us-central1').generativeModel(
         model: _model,
         generationConfig: GenerationConfig(
           temperature: 0.2,

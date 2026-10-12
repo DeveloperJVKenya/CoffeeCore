@@ -143,14 +143,14 @@ class _ManualsScreenState extends State<ManualsScreen> {
 
   Future<void> _uploadManual() async {
     try {
-      final result = await FilePicker.pickFiles(
+      final List<PlatformFile> files = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx', 'txt'],
       );
 
-      if (result == null || result.files.isEmpty) return;
+      if (files.isEmpty) return;
 
-      final platformFile = result.files.single;
+      final platformFile = files.single;
       final fileName = platformFile.name;
       final user = FirebaseAuth.instance.currentUser;
 

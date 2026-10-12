@@ -32,3 +32,6 @@ ios/Flutter/flutter_export_environment.sh
 # Miscellaneous
 *.log
 *.DS_Store 
+
+# Claude Code personal settings (machine-specific)
+.claude/settings.local.json

@@ -69,7 +69,7 @@ class DdsReadiness {
         status: DdsReadinessStatus.notYetChecked,
         headline: 'Not yet checked',
         explanation:
-            'Run the certified deforestation analysis (Planetek) for this plot '
+            'Run the certified deforestation analysis (KSA) for this plot '
             'before it can be considered for a Due Diligence Statement.',
       );
     }
@@ -90,7 +90,7 @@ class DdsReadiness {
         status: DdsReadinessStatus.nonNegligibleRisk,
         headline: 'Non-negligible risk',
         explanation:
-            'Planetek\'s certified analysis found deforestation on this plot '
+            'KSA\'s certified analysis found deforestation on this plot '
             'since the 31 Dec 2020 baseline. Do not include in a DDS without '
             'Article 10/11 risk-mitigation documentation.',
       );

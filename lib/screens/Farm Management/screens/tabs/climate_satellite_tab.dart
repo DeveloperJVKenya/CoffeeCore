@@ -26,7 +26,8 @@ class _ClimateSatelliteTabState extends State<ClimateSatelliteTab> {
       if (!mounted) return;
       final provider = context.read<ClimateSatelliteProvider>();
       if (provider.climate == null) provider.refreshClimate();
-      if (provider.satellite == null) provider.refreshSatellite();
+      if (provider.forecast.isEmpty) provider.refreshForecast();
+      if (provider.activeSatellite == null) provider.refreshActiveSatellite();
       provider.loadNdviHistory();
     });
   }
@@ -67,19 +68,24 @@ class _ClimateSatelliteTabState extends State<ClimateSatelliteTab> {
               },
             ),
             const SizedBox(height: FarmTheme.spaceMd),
+            _satelliteSourceToggle(provider),
+            const SizedBox(height: FarmTheme.spaceSm),
             LoadingErrorView(
-              isLoading: provider.isLoadingSatellite,
-              errorMessage: provider.satelliteError,
-              onRetry: provider.refreshSatellite,
+              isLoading: provider.isLoadingActiveSatellite,
+              errorMessage: provider.activeSatelliteError,
+              onRetry: provider.refreshActiveSatellite,
               builder: (context) {
-                if (provider.satellite == null) {
+                if (provider.activeSatellite == null) {
                   return _fetchButton(
-                      'Fetch Satellite Data', provider.refreshSatellite);
+                      'Fetch Satellite Data', provider.refreshActiveSatellite);
                 }
                 return SatelliteCard(
-                  satellite: provider.satellite!,
-                  onRefresh: provider.refreshSatellite,
-                  onRefreshNdwi: provider.refreshNdwi,
+                  satellite: provider.activeSatellite!,
+                  onRefresh: provider.refreshActiveSatellite,
+                  onRefreshNdwi:
+                      provider.selectedSource == SatelliteSource.agroMonitoring
+                          ? provider.refreshNdwi
+                          : null,
                   isLoadingNdwi: provider.isLoadingNdwi,
                 );
               },
@@ -111,6 +117,36 @@ class _ClimateSatelliteTabState extends State<ClimateSatelliteTab> {
               ),
           ],
         );
+      },
+    );
+  }
+
+  /// Lets the two satellite providers be selected and compared without
+  /// either one being removed. Switching fetches the newly-selected
+  /// source only if it hasn't been loaded yet — already-loaded data for
+  /// either source stays cached so flipping back and forth is instant.
+  Widget _satelliteSourceToggle(ClimateSatelliteProvider provider) {
+    return SegmentedButton<SatelliteSource>(
+      segments: const [
+        ButtonSegment(
+          value: SatelliteSource.agroMonitoring,
+          label: Text('AgroMonitoring'),
+          icon: Icon(Icons.satellite_alt, size: 16),
+        ),
+        ButtonSegment(
+          value: SatelliteSource.sentinelHub,
+          label: Text('Sentinel Hub'),
+          icon: Icon(Icons.satellite, size: 16),
+        ),
+      ],
+      selected: {provider.selectedSource},
+      onSelectionChanged: (selection) {
+        final source = selection.first;
+        provider.setSatelliteSource(source);
+        if (provider.activeSatellite == null &&
+            !provider.isLoadingActiveSatellite) {
+          provider.refreshActiveSatellite();
+        }
       },
     );
   }

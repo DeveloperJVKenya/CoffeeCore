@@ -196,7 +196,7 @@ exports.getNuaSenseData = onCall(
   }
 );
 
-// ── Sentinel Hub NDWI (Copernicus Data Space Ecosystem) ────────────
+// ── Sentinel Hub NDWI/NDVI stats (Copernicus Data Space Ecosystem) ──
 //
 // Unlike the plain pass-through proxies above, this endpoint owns the
 // entire OAuth2 client-credentials exchange and Statistical API call
@@ -207,7 +207,13 @@ exports.getNuaSenseData = onCall(
 // Flutter app (web bundles and decompiled APKs are both public, so a
 // client secret baked into either would be exposed to anyone). The app
 // only ever calls this endpoint with a farm's polygon coordinates and
-// gets back computed NDWI statistics.
+// gets back computed statistics.
+//
+// `metric` in the request body selects "ndwi" (default, for backward
+// compatibility with existing callers) or "ndvi" — this doubles as the
+// Sentinel Hub side of the AgroMonitoring/Sentinel Hub satellite-source
+// toggle, computed directly from geometry with no polygon-registration
+// step, so it carries no AgroMonitoring-style accumulating quota risk.
 
 const sentinelClientId = defineSecret("SENTINEL_HUB_CLIENT_ID");
 const sentinelClientSecret = defineSecret("SENTINEL_HUB_CLIENT_SECRET");
@@ -216,22 +222,32 @@ const SENTINEL_AUTH_URL =
   "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token";
 const SENTINEL_STATS_URL = "https://sh.dataspace.copernicus.eu/api/v1/statistics";
 
-const NDWI_EVALSCRIPT = `
+// Stats bands/formula per index — mirrors RAMPS below (raster endpoint)
+// minus the color ramp, since this endpoint returns aggregate stats only.
+const STATS_FORMULAS = {
+  ndwi: { bands: ["B03", "B08", "dataMask"], formula: "(sample.B03 - sample.B08) / (sample.B03 + sample.B08)" },
+  ndvi: { bands: ["B04", "B08", "dataMask"], formula: "(sample.B08 - sample.B04) / (sample.B08 + sample.B04)" },
+};
+
+function buildStatsEvalscript(metric) {
+  const { bands, formula } = STATS_FORMULAS[metric];
+  return `
 //VERSION=3
 function setup() {
   return {
-    input: [{ bands: ["B03", "B08", "dataMask"] }],
+    input: [{ bands: ${JSON.stringify(bands)} }],
     output: [
-      { id: "ndwi", bands: 1, sampleType: "FLOAT32" },
+      { id: "index", bands: 1, sampleType: "FLOAT32" },
       { id: "dataMask", bands: 1 }
     ]
   };
 }
 function evaluatePixel(sample) {
-  let ndwi = (sample.B03 - sample.B08) / (sample.B03 + sample.B08);
-  return { ndwi: [ndwi], dataMask: [sample.dataMask] };
+  let index = ${formula};
+  return { index: [index], dataMask: [sample.dataMask] };
 }
 `;
+}
 
 // Best-effort in-memory cache. Persists across warm invocations of the
 // same function instance (not guaranteed, but avoids a redundant token
@@ -280,6 +296,7 @@ exports.sentinelHubNdwi = onRequest(
   async (req, res) => {
     try {
       const { coordinates, from, to } = req.body || {};
+      const metric = req.body && req.body.metric === "ndvi" ? "ndvi" : "ndwi";
       if (!Array.isArray(coordinates) || coordinates.length < 3) {
         res.status(400).json({ error: "coordinates must be a ring of at least 3 [lng, lat] pairs" });
         return;
@@ -307,7 +324,7 @@ exports.sentinelHubNdwi = onRequest(
           aggregation: {
             timeRange: { from: rangeStart, to: rangeEnd },
             aggregationInterval: { of: "P10D" },
-            evalscript: NDWI_EVALSCRIPT,
+            evalscript: buildStatsEvalscript(metric),
             resx: 10,
             resy: 10,
           },
@@ -329,8 +346,8 @@ exports.sentinelHubNdwi = onRequest(
       let intervalEnd = null;
       for (let i = intervals.length - 1; i >= 0; i--) {
         const entry = intervals[i];
-        const bandStats = entry.outputs && entry.outputs.ndwi && entry.outputs.ndwi.bands
-          && entry.outputs.ndwi.bands.B0 && entry.outputs.ndwi.bands.B0.stats;
+        const bandStats = entry.outputs && entry.outputs.index && entry.outputs.index.bands
+          && entry.outputs.index.bands.B0 && entry.outputs.index.bands.B0.stats;
         if (bandStats && bandStats.sampleCount > 0) {
           stats = bandStats;
           intervalEnd = entry.interval && entry.interval.to;
@@ -340,7 +357,7 @@ exports.sentinelHubNdwi = onRequest(
 
       if (!stats) {
         res.status(404).json({
-          error: "No valid NDWI pixels found in the requested time range (likely cloud cover).",
+          error: `No valid ${metric.toUpperCase()} pixels found in the requested time range (likely cloud cover).`,
         });
         return;
       }
@@ -902,7 +919,7 @@ exports.runPlanetekDeforestationAnalysis = onCall(
       logger.error(`planetek.run: submit failed after ${Date.now() - submitStart}ms: ${err}`);
       throw new HttpsError(
         "unavailable",
-        `Could not submit the certified deforestation analysis to Planetek: ${err}`
+        `Could not submit the certified deforestation analysis to KSA: ${err}`
       );
     }
     logger.info(`planetek.run: submitted in ${Date.now() - submitStart}ms, flowRunId=${flowRunId}`);
@@ -922,7 +939,7 @@ exports.runPlanetekDeforestationAnalysis = onCall(
         );
         throw new HttpsError(
           "unavailable",
-          `Could not check the Planetek analysis status: ${err}`
+          `Could not check the KSA analysis status: ${err}`
         );
       }
 
@@ -946,9 +963,9 @@ exports.runPlanetekDeforestationAnalysis = onCall(
         throw new HttpsError(
           "unavailable",
           stateMessage
-            ? `The Planetek deforestation analysis failed: ${stateMessage}`
-            : "The Planetek deforestation analysis failed. Check the farm boundary is a " +
-                "valid polygon, or contact Planetek if this persists."
+            ? `The KSA deforestation analysis failed: ${stateMessage}`
+            : "The KSA deforestation analysis failed. Check the farm boundary is a " +
+                "valid polygon, or contact KSA if this persists."
         );
       }
       if (stateType === "CRASHED") {
@@ -959,7 +976,7 @@ exports.runPlanetekDeforestationAnalysis = onCall(
         );
         throw new HttpsError(
           "resource-exhausted",
-          "The Planetek deforestation analysis crashed — this farm boundary is likely " +
+          "The KSA deforestation analysis crashed — this farm boundary is likely " +
             "too large for the allocated compute. Try again with a smaller area."
         );
       }
@@ -980,7 +997,7 @@ exports.runPlanetekDeforestationAnalysis = onCall(
     try {
       analysis = JSON.parse(finalRun.state.message);
     } catch (err) {
-      throw new HttpsError("internal", "Planetek returned an unparseable analysis result.");
+      throw new HttpsError("internal", "KSA returned an unparseable analysis result.");
     }
 
     // Real responses are expected to carry the signed envelope shape used by
