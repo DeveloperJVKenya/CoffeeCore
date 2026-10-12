@@ -270,6 +270,7 @@ class ClimateSatelliteService {
             'Satellite monitoring has reached its plan limit for new farm '
             'boundaries. This affects all users until capacity is freed up '
             'or the plan is upgraded — please contact support.',
+            isQuotaExceeded: true,
           );
         }
         throw ServiceUnavailableException(

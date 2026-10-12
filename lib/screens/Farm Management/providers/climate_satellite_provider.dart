@@ -66,6 +66,26 @@ class ClimateSatelliteProvider with ChangeNotifier {
   bool _isLoadingSatelliteSentinel = false;
   String? _satelliteSentinelError;
 
+  // ── AgroMonitoring quota fallback ───────────────────────────
+  //
+  // The AgroMonitoring polygon quota is account-wide, so once a
+  // registration is refused every other unregistered farm will be too.
+  // Shared across providers so opening farm after farm doesn't hammer the
+  // API with registrations that are certain to fail; expires so an
+  // upgraded plan is picked up without restarting the app.
+  static const Duration _agroQuotaCooldown = Duration(minutes: 10);
+  static DateTime? _agroQuotaExhaustedAt;
+
+  static bool get _isAgroQuotaCoolingDown {
+    final DateTime? hitAt = _agroQuotaExhaustedAt;
+    return hitAt != null &&
+        DateTime.now().difference(hitAt) < _agroQuotaCooldown;
+  }
+
+  /// Set when AgroMonitoring couldn't serve this farm and the tab switched
+  /// to Sentinel Hub automatically; the tab shows it as an info banner.
+  String? _fallbackNotice;
+
   ClimateData? get climate => _climate ?? farm.climateData;
   SatelliteData? get satellite => _satellite ?? farm.satelliteData;
   List<Map<String, dynamic>> get forecast => _forecast;
@@ -83,6 +103,7 @@ class ClimateSatelliteProvider with ChangeNotifier {
   SatelliteData? get satelliteSentinel => _satelliteSentinel;
   bool get isLoadingSatelliteSentinel => _isLoadingSatelliteSentinel;
   String? get satelliteSentinelError => _satelliteSentinelError;
+  String? get fallbackNotice => _fallbackNotice;
 
   /// Whichever source is currently selected — the tab reads these instead
   /// of the per-source fields/getters directly, so the toggle only needs
@@ -116,8 +137,10 @@ class ClimateSatelliteProvider with ChangeNotifier {
   /// NDVI/NDWI/climate/forecast data is currently loaded. Purely computed —
   /// no loading/error state needed since it's synchronous — and returns
   /// null only when there's no satellite data at all yet to base it on.
+  /// Prefers AgroMonitoring (it has NDVI history); falls back to the
+  /// Sentinel Hub reading for farms AgroMonitoring can't serve.
   DroughtRiskResult? get droughtRisk {
-    final s = satellite;
+    final s = satellite ?? _satelliteSentinel;
     if (s == null) return null;
     return _droughtRiskService.compute(
       currentNdvi: s.ndviScore,
@@ -173,6 +196,7 @@ class ClimateSatelliteProvider with ChangeNotifier {
     _isLoadingSatellite = true;
     _satelliteError = null;
     notifyListeners();
+    String? quotaFallbackReason;
     try {
       String? polyId = _agroMonitoringPolyId ?? farm.agroMonitoringPolyId;
       // Check for an orphaned polygon from a prior registration that
@@ -180,6 +204,15 @@ class ClimateSatelliteProvider with ChangeNotifier {
       // registering a brand new one — avoids burning the shared
       // AgroMonitoring quota on retries. See findAgroPolygonByName.
       polyId ??= await _climateService.findAgroPolygonByName(farm.farmName);
+      if (polyId == null && _isAgroQuotaCoolingDown) {
+        developer.log(
+          'AgroMonitoring quota hit recently — skipping registration for '
+          '"${farm.farmName}" and using Sentinel Hub.',
+          name: 'ClimateSatelliteProvider',
+        );
+        throw const ServiceUnavailableException(_agroQuotaMessage,
+            isQuotaExceeded: true);
+      }
       polyId ??= await _climateService.registerAgroPolygon(
         farmName: farm.farmName,
         coordinates:
@@ -217,13 +250,43 @@ class ClimateSatelliteProvider with ChangeNotifier {
           fetchedAt: DateTime.now(),
         ),
       );
+      _fallbackNotice = null;
     } on ServiceUnavailableException catch (e) {
-      _satelliteError = e.userMessage;
+      if (e.isQuotaExceeded) {
+        // Don't extend the cooldown when this refusal came from the skip
+        // path itself, or the API would never be retried.
+        if (!_isAgroQuotaCoolingDown) _agroQuotaExhaustedAt = DateTime.now();
+        quotaFallbackReason = e.userMessage;
+      } else {
+        _satelliteError = e.userMessage;
+      }
     } catch (e) {
       _satelliteError = 'Something went wrong fetching satellite data.';
     } finally {
       _isLoadingSatellite = false;
       notifyListeners();
+    }
+    if (quotaFallbackReason != null) {
+      await _fallBackToSentinel(quotaFallbackReason);
+    }
+  }
+
+  static const String _agroQuotaMessage =
+      'AgroMonitoring has reached its plan limit for new farm boundaries.';
+
+  /// AgroMonitoring can't register this farm (plan quota), so switch the
+  /// tab to Sentinel Hub — which needs no registration — instead of leaving
+  /// the user on an error. The AgroMonitoring error is kept so toggling
+  /// back explains why that source is empty.
+  Future<void> _fallBackToSentinel(String reason) async {
+    _satelliteError = reason;
+    _fallbackNotice = 'AgroMonitoring has reached its plan limit for new '
+        'farm boundaries, so this farm is showing Sentinel Hub satellite '
+        'data instead. These readings are not added to the NDVI history.';
+    _selectedSource = SatelliteSource.sentinelHub;
+    notifyListeners();
+    if (_satelliteSentinel == null && !_isLoadingSatelliteSentinel) {
+      await refreshSatelliteSentinel();
     }
   }
 

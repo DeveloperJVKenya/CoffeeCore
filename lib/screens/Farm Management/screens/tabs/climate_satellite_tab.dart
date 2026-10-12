@@ -70,6 +70,11 @@ class _ClimateSatelliteTabState extends State<ClimateSatelliteTab> {
             const SizedBox(height: FarmTheme.spaceMd),
             _satelliteSourceToggle(provider),
             const SizedBox(height: FarmTheme.spaceSm),
+            if (provider.fallbackNotice != null &&
+                provider.selectedSource == SatelliteSource.sentinelHub) ...[
+              _fallbackBanner(provider.fallbackNotice!),
+              const SizedBox(height: FarmTheme.spaceSm),
+            ],
             LoadingErrorView(
               isLoading: provider.isLoadingActiveSatellite,
               errorMessage: provider.activeSatelliteError,
@@ -97,7 +102,7 @@ class _ClimateSatelliteTabState extends State<ClimateSatelliteTab> {
                       const TextStyle(color: Colors.redAccent, fontSize: 12)),
             ],
             const SizedBox(height: FarmTheme.spaceMd),
-            if (provider.satellite == null)
+            if (provider.droughtRisk == null)
               Container(
                 padding: const EdgeInsets.all(FarmTheme.spaceMd),
                 decoration: FarmTheme.cardDecoration(),
@@ -110,7 +115,7 @@ class _ClimateSatelliteTabState extends State<ClimateSatelliteTab> {
               DroughtRiskCard(
                 result: provider.droughtRisk!,
                 onRefresh: () {
-                  provider.refreshSatellite();
+                  provider.refreshActiveSatellite();
                   provider.refreshForecast();
                   provider.refreshClimate();
                 },
@@ -148,6 +153,30 @@ class _ClimateSatelliteTabState extends State<ClimateSatelliteTab> {
           provider.refreshActiveSatellite();
         }
       },
+    );
+  }
+
+  Widget _fallbackBanner(String message) {
+    return Container(
+      padding: const EdgeInsets.all(FarmTheme.spaceSm),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 18, color: Colors.blue.shade700),
+          const SizedBox(width: FarmTheme.spaceSm),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

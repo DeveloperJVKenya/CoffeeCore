@@ -11,8 +11,13 @@ class ServiceUnavailableException implements Exception {
   final String userMessage;
   final bool isNetworkError;
 
+  /// True when the provider refused because the account's plan quota is
+  /// exhausted (e.g. AgroMonitoring 413) — callers can fall back to another
+  /// source instead of just surfacing the error.
+  final bool isQuotaExceeded;
+
   const ServiceUnavailableException(this.userMessage,
-      {this.isNetworkError = false});
+      {this.isNetworkError = false, this.isQuotaExceeded = false});
 
   @override
   String toString() => userMessage;

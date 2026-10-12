@@ -4,9 +4,12 @@ import 'package:coffeecore/screens/Farm%20Management/farm_management_theme.dart'
 import 'package:coffeecore/screens/Farm%20Management/models/farm_polygon_model.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/farm_mapping_service.dart';
 import 'package:coffeecore/screens/Farm%20Management/services/service_exceptions.dart';
+import 'package:coffeecore/screens/Farm%20Management/utils/browser_env.dart';
 import 'package:coffeecore/screens/Farm%20Management/utils/geo_math.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
@@ -22,7 +25,8 @@ class FarmCaptureScreen extends StatefulWidget {
   State<FarmCaptureScreen> createState() => _FarmCaptureScreenState();
 }
 
-class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
+class _FarmCaptureScreenState extends State<FarmCaptureScreen>
+    with WidgetsBindingObserver {
   static final Logger _logger = Logger(printer: PrettyPrinter());
   // Kept small so tightly-spaced corners on sub-hectare plots aren't
   // rejected as duplicates, while still filtering GPS noise from a single
@@ -35,6 +39,18 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
   static const double _maxJumpMeters = 20000.0;
   static const int _minPointsForPolygon = 3;
   static const LatLng _defaultCenter = LatLng(-1.2921, 36.8219); // Nairobi
+
+  // Web-only timing. geolocator_web passes `timeLimit` to the browser in
+  // microseconds instead of milliseconds (so it never fires), hence Dart
+  // timeouts instead of LocationSettings.timeLimit on the web paths.
+  static const Duration _webFixTimeout = Duration(seconds: 15);
+  static const Duration _webPointTimeout = Duration(seconds: 12);
+  // A stream reading this recent is an acceptable stand-in for a fresh fix
+  // when iOS is slow to answer a one-shot high-accuracy request.
+  static const Duration _maxStreamFixAge = Duration(seconds: 15);
+  // Beyond this the reading is a coarse network/"approximate" location —
+  // typically iOS with Precise Location switched off for the browser.
+  static const double _coarseAccuracyMeters = 500;
 
   final FarmMappingService _mappingService = FarmMappingService();
   final TextEditingController _farmNameCtrl = TextEditingController();
@@ -54,23 +70,50 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
   bool _isCheckingPermission = true;
   String? _permissionError;
 
+  /// Web: browser-specific steps shown under [_permissionError].
+  List<String> _helpSteps = const <String>[];
+
+  /// Web on iOS: waiting for the user to tap "Enable Location". Safari only
+  /// reliably shows its permission prompt in response to a tap.
+  bool _needsUserTap = false;
+
+  /// Web: the page is inside an app's built-in browser that blocks location.
+  bool _isInAppBrowser = false;
+  bool _coarseAccuracyWarned = false;
+
   double _areaHectares = 0;
   double _perimeterMeters = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkLocationPermissions();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _positionStreamSub?.cancel();
     _farmNameCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _checkLocationPermissions() async {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // iOS Safari silently stops watchPosition when the tab is backgrounded
+    // or the screen locks — common mid-walk around a farm. Restart it.
+    if (kIsWeb && state == AppLifecycleState.resumed && _isPermissionGranted) {
+      _logger.i('Page resumed — restarting position stream.');
+      _startPositionStream();
+    }
+  }
+
+  Future<void> _checkLocationPermissions({bool userInitiated = false}) async {
+    if (kIsWeb) {
+      await _checkWebLocation(userInitiated: userInitiated);
+      return;
+    }
     setState(() {
       _isCheckingPermission = true;
       _permissionError = null;
@@ -123,18 +166,214 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
     _startPositionStream();
   }
 
+  // ── Web location (Safari/iOS-safe) ───────────────────────────
+  //
+  // geolocator's web plugin is unreliable on iOS: isLocationServiceEnabled
+  // is hard-coded true, and requestPermission turns *any* failed first fix
+  // (iOS often answers "position unavailable" or times out while the GPS
+  // warms up) into "denied forever" — so iPhones with location on were
+  // shown a permanent-denial screen whose settings buttons do nothing on
+  // web. Here the permission is proven by actually obtaining a fix, and
+  // each failure type gets its own, browser-specific guidance.
+
+  Future<void> _checkWebLocation({required bool userInitiated}) async {
+    setState(() {
+      _isCheckingPermission = true;
+      _permissionError = null;
+      _helpSteps = const <String>[];
+      _needsUserTap = false;
+      _isInAppBrowser = false;
+    });
+
+    if (!BrowserEnv.isSecureContext) {
+      _showWebLocationProblem(
+        'Location only works when the app is opened over a secure '
+        '(https://) link.',
+        const <String>['Open the app using its https:// address.'],
+      );
+      return;
+    }
+
+    final String? inAppBrowser = BrowserEnv.inAppBrowserName;
+    if (inAppBrowser != null) {
+      _logger.w('In-app browser detected ($inAppBrowser) — location blocked.');
+      _isInAppBrowser = true;
+      _showWebLocationProblem(
+        "$inAppBrowser's built-in browser does not allow location access.",
+        <String>[
+          'Tap the ••• or share menu and choose "Open in '
+              '${BrowserEnv.isIOS ? 'Safari' : 'browser'}".',
+          'Or tap "Copy Link" below and paste it into '
+              '${BrowserEnv.isIOS ? 'Safari' : 'Chrome'}.',
+        ],
+      );
+      return;
+    }
+
+    LocationPermission permission;
+    try {
+      permission = await Geolocator.checkPermission();
+    } catch (e) {
+      // Older Safari has no Permissions API for geolocation.
+      _logger.w('Browser permission query failed: $e');
+      permission = LocationPermission.unableToDetermine;
+    }
+    _logger.i('Web location permission state: $permission '
+        '(iOS: ${BrowserEnv.isIOS}, userInitiated: $userInitiated)');
+
+    if (permission == LocationPermission.deniedForever) {
+      _showWebDenied();
+      return;
+    }
+
+    final bool alreadyGranted = permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
+    if (!alreadyGranted && BrowserEnv.isIOS && !userInitiated) {
+      if (!mounted) return;
+      setState(() {
+        _isCheckingPermission = false;
+        _needsUserTap = true;
+      });
+      return;
+    }
+
+    try {
+      // Requesting a real fix both triggers the browser prompt and proves
+      // location actually works — a "granted" state alone doesn't.
+      final Position first = await _getWebFix();
+      if (!mounted) return;
+      _logger.i('First web fix: (${first.latitude}, ${first.longitude}) '
+          '±${first.accuracy.toStringAsFixed(0)}m');
+      setState(() {
+        _currentPosition = first;
+        _isPermissionGranted = true;
+        _locationServicesEnabled = true;
+        _isCheckingPermission = false;
+      });
+      _mapController?.animateCamera(CameraUpdate.newLatLngZoom(
+          LatLng(first.latitude, first.longitude), 17));
+      _warnIfCoarse(first);
+      _startPositionStream();
+    } on PermissionDeniedException catch (e) {
+      _logger.w('Browser denied location: $e');
+      _showWebDenied();
+    } catch (e, st) {
+      _logger.e('Could not get a web location fix', error: e, stackTrace: st);
+      _showWebLocationProblem(
+        "Your device hasn't provided a location yet.",
+        BrowserEnv.isIOS
+            ? const <String>[
+                'Check Settings › Privacy & Security › Location Services is '
+                    'On.',
+                'Step outside or near a window for a clearer GPS signal.',
+                'Then tap Try Again.',
+              ]
+            : const <String>[
+                "Make sure your device's location is turned on.",
+                'Step outside or near a window for a clearer GPS signal.',
+                'Then tap Try Again.',
+              ],
+      );
+    }
+  }
+
+  /// High-accuracy fix first; if that times out or the GPS isn't ready
+  /// (frequent on iOS), fall back to a quicker network-based reading so the
+  /// user can start — the stream refines accuracy afterwards.
+  Future<Position> _getWebFix() async {
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: WebSettings(accuracy: LocationAccuracy.high),
+      ).timeout(_webFixTimeout);
+    } on PermissionDeniedException {
+      rethrow;
+    } catch (e) {
+      _logger.w('High-accuracy web fix failed ($e) — retrying with a '
+          'lower-accuracy reading.');
+      return Geolocator.getCurrentPosition(
+        locationSettings: WebSettings(
+          accuracy: LocationAccuracy.low,
+          maximumAge: const Duration(minutes: 5),
+        ),
+      ).timeout(_webFixTimeout);
+    }
+  }
+
+  void _showWebDenied() {
+    _showWebLocationProblem(
+      'Location access is blocked for this site.',
+      BrowserEnv.isIOS
+          ? const <String>[
+              'Open Settings › Privacy & Security › Location Services and '
+                  'make sure it is On.',
+              'In that list, open Safari Websites (or Chrome) and choose '
+                  '"While Using the App" or "Ask Next Time", with Precise '
+                  'Location turned On.',
+              'Back in Safari, tap "aA" in the address bar › Website '
+                  'Settings › Location › Allow.',
+              'Reload this page, then tap Try Again.',
+            ]
+          : const <String>[
+              'Tap the lock or settings icon next to the address bar.',
+              'Set Location to Allow.',
+              'Reload this page, then tap Try Again.',
+            ],
+    );
+  }
+
+  void _showWebLocationProblem(String message, List<String> steps) {
+    if (!mounted) return;
+    setState(() {
+      _isPermissionGranted = false;
+      _isCheckingPermission = false;
+      _needsUserTap = false;
+      _permissionError = message;
+      _helpSteps = steps;
+    });
+  }
+
+  /// iOS "Precise Location: Off" (or a weak signal) yields readings that are
+  /// kilometres off — useless for a boundary, so tell the user once.
+  void _warnIfCoarse(Position position) {
+    if (_coarseAccuracyWarned ||
+        position.accuracy <= _coarseAccuracyMeters ||
+        !mounted) {
+      return;
+    }
+    _coarseAccuracyWarned = true;
+    final String accuracy = position.accuracy >= 1000
+        ? '${(position.accuracy / 1000).toStringAsFixed(1)} km'
+        : '${position.accuracy.toStringAsFixed(0)} m';
+    final String fix = BrowserEnv.isIOS
+        ? 'Turn on Precise Location: Settings › Privacy & Security › '
+            'Location Services › Safari Websites › Precise Location.'
+        : 'Wait for a stronger GPS signal, ideally outdoors.';
+    _logger.w('Coarse location (±$accuracy) — likely approximate mode.');
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      duration: const Duration(seconds: 10),
+      content: Text('Your location is only approximate (±$accuracy). $fix'),
+    ));
+  }
+
   void _startPositionStream() {
     _positionStreamSub?.cancel();
-    const LocationSettings settings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 1,
-    );
+    final LocationSettings settings = kIsWeb
+        ? WebSettings(accuracy: LocationAccuracy.high, distanceFilter: 1)
+        : const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 1,
+          );
     _positionStreamSub = Geolocator.getPositionStream(
       locationSettings: settings,
     ).listen(
       _onPositionUpdate,
       onError: (Object e, StackTrace st) {
         _logger.e('Position stream error', error: e, stackTrace: st);
+        // Revoked mid-session (e.g. user changed Safari settings).
+        if (kIsWeb && e is PermissionDeniedException) {
+          _positionStreamSub?.cancel();
+          _showWebDenied();
+        }
       },
     );
   }
@@ -143,6 +382,7 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
     if (!mounted) return;
     final bool firstFix = _currentPosition == null;
     setState(() => _currentPosition = position);
+    _warnIfCoarse(position);
     if (firstFix) {
       _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(
@@ -227,12 +467,7 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
     if (_isFetchingPosition || _isAddingPoint) return;
     setState(() => _isFetchingPosition = true);
     try {
-      final Position fresh = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 10),
-        ),
-      );
+      final Position fresh = await _freshFixForPoint();
       _logger.i('Fresh GPS fix: (${fresh.latitude}, ${fresh.longitude}), '
           '±${fresh.accuracy.toStringAsFixed(1)}m accuracy.');
       if (!mounted) return;
@@ -262,6 +497,34 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
       );
     } finally {
       if (mounted) setState(() => _isFetchingPosition = false);
+    }
+  }
+
+  Future<Position> _freshFixForPoint() async {
+    if (!kIsWeb) {
+      return Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+    }
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: WebSettings(accuracy: LocationAccuracy.high),
+      ).timeout(_webPointTimeout);
+    } on PermissionDeniedException {
+      rethrow;
+    } catch (e) {
+      // iOS can be slow to answer a one-shot request while watchPosition is
+      // already delivering readings — use the stream's if it's recent.
+      final Position? streamed = _currentPosition;
+      if (streamed != null &&
+          DateTime.now().difference(streamed.timestamp) < _maxStreamFixAge) {
+        _logger.w('One-shot fix failed ($e) — using recent stream reading.');
+        return streamed;
+      }
+      rethrow;
     }
   }
 
@@ -392,17 +655,71 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
         backgroundColor: FarmTheme.primaryBrown,
         foregroundColor: Colors.white,
       ),
-      body: _isCheckingPermission
-          ? const Center(child: CircularProgressIndicator())
-          : (!_isPermissionGranted || !_locationServicesEnabled)
-              ? _buildPermissionError()
-              : _buildMapCapture(),
+      body: _buildBody(),
     );
+  }
+
+  Widget _buildBody() {
+    if (_isCheckingPermission) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_needsUserTap) return _buildEnableLocationPrompt();
+    if (!_isPermissionGranted || !_locationServicesEnabled) {
+      return _buildPermissionError();
+    }
+    return _buildMapCapture();
+  }
+
+  /// iOS web: Safari reliably shows its location prompt only in response to
+  /// a tap, so ask for one explicitly instead of on page load.
+  Widget _buildEnableLocationPrompt() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(FarmTheme.spaceLg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(Icons.my_location,
+                size: 64, color: FarmTheme.secondaryGreen),
+            const SizedBox(height: FarmTheme.spaceMd),
+            const Text(
+              'Allow location to map your farm',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: FarmTheme.spaceSm),
+            const Text(
+              'Your browser will ask for permission — tap "Allow".',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+            const SizedBox(height: FarmTheme.spaceLg),
+            ElevatedButton.icon(
+              onPressed: () => _checkLocationPermissions(userInitiated: true),
+              icon: const Icon(Icons.location_on),
+              label: const Text('Enable Location'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: FarmTheme.secondaryGreen,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _copyPageLink() async {
+    await Clipboard.setData(ClipboardData(text: BrowserEnv.currentUrl));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Link copied — paste it into Safari or Chrome.'),
+    ));
   }
 
   Widget _buildPermissionError() {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(FarmTheme.spaceLg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -415,15 +732,40 @@ class _FarmCaptureScreenState extends State<FarmCaptureScreen> {
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 16),
             ),
+            if (_helpSteps.isNotEmpty) ...<Widget>[
+              const SizedBox(height: FarmTheme.spaceMd),
+              for (int i = 0; i < _helpSteps.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('${i + 1}. ',
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      Expanded(child: Text(_helpSteps[i])),
+                    ],
+                  ),
+                ),
+            ],
             const SizedBox(height: FarmTheme.spaceLg),
             ElevatedButton(
-              onPressed: _checkLocationPermissions,
+              onPressed: () => _checkLocationPermissions(userInitiated: true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: FarmTheme.secondaryGreen,
               ),
               child: const Text('Try Again'),
             ),
-            if (!_locationServicesEnabled) ...<Widget>[
+            if (kIsWeb) ...<Widget>[
+              // Browsers can't open device settings; the steps above cover it.
+              if (_isInAppBrowser) ...<Widget>[
+                const SizedBox(height: FarmTheme.spaceSm),
+                TextButton.icon(
+                  onPressed: _copyPageLink,
+                  icon: const Icon(Icons.copy),
+                  label: const Text('Copy Link'),
+                ),
+              ],
+            ] else if (!_locationServicesEnabled) ...<Widget>[
               const SizedBox(height: FarmTheme.spaceSm),
               TextButton(
                 onPressed: () => Geolocator.openLocationSettings(),

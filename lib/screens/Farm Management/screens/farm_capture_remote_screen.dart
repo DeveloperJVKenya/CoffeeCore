@@ -91,7 +91,9 @@ class _FarmCaptureRemoteScreenState extends State<FarmCaptureRemoteScreen> {
   /// are silently ignored and the map just opens at the default center.
   Future<void> _centerOnLastKnownLocation() async {
     try {
-      final Position? last = await Geolocator.getLastKnownPosition();
+      final Position? last = kIsWeb
+          ? await _webPositionIfAlreadyPermitted()
+          : await Geolocator.getLastKnownPosition();
       if (last != null && mounted) {
         setState(() {
           _initialCameraTarget = LatLng(last.latitude, last.longitude);
@@ -102,6 +104,23 @@ class _FarmCaptureRemoteScreenState extends State<FarmCaptureRemoteScreen> {
     } finally {
       if (mounted) setState(() => _isLocatingInitialView = false);
     }
+  }
+
+  /// Web has no last-known-position API. Uses a quick low-accuracy fix only
+  /// when the browser has already granted location, so this screen never
+  /// triggers a permission prompt (remote mapping doesn't need location).
+  Future<Position?> _webPositionIfAlreadyPermitted() async {
+    final LocationPermission permission = await Geolocator.checkPermission();
+    if (permission != LocationPermission.always &&
+        permission != LocationPermission.whileInUse) {
+      return null;
+    }
+    return Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.low,
+        timeLimit: Duration(seconds: 5),
+      ),
+    );
   }
 
   // ── Boundary point editing ──────────────────────────────────────
